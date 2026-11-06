@@ -4,8 +4,9 @@ import Questions from './Questions';
 import { blankFact, factKinds, factStatuses, factValue, kindLabels, subjectLabel } from './model';
 import type { FactKind, PlanningFact, PlanningSummary } from './model';
 
-function FactCard({ fact, summary, onApply, onRemove }: {
+function FactCard({ fact, summary, sourceKind, onApply, onRemove }: {
   fact: PlanningFact; summary: PlanningSummary;
+  sourceKind: 'sample' | 'manual' | 'ai';
   onApply: (fact: PlanningFact) => void; onRemove: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -17,9 +18,13 @@ function FactCard({ fact, summary, onApply, onRemove }: {
       <span className={`fact-status status-${fact.status}`}>{fact.status}</span>
     </div>
     <p className="fact-value">{factValue(fact)}</p>
+    {fact.extraction && <p className="note"><strong>{fact.extraction.reviewed ? 'Reviewed by you' : 'AI claim — unreviewed'}</strong> · {fact.extraction.scope} · AI-reported status: {fact.extraction.reportedStatus}. AI uncertainty: {fact.extraction.uncertainty}{fact.extraction.supersedes.length > 0 && ` Replaces earlier claims: ${fact.extraction.supersedes.map((id) => {
+      const previous = summary.facts.find((item) => item.id === id);
+      return previous ? factValue(previous) : 'Earlier removed claim';
+    }).join('; ')}.`}</p>}
     <p className="note">{fact.strength === 'unknown' ? 'Firmness unknown' : fact.strength === 'firm' ? 'Firm constraint' : 'Flexible preference'}</p>
-    {fact.sourceIds.length > 0 ? <details className="supporting-text"><summary>Supporting sample text</summary>
-      <p className="note">Original sample quotes stay unchanged when you correct a fact. They may not support your edits.</p>
+    {fact.sourceIds.length > 0 ? <details className="supporting-text"><summary>{sourceKind === 'sample' ? 'Supporting sample text' : 'Supporting submitted text'}</summary>
+      <p className="note">Original quotes stay unchanged when you correct a fact. They may not support your edits.</p>
       {fact.sourceIds.map((id) => {
         const source = summary.sources.find((item) => item.id === id);
         return source ? <blockquote key={id}>{source.text}</blockquote> : null;
@@ -35,8 +40,9 @@ function FactCard({ fact, summary, onApply, onRemove }: {
   </article>;
 }
 
-export default function SummaryReview({ summary, onChange }: {
+export default function SummaryReview({ summary, sourceKind = 'sample', onChange }: {
   summary: PlanningSummary; onChange: (summary: PlanningSummary) => void;
+  sourceKind?: 'sample' | 'manual' | 'ai';
 }) {
   const [newKind, setNewKind] = useState<FactKind>('schedule');
   const [newFact, setNewFact] = useState<PlanningFact | null>(null);
@@ -68,7 +74,7 @@ export default function SummaryReview({ summary, onChange }: {
       <p className="note">Status is separate from firmness. Confirmed facts do not establish a booking or everyone’s attendance.</p>
       <ul className="status-overview" aria-label="Fact statuses">{factStatuses.map((status) => <li key={status}>{status}: {summary.facts.filter((fact) => fact.status === status).length}</li>)}</ul>
       {summary.facts.length === 0 && <p>No facts yet. Add information manually below.</p>}
-      {summary.facts.map((fact) => <FactCard key={fact.id} fact={fact} summary={summary} onApply={(next) => onChange({
+      {summary.facts.map((fact) => <FactCard key={fact.id} fact={fact} summary={summary} sourceKind={sourceKind} onApply={(next) => onChange({
         ...summary, facts: summary.facts.map((item) => item.id === next.id ? next : item),
       })} onRemove={() => onChange({
         ...summary, facts: summary.facts.filter((item) => item.id !== fact.id),

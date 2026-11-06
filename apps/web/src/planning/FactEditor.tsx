@@ -35,7 +35,10 @@ export default function FactEditor({ fact, summary, onApply, onCancel }: {
   return <form className="fact-form" noValidate onSubmit={(event) => {
     event.preventDefault();
     const result = applyFields(metadata, fields);
-    if (result.ok) onApply(result.fact);
+    if (result.ok) {
+      if (result.fact.extraction) result.fact.extraction = { ...result.fact.extraction, reviewed: true };
+      onApply(result.fact);
+    }
     else setError(result.error);
   }}>
     <p className="note">Blank values mean unknown. Apply changes to update this fact.</p>
@@ -58,6 +61,12 @@ export default function FactEditor({ fact, summary, onApply, onCancel }: {
           if (strength) setMetadata({ ...metadata, strength });
         }}>{strengths.map((strength) => <option key={strength} value={strength}>{strength === 'unknown' ? 'Firmness unknown' : strength}</option>)}</select>
       </label>
+      {metadata.extraction && <label className="field"><span>Current or historical scope</span>
+        <select value={metadata.extraction.scope} onChange={(event) => {
+          const scope = event.target.value;
+          if (metadata.extraction && (scope === 'current' || scope === 'historical' || scope === 'unknown')) setMetadata({ ...metadata, extraction: { ...metadata.extraction, scope } });
+        }}><option value="current">Current</option><option value="historical">Historical / superseded</option><option value="unknown">Unknown</option></select>
+      </label>}
       {'description' in fact && <Field label={fact.kind === 'schedule' ? 'Date / availability description' : 'Description'} {...field('description')} />}
       {fact.kind === 'schedule' && <>
         <Field label="Exact date (optional)" type="date" {...field('exactDate')} />

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "workspaces": [
+    "packages/planning",
     "apps/web",
     "apps/api"
   ],
@@ -13,12 +14,15 @@
   },
   "packageManager": "npm@11.16.0",
   "scripts": {
-    "dev": "concurrently --kill-others --names web,api \"npm run dev:web\" \"npm run dev:api\"",
-    "dev:web": "npm run dev --workspace @fuzl/web",
-    "dev:api": "npm run dev --workspace @fuzl/api",
-    "typecheck": "npm run typecheck --workspaces",
+    "prepare": "npm run build --workspace @fuzl/planning",
+    "predev": "npm run build --workspace @fuzl/planning",
+    "dev": "concurrently --kill-others --names web,api \"npm run dev --workspace @fuzl/web\" \"npm run dev --workspace @fuzl/api\"",
+    "dev:web": "npm run build --workspace @fuzl/planning && npm run dev --workspace @fuzl/web",
+    "dev:api": "npm run build --workspace @fuzl/planning && npm run dev --workspace @fuzl/api",
+    "typecheck": "npm run build --workspace @fuzl/planning && npm run typecheck --workspaces",
     "lint": "eslint . --max-warnings 0",
-    "test": "tsx --tsconfig apps/web/tsconfig.json --test apps/web/src/lib/api.test.ts apps/web/src/planning/*.test.ts apps/web/src/planning/*.test.tsx",
+    "test": "npm run build --workspace @fuzl/planning && tsx --tsconfig apps/web/tsconfig.json --test apps/web/src/lib/*.test.ts apps/web/src/planning/*.test.ts apps/web/src/planning/*.test.tsx apps/api/src/extraction/*.test.ts",
+    "eval:live": "npm run build --workspace @fuzl/planning && npm run eval:live --workspace @fuzl/api --",
     "build": "npm run build --workspaces",
     "start:api": "npm run start --workspace @fuzl/api"
   },

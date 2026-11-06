@@ -41,7 +41,7 @@ export default function Questions({ summary, onChange }: { summary: PlanningSumm
   const [newQuestion, setNewQuestion] = useState<OpenQuestion | null>(null);
   return <section className="review-section" aria-labelledby="questions-title">
     <h3 id="questions-title">Missing answers & conflicts</h3>
-    <p className="note">These are manually recorded. Edits do not automatically detect or resolve conflicts.</p>
+    <p className="note">Review these questions and conflicts. Edits do not automatically detect or resolve conflicts.</p>
     {summary.questions.length === 0 && <p>No questions recorded. This does not establish that the plan is complete.</p>}
     {summary.questions.map((question) => <article className="question-card" key={question.id}>
       <span className="fact-status">{question.resolution === null ? 'Open' : 'Resolved manually'} · {question.kind === 'conflict' ? 'Conflict' : 'Missing answer'}</span>

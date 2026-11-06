@@ -1,6 +1,44 @@
 # Fuzl progress
 
-Updated November 6, 2026. Active authorization: **Section 2 only**, following Jace’s explicit advancement of the Foundation boundary. Sections 3–12 remain future context. The supplied specification is preserved unchanged.
+Updated November 6, 2026. Active authorization: **Section 3 only**. Sections 4–12 remain future context. The supplied specification is preserved unchanged.
+
+## Section 3 — integration implemented, live acceptance blocked
+
+- Initial working tree was clean. Existing focused Section 2 commit `f22e040` is the checkpoint; no duplicate/empty commit or global identity changes. No push/deployment in this milestone.
+- Section 2's 21 offline checks passed again before integration. Browser runtime again reported no available browser (`[]` discovery); relevant browser checks remain unverified. No blocking Section 2 defect was found. Summary replacement/removal now requires confirmation, protecting applied and unapplied edits.
+- OpenAI Responses with pinned GPT-5.4 mini, strict structured output, backend-only credentials, optional backend `.env`, explicit enabling, `store: false`, no tools, no retries. Provider selection/configuration/data-handling limitations are documented in README and [AI_INTEGRATION.md](AI_INTEGRATION.md), using current official sources.
+- Shared planning workspace retains the previous model/editor and adds a validated request/response contract plus optional AI provenance. New dependencies are OpenAI's server SDK and shared Zod validation. Installation/dev/build prepare the shared package.
+- Explicit Analyze disclosure/action, optional conversation reference date, staged results, cancellation, draft/reference mismatch protection, and confirmation before replacing existing work. Samples/manual fallback/health remain available. AI claims stay unreviewed; reported confirmation is demoted to proposed until manual review.
+- Server checks schema, exact source substrings, identities/references, numeric evidence, date/time fields, and scope/supersession references. Unsupported date/time boundaries become unknown with warnings. Quoted evidence does not establish semantic truth; human correction remains essential.
+- Limits: 6000 characters/32 KB body, one request at a time, three attempts/minute, ten attempts/API process, 6000 output tokens, 45-second server/55-second client timeout. Provider failures/cancellations count. No durable dollar-budget claim; enabling requires reviewing development spend. No raw-conversation/credential logging or persistence.
+
+## Section 3 checks actually run
+
+| Check | Result |
+| --- | --- |
+| `npm ci` | Passed from root lockfile; prepare builds shared package |
+| `npm run typecheck` | Passed for shared, web/tooling, and API |
+| `npm run lint` | Passed, zero warnings |
+| `npm test` | 43 passed, zero failed (includes parent/subtests); no paid calls |
+| Six synthetic offline evaluation cases | 6/6 hand-authored candidates pass deterministic checks: tentative/unknown, zero, correction, conflicting requirements, ambiguous Friday, embedded instructions; **not live model evaluation** |
+| SDK/HTTP tests | Strict request shape/privacy settings, no credential in prompt, no tools/retries, 401/429/500/refusal sanitization, missing config, malformed output, request/reference/body limits, concurrency/rate/session limits, timeout, disconnect cancellation |
+| State/markup tests | Draft/reference mismatch detection, explicit body transmission, candidate provenance/disclosure, existing fixture/manual/unknown/attribution/validation tests; no claim of browser interaction coverage |
+| Early validation tests | Exposed sentence-final `0.` number-check edge; fixed number handling. Mock SDK response corrected to include the required response discriminator. Reruns passed |
+| `npm run build` | Passed: shared declarations/JS, Vite assets, API ESM |
+| `npm run start:api`; direct health and Analyze | Compiled entry starts; HTTP 200 exact health; HTTP 503 actionable missing-AI configuration error, no fixture fallback |
+| `npm run dev`; direct/proxied health/Analyze | Both servers start with shared preparation; health HTTP 200 on 3001 and 5173; proxied Analyze HTTP 503 as expected without credentials |
+| Ctrl+C on updated root dev; TCP probes on 3001/5173 | Both servers stop and both ports refuse connections; app restarted for local use afterward |
+| `npm run eval:live -- --confirm-paid-eval` | Exits 1 before requests: missing key and AI disabled. Zero live-provider requests; latency/token usage/cost and extraction quality unmeasured |
+| `git diff --check`; source/file review; env ignore check | Passed; real `.env` ignored, example safe, generated builds/dependencies untracked |
+| `npm audit --omit=dev` | Zero runtime findings; existing 10 moderate lint-tool findings remain |
+
+Browser checks remain **unverified**: page interactions, actual confirmation dialogs/unsaved edits, loading/cancel/race/error flows, narrow-screen layout, keyboard/screen reader, and live browser request/storage observations. The combined precise manual checklists are in README and AI_INTEGRATION. Source/static rendering/HTTP checks do not substitute for a browser.
+
+Remaining blocker: configure `OPENAI_API_KEY` privately in `apps/api/.env`, review a small project budget, set `AI_ENABLED=true`, and restart. Then run the explicitly opted-in synthetic live evaluation and inspect real candidate facts in the editor. Do not paste a key into chat. Provider retention controls/account access were not verified; `store: false` is not zero retention. Section 3 changes remain local and uncommitted. Section 4 has not started.
+
+## Historical Section 2 record
+
+The following was recorded before the Section 3 instruction and is retained as verification history, not the active scope.
 
 ## Section 2 — implemented
 
@@ -35,7 +73,7 @@ Foundation’s outstanding browser checks remain pending, including sample/Clear
 - Local state only; loading another sample or starting a blank summary explicitly replaces edits. Unapplied form edits can be cancelled. No automatic extraction, conflict detection, or constraint feasibility checks.
 - Original quotes are retained and may no longer support edited facts. Question resolutions and fact edits are deliberately separate. Currency validation checks three-letter format, not conversion or a supported-currency catalog. Date/time windows are same-day; use multiple facts for overnight plans. Unknown participant names remain explicit.
 - Browser acceptance remains unverified. The existing development-tool audit findings recorded below were not changed by this milestone.
-- Section 2 implementation and available automated/HTTP checks are complete. Jace authorized committing and pushing this milestone. Section 3 has not started; no deployment.
+- Section 2 implementation and available automated/HTTP checks were completed and committed as `f22e040`. Its subsequent push was authorized in the previous turn; this historical action does not authorize pushing Section 3.
 
 ## Historical Foundation verification record
 
@@ -85,4 +123,4 @@ Drafts clear on reload. Health is a snapshot of reachability, with no automatic 
 
 Foundation implementation and available automated/HTTP checks are complete; manual browser acceptance remains pending. A focused local foundation commit records this work. No remote was created, pushed, published, or deployed.
 
-This historical Section 1 stopping boundary was advanced by Jace’s Section 2 instruction. The active stopping boundary is now **after Section 2**.
+This historical stopping boundary was advanced by Jace’s later instructions. The active boundary is now **after Section 3**.

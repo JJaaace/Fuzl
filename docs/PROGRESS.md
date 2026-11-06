@@ -2,6 +2,13 @@
 
 Updated November 6, 2026. Active authorization: **Section 4 only**. Sections 5–12 remain future context. The supplied specification is preserved unchanged.
 
+## Section 4 checkpoint before Section 5
+
+- Section 4 is already committed/pushed as a3dc405; the working tree was clean. Reran all 114 offline tests successfully and reused unchanged type/lint/build/health verification. No AI request made.
+- Jace reports manual screenshots showing previews/transcription, transcript-to-draft, editable AI summary, zero versus unknown budgets, tentative dates and unreviewed labels. These are user-reported observations, not independent verification of every browser interaction. Declining replacement, stale-result protection, keyboard and narrow layout remain unverified; browser discovery returns [].
+- Optional conversation reference date is already initialized to an empty string; no change needed and explicitly entered dates stay.
+- Exact private-key scan passed; existing .env ignored/untracked. This local documentation checkpoint records the reviewed Section 4 baseline before account/persistence changes. No push is authorized for Section 5.
+
 ## Section 4 implementation
 
 - Baseline: reviewed the specification/instructions, README, progress and Section 3 diff. Reused recent unchanged checks, reran the 93-test baseline and type check, and confirmed browser discovery returns `[]`. No interactive Analyze/accept/edit, replacement-dialog or mobile claim is made. Exact current private key matched zero project candidates; `.env` remains ignored/untracked. Created local Section 3 checkpoint **9e9383a — Fix Gemini attribution and add safe extraction diagnostics**. No push.

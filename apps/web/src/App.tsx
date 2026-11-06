@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { checkHealth } from './lib/api';
-
-const sample = `Alex: Anyone free this Friday evening?
-Sam: Maybe after 7. I can spend up to $20.
-Jordan: I'd like to try something new, but keep the drive under 20 minutes.
-Alex: Bowling could be fun. Nothing is booked yet.`;
+import { examples } from './planning/examples';
+import { loadExample, sourceChanged, startManualReview, updateDraft } from './planning/model';
+import type { ReviewState } from './planning/model';
+import SummaryReview from './planning/SummaryReview';
 
 type Connection =
   | { status: 'idle' | 'checking' | 'connected' }
   | { status: 'error'; message: string };
 
 export default function App() {
-  const [draft, setDraft] = useState('');
+  const [planning, setPlanning] = useState<ReviewState>({ draft: '', review: null });
+  const [exampleId, setExampleId] = useState('tentative');
+  const [reviewVersion, setReviewVersion] = useState(0);
   const [connection, setConnection] = useState<Connection>({ status: 'idle' });
   const pending = useRef<AbortController | null>(null);
 
@@ -41,25 +42,52 @@ export default function App() {
 
   return (
     <div className="page">
-      <header><span className="wordmark">Fuzl</span><span className="stage">Foundation preview</span></header>
+      <header><span className="wordmark">Fuzl</span><span className="stage">Summary preview</span></header>
       <main>
         <section className="intro" aria-labelledby="intro-title">
           <h1 id="intro-title">Turn your group chat<br className="desktop-break" /> into a plan.</h1>
-          <p>Foundation preview. AI planning is not connected yet. Your draft stays in this tab.</p>
+          <p>Review a sample summary or enter your own information. AI planning is not connected. Everything stays in this tab.</p>
         </section>
 
         <section className="draft-panel" aria-labelledby="draft-label">
           <div className="draft-heading">
             <label id="draft-label" htmlFor="draft">Conversation draft</label>
             <div className="actions">
-              <button onClick={() => setDraft(sample)}>Load sample</button>
-              <button className="quiet" onClick={() => setDraft('')}>Clear</button>
+              <button className="quiet" onClick={() => setPlanning((current) => updateDraft(current, ''))}>Clear</button>
             </div>
           </div>
-          <textarea id="draft" value={draft} onChange={(event) => setDraft(event.target.value)}
+          <textarea id="draft" value={planning.draft} onChange={(event) => setPlanning((current) => updateDraft(current, event.target.value))}
             aria-describedby="draft-note" placeholder="Type a synthetic conversation here, or load the sample to try editing." />
           <p id="draft-note" className="note">Temporary draft · Not sent or saved · Cleared when you reload</p>
+          <div className="sample-loader">
+            <label className="field"><span>Sample example</span><select value={exampleId} onChange={(event) => setExampleId(event.target.value)}>
+              {examples.map((example) => <option key={example.id} value={example.id}>{example.title}</option>)}
+            </select></label>
+            <button onClick={() => {
+              const example = examples.find((item) => item.id === exampleId);
+              if (example) { setPlanning(loadExample(example)); setReviewVersion((current) => current + 1); }
+            }}>Load sample</button>
+          </div>
+          <p className="note">Samples include a synthetic conversation and a manually authored summary, not AI analysis. Loading replaces your draft and summary edits.</p>
+          <button className="manual-start" onClick={() => {
+            setPlanning(startManualReview);
+            setReviewVersion((current) => current + 1);
+          }}>Start blank summary</button>
+          <p className="note">Replaces summary edits and keeps your draft. Pasted text is never analyzed automatically.</p>
         </section>
+
+        {planning.review && <section className="summary-panel" aria-labelledby="summary-title" key={reviewVersion}>
+          <div className="draft-heading">
+            <h2 id="summary-title">Editable planning summary</h2>
+            <button className="quiet" onClick={() => setPlanning((current) => ({ ...current, review: null }))}>Remove summary</button>
+          </div>
+          <p className="sample-label">{planning.review.origin === 'sample' ? 'Manually authored sample data' : 'Entered manually'} · {planning.review.title}</p>
+          {planning.review.origin === 'sample' && <p className="note">{examples.find((example) => example.title === planning.review?.title)?.description} Your corrections are manual edits, not AI output.</p>}
+          <div role="status" aria-live="polite">{sourceChanged(planning) && <p className="source-warning">Source draft changed. This summary may no longer match. Review it manually; no analysis has run.{planning.review.origin === 'sample' && ' Supporting quotes still show the original sample.'}</p>}</div>
+          <p className="note">Names update immediately. Fact and question edits take effect when you apply them. All data clears on reload.</p>
+          <SummaryReview summary={planning.review.summary} onChange={(summary) => setPlanning((current) => current.review
+            ? { ...current, review: { ...current.review, summary } } : current)} />
+        </section>}
 
         <section className="connection-panel" aria-labelledby="connection-title">
           <div>

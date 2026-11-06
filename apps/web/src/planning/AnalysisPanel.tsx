@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MAX_CONVERSATION_LENGTH } from '@fuzl/planning';
-import type { AnalysisRequest, AnalysisResponse } from '@fuzl/planning';
-import { analyzeConversation, sameAnalysisSource } from '../lib/analysis';
+import type { AIConfiguration, AnalysisRequest, AnalysisResponse } from '@fuzl/planning';
+import { analyzeConversation, fetchAIConfiguration, sameAnalysisSource } from '../lib/analysis';
 import { Field } from './FactEditor';
 
 export default function AnalysisPanel({ draft, onAccept }: {
@@ -12,16 +12,29 @@ export default function AnalysisPanel({ draft, onAccept }: {
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'cancelled'>('idle');
   const [error, setError] = useState('');
+  const [configuration, setConfiguration] = useState<AIConfiguration | null>(null);
+  const [configurationError, setConfigurationError] = useState('');
+  const [configurationLoading, setConfigurationLoading] = useState(true);
+  const [configurationVersion, setConfigurationVersion] = useState(0);
   const pending = useRef<AbortController | null>(null);
   useEffect(() => () => pending.current?.abort(), []);
-  const mismatch = submitted !== null && !sameAnalysisSource(submitted, draft, referenceDate || null);
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetchAIConfiguration(controller.signal).then((value) => {
+      if (!controller.signal.aborted) setConfiguration(value);
+    }).catch(() => {
+      if (!controller.signal.aborted) setConfigurationError('Could not read the selected provider. Check the API and AI_PROVIDER configuration, then retry.');
+    }).finally(() => { if (!controller.signal.aborted) setConfigurationLoading(false); });
+    return () => controller.abort();
+  }, [configurationVersion]);
+  const mismatch = submitted !== null && !sameAnalysisSource(submitted, draft, referenceDate || null, configuration?.provider);
   const tooLong = draft.length > MAX_CONVERSATION_LENGTH;
 
   async function analyze() {
-    if (pending.current) return;
+    if (pending.current || !configuration) return;
     const controller = new AbortController();
     pending.current = controller;
-    const request = { conversation: draft, referenceDate: referenceDate || null };
+    const request = { conversation: draft, referenceDate: referenceDate || null, expectedProvider: configuration.provider };
     setSubmitted(request); setResult(null); setError(''); setStatus('loading');
     try {
       const response = await analyzeConversation(request, controller.signal);
@@ -38,13 +51,20 @@ export default function AnalysisPanel({ draft, onAccept }: {
 
   return <section className="analysis-panel" aria-labelledby="analysis-title">
     <h2 id="analysis-title">Understand this conversation</h2>
-    <p id="analysis-disclosure">Analyze conversation sends this draft and the optional reference date to OpenAI for AI processing. Fuzl does not save them. OpenAI may retain content for abuse monitoring. Share only text you intend to send.</p>
+    <p id="analysis-disclosure">Analyze conversation sends this draft and the optional reference date to {configuration?.provider === 'gemini' ? 'Google Gemini' : configuration?.provider === 'openai' ? 'OpenAI' : 'the backend-selected provider (OpenAI or Google Gemini)'} for AI processing. Fuzl does not save them. {configuration?.provider === 'gemini' ? 'Use synthetic conversations only. Under unpaid-service terms, Google may use inputs and outputs to improve products and human reviewers may process them. Do not send personal, sensitive, or confidential information.' : 'Providers may retain content under their data policies. Share only text you intend to send.'}</p>
+    <div role="status" aria-live="polite">
+      {configurationLoading && <p>Checking the configured provider before enabling analysis…</p>}
+      {configuration && <p className="note">Selected provider: {configuration.provider === 'gemini' ? 'Google Gemini' : 'OpenAI'} · {configuration.model}. No automatic provider fallback.{configuration.provider === 'gemini' && ' Free Tier eligibility and quotas must be checked in your Google AI Studio project.'}</p>}
+      {configurationError && <><p className="validation-error">{configurationError}</p><button onClick={() => {
+        setConfiguration(null); setConfigurationError(''); setConfigurationLoading(true); setConfigurationVersion((value) => value + 1);
+      }}>Reload provider configuration</button></>}
+    </div>
     <form noValidate aria-describedby="analysis-disclosure" onSubmit={(event) => { event.preventDefault(); void analyze(); }}>
       <Field label="Date of the conversation (optional reference)" type="date" value={referenceDate} onChange={(event) => setReferenceDate(event.target.value)} />
       <p className="note">Use the date the messages were written, not automatically today. Ambiguous days still need your confirmation.</p>
       <p className={tooLong ? 'validation-error' : 'note'}>{draft.length} / {MAX_CONVERSATION_LENGTH} characters</p>
       <div className="actions">
-        <button type="submit" disabled={status === 'loading' || !draft.trim() || tooLong}>{status === 'loading' ? 'Analyzing…' : 'Analyze conversation'}</button>
+        <button type="submit" disabled={!configuration || configurationLoading || status === 'loading' || !draft.trim() || tooLong}>{status === 'loading' ? 'Analyzing…' : 'Analyze conversation'}</button>
         {status === 'loading' && <button type="button" onClick={() => {
           pending.current?.abort(); pending.current = null; setStatus('cancelled'); setResult(null);
         }}>Cancel analysis</button>}
@@ -61,10 +81,10 @@ export default function AnalysisPanel({ draft, onAccept }: {
       <ul>{result.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>
       <p>{result.summary.facts.length} candidate facts · {result.summary.questions.length} questions. Existing work is kept until you choose to replace it.</p>
       <button disabled={mismatch} onClick={() => {
-        if (!sameAnalysisSource(submitted, draft, referenceDate || null)) return;
+        if (!sameAnalysisSource(submitted, draft, referenceDate || null, configuration?.provider)) return;
         onAccept(result, submitted);
       }}>Use extracted summary</button>
-      <details><summary>Request details</summary><p className="note">{result.metrics.model} · {result.metrics.latencyMs} ms · Input tokens: {result.metrics.inputTokens ?? 'unavailable'} · Output tokens: {result.metrics.outputTokens ?? 'unavailable'} · Estimated USD: {result.metrics.estimatedCostUsd?.toFixed(5) ?? 'unavailable'} (not a billing record)</p></details>
+      <details><summary>Request details</summary><p className="note">{result.metrics.provider} · {result.metrics.model} · {result.metrics.latencyMs} ms · Input tokens: {result.metrics.inputTokens ?? 'unavailable'} · Output tokens: {result.metrics.outputTokens ?? 'unavailable'} · Estimated USD: {result.metrics.estimatedCostUsd?.toFixed(5) ?? 'unavailable; project billing tier not verified'} (not a billing record)</p></details>
     </div>}
   </section>;
 }

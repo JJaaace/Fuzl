@@ -4,6 +4,7 @@ import { analysisRequestSchema, analysisResponseSchema, PROVIDER_TIMEOUT_MS } fr
 import type { AnalysisRequest, AnalysisResponse } from '@fuzl/planning';
 import { ensureAIConfigured, extractConversation } from './extraction/provider.js';
 import { ExtractionError, invalidOutput } from './extraction/errors.js';
+import { getAIConfiguration } from './extraction/configuration.js';
 
 type Extractor = (request: AnalysisRequest, signal: AbortSignal) => Promise<AnalysisResponse>;
 export function createApp(options: { extract?: Extractor; checkConfiguration?: () => void; now?: () => number; timeoutMs?: number } = {}) {
@@ -19,6 +20,10 @@ export function createApp(options: { extract?: Extractor; checkConfiguration?: (
   app.get('/api/health', (_request, response) => {
     response.set('Cache-Control', 'no-store');
     response.json({ status: 'ok', service: 'fuzl-api' });
+  });
+  app.get('/api/ai-config', (_request, response) => {
+    response.set('Cache-Control', 'no-store');
+    response.json(getAIConfiguration()); // Public allowlist: provider/model only.
   });
 
   app.post('/api/analyze', (request, response, next) => {
@@ -37,6 +42,9 @@ export function createApp(options: { extract?: Extractor; checkConfiguration?: (
     let acquired = false;
     const disconnected = () => { if (!response.writableEnded) controller?.abort(); };
     try {
+      if (parsed.data.expectedProvider && parsed.data.expectedProvider !== getAIConfiguration().provider) {
+        throw new ExtractionError(409, 'provider_changed', 'The configured AI provider changed. Reload the page and read its disclosure before submitting again. No provider was called.');
+      }
       checkConfiguration();
       recentAttempts = recentAttempts.filter((time) => time > now() - 60_000);
       if (active) throw new ExtractionError(429, 'analysis_busy', 'An analysis is already running. Wait for it to finish before retrying.');

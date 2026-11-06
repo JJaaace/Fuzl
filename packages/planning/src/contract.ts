@@ -3,6 +3,14 @@ import type { PlanningSummary } from './model.js';
 
 export const MAX_CONVERSATION_LENGTH = 6000;
 export const MODEL = 'gpt-5.4-mini-2026-03-17';
+export const GEMINI_MODEL = 'gemini-3.5-flash-lite';
+export const aiProviderSchema = z.enum(['openai', 'gemini']);
+export type AIProvider = z.infer<typeof aiProviderSchema>;
+export const aiConfigurationSchema = z.discriminatedUnion('provider', [
+  z.strictObject({ provider: z.literal('openai'), model: z.literal(MODEL) }),
+  z.strictObject({ provider: z.literal('gemini'), model: z.literal(GEMINI_MODEL) }),
+]);
+export type AIConfiguration = z.infer<typeof aiConfigurationSchema>;
 export const MAX_OUTPUT_TOKENS = 6000;
 export const PROVIDER_TIMEOUT_MS = 45000;
 
@@ -18,6 +26,7 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 export const analysisRequestSchema = z.strictObject({
   conversation: z.string().min(1).max(MAX_CONVERSATION_LENGTH).refine((value) => value.trim().length > 0),
   referenceDate: date.nullable(),
+  expectedProvider: aiProviderSchema.optional(),
 });
 export type AnalysisRequest = z.infer<typeof analysisRequestSchema>;
 
@@ -75,9 +84,14 @@ export const analysisResponseSchema = z.strictObject({
   summary: planningSummarySchema,
   warnings: z.array(shortText).max(100),
   metrics: z.strictObject({
-    model: z.literal(MODEL), latencyMs: z.number().nonnegative(),
+    provider: aiProviderSchema,
+    model: z.enum([MODEL, GEMINI_MODEL]), latencyMs: z.number().nonnegative(),
     inputTokens: z.number().int().nonnegative().nullable(), outputTokens: z.number().int().nonnegative().nullable(),
     estimatedCostUsd: z.number().nonnegative().nullable(),
   }),
+}).superRefine((response, context) => {
+  if ((response.metrics.provider === 'openai' ? MODEL : GEMINI_MODEL) !== response.metrics.model) {
+    context.addIssue({ code: 'custom', message: 'Provider/model mismatch', path: ['metrics', 'model'] });
+  }
 });
 export type AnalysisResponse = z.infer<typeof analysisResponseSchema>;

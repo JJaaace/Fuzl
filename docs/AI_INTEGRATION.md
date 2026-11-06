@@ -1,16 +1,17 @@
 # Section 3 integration
 
-Implemented November 6, 2026. Browser and live-provider acceptance remain unverified. Section 2 checkpoint: `f22e040` (already committed on entry; no duplicate/empty commit, push, or deployment).
+Implemented November 6, 2026. Browser and live-provider acceptance remain unverified. Section 2 checkpoint: `f22e040`. The original Section 3 OpenAI work was subsequently committed/pushed as `1b8754f` at Jace's request, before adding optional Gemini. No deployment.
 
 ## Provider choice and setup
 
-One provider/adapter: OpenAI Responses, pinned `gpt-5.4-mini-2026-03-17`, reasoning effort `none`, maximum 6000 output tokens. It offers a documented structured-output interface and moderate token cost without needing external tools. Selection is provisional until measured on these extraction cases; no quality superiority claim is made. The model page was checked for current availability, snapshot, features, and pricing. Older GPT-4.1 mini was considered but its official page marks it deprecated. [Model](https://developers.openai.com/api/docs/models/gpt-5.4-mini), [structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
+Explicit backend setting: `AI_PROVIDER=openai` or `AI_PROVIDER=gemini`, one selected provider per request, no fallback. OpenAI remains the compatibility default when the setting is omitted; invalid values fail. Its existing Responses model remains pinned `gpt-5.4-mini-2026-03-17`, reasoning `none`, 6000 output tokens, strict output, no tools/retries. [Model](https://developers.openai.com/api/docs/models/gpt-5.4-mini), [structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs). Gemini's model, Free Tier/project checks, credential setup, data policy, and one-request test are in [GEMINI_SETUP.md](GEMINI_SETUP.md). Neither model has live quality measurements here.
 
 Backend-only configuration:
 
 ```sh
 cp apps/api/.env.example apps/api/.env
-# Edit apps/api/.env locally: OPENAI_API_KEY=<your key>, AI_ENABLED=true
+# Edit privately: AI_PROVIDER=openai, OPENAI_API_KEY=<your key>, AI_ENABLED=true
+# Or use Gemini's separate setup guide. Never paste a key into chat.
 npm run dev
 ```
 
@@ -18,20 +19,20 @@ Copy the example only if the real file does not already exist. Set a small devel
 
 Node loads the optional `.env` from the API workspace for preflight, watch, compiled start, and evaluation. Existing process variables override file values. Restart after changing it. `.env` is ignored; `.env.example` is safe and tracked. Defaults have AI disabled; health/samples/manual entry work without a file. No key was present during implementation; no real provider request was made.
 
-The README describes provider data handling. `store: false`, foreground operation, no previous response/conversation IDs, and no tools reduce application-state storage. These settings are not a promise of zero provider retention. Account-specific controls were not inspected. [Official data controls](https://developers.openai.com/api/docs/guides/your-data).
+The README describes OpenAI data handling: `store: false`, foreground operation, no previous response/conversation IDs, and no tools. These settings do not promise zero provider retention; account controls were not inspected. [Official data controls](https://developers.openai.com/api/docs/guides/your-data). Gemini is stateless but has a different unpaid-service policy; see its guide before testing.
 
 ## Request and validation flow
 
-1. `AnalysisPanel.tsx` discloses transmission before submission. The user may provide the conversation's reference date; current execution time is never supplied as a substitute.
-2. `lib/analysis.ts` sends `POST /api/analyze` through Vite. Body: `{ "conversation": "Sam: Maybe Friday?", "referenceDate": null }`. Only this explicit action sends pasted text. Health remains unchanged.
+1. `AnalysisPanel.tsx` reads safe provider/model metadata from `GET /api/ai-config`, then discloses the selected recipient and relevant handling before enabling submission. No key is exposed. The user may provide the conversation's reference date; current time is never substituted.
+2. `lib/analysis.ts` sends `POST /api/analyze` through Vite. Body: `{ "conversation": "Sam: Maybe Friday?", "referenceDate": null, "expectedProvider": "gemini" }`. The expected provider is validated before extraction; a changed setting yields 409. Only this explicit action sends pasted text. Health remains unchanged.
 3. `app.ts` validates JSON, rejects non-local browser origins, checks configuration, and enforces limits: 6000 UTF-16 characters, 32 KB body, one active request, three/minute, ten/provider attempts per API process. Missing configuration and invalid input do not consume an attempt. Provider failures, timeouts, and cancellations do. This local guard is not public deployment protection or authentication.
-4. `provider.ts` calls only the fixed official OpenAI endpoint using the server-side SDK/key. `maxRetries: 0`, a 45-second deadline, no tools, and strict `zodTextFormat` bound the operation. Conversation text is a separate untrusted user-data envelope; developer instructions explicitly prohibit following embedded commands. The key is an authorization header, never prompt content. Provider exception bodies are neither logged nor returned.
+4. `provider.ts` dispatches only to the explicitly configured provider. `openai.ts` retains its fixed official endpoint/SDK, `maxRetries: 0`, `store: false`, and strict `zodTextFormat`. `gemini.ts` uses stateless REST with a flat wire schema that converts back before full validation. Both have a 45-second deadline, no tools/retries/fallback, separate untrusted conversation data, and backend-only key headers. Provider exception bodies are neither logged nor returned.
 5. `packages/planning/src/contract.ts` validates request/output shapes. The existing editor model lives in that package to share types and validation with compiled Node; its original web import is preserved. Optional provenance is the only model extension. Dependencies added: server-only `openai` and shared `zod`; no new framework or service layer.
 6. `validate.ts` checks unique IDs, references, speaker/participant attribution, exact contiguous source quotes against the submitted text, cited numbers/currency, and date/time field validity. Named participants require explicit speaker labels; unlabeled prose can remain unattributed. Unsupported exact dates or times are cleared with warnings. It never resolves Friday using the execution date. A missing reference date produces a question. Supported explicit dates are ISO or common English full dates with a year; other formats require manual correction. Numeric/evidence checks are lexical, not proof that a number means a budget or that an interpretation is true.
 7. AI facts carry uncertainty, current/historical/unknown scope, supersession references, and the model-reported status. Server-assigned `reviewed: false` cannot be supplied by the model. Model-reported confirmed facts become proposed candidates; tentative/conflicting status remains visible. All extracted questions remain unresolved until manual action. Shape/source failures reject the response with HTTP 502 and preserve existing work.
 8. Results are staged separately, never auto-applied. Choosing Use extracted summary confirms replacement whenever an existing summary is present, protecting applied and unapplied form edits. Draft/reference mismatch disables acceptance. Cancel aborts the fetch and asks the backend to stop; late/superseded responses cannot overwrite work. Applying a fact in the editor marks it reviewed; it does not automatically confirm it. Quotes and original AI uncertainty remain distinguishable from your changes.
 
-Response: `{ summary, warnings, metrics }`. Metrics include the pinned model, successful adapter latency, input/output tokens when provided, and an estimated USD token cost. Estimation uses standard model rates and ignores cached-input discounts; it is not a billing record and cannot account for unavailable failed/cancelled-call usage. No raw text or results are written to disk, browser storage, routine logs, or a database.
+Response: `{ summary, warnings, metrics }`. The summary format is unchanged. Metrics add provider and validate its model pairing, successful adapter latency, and available token usage. OpenAI's USD estimate retains standard rates, ignoring cache discounts. Gemini's cost is null because project billing tier cannot be determined; output token totals include reported thought tokens. Estimates are not billing records and failed-call usage may be unavailable. No raw content is written to disk, browser storage, routine logs, or a database.
 
 ## Evaluation
 
@@ -40,12 +41,12 @@ Response: `{ summary, warnings, metrics }`. Metrics include the pinned model, su
 After configuring credentials and reviewing budget:
 
 ```sh
-npm run eval:live -- --confirm-paid-eval
+npm run eval:live -- --confirm-live-eval --case=zero-budget
 ```
 
-This explicitly sends six synthetic cases, sequentially, with no retries. Without the flag/key/enabling setting, it exits before requests. Output is one JSON line per case with pass/fail and available latency/token/cost metrics; no raw conversation, model response, or key is logged. The invariant checks are a narrow screen, not comprehensive semantic evaluation. Inspect actual extracted source attribution, tentative statements, omissions, corrections, conflicts, and date uncertainty in the editor as well. Do not claim accuracy percentages from this small set.
+This explicitly sends one synthetic case to the selected provider. Omit the case option to run all six sequentially without retries. The legacy `--confirm-paid-eval` flag is still accepted. Without opt-in/key/enabling it exits before requests, and quota/access failures stop the run. JSON reports include pass/fail and available metrics, never raw conversation, output, or key. Gemini aggregate cost remains null. These checks are not comprehensive semantic evaluation or proof of free-tier eligibility; inspect extraction in the editor too.
 
-Actual live result in this environment: **blocked by missing key and disabled AI; zero requests sent.** Live latency, tokens, cost, semantic extraction quality, and injection resistance are not measured. See PROGRESS for offline results.
+Latest live result: Gemini credentials are now configured privately and exactly one synthetic extraction was attempted. Fuzl returned HTTP 502 / `invalid_output` after 2081 ms; no summary was accepted, and no retry or fallback ran. This verifies neither successful extraction nor semantic quality. Provider tokens/cost were unavailable because the result was rejected. Earlier missing-key results are historical. See PROGRESS for the security audit and offline checks.
 
 ## Manual browser acceptance — unverified
 

@@ -13,7 +13,7 @@ import { extractConversation } from './provider.js';
 
 function response(): AnalysisResponse {
   return { ...validateExtraction(evaluationCases[1].authoredOutput, evaluationCases[1].request),
-    metrics: { model: MODEL, latencyMs: 0, inputTokens: null, outputTokens: null, estimatedCostUsd: null } };
+    metrics: { provider: 'openai', model: MODEL, latencyMs: 0, inputTokens: null, outputTokens: null, estimatedCostUsd: null } };
 }
 async function server(t: TestContext, options: Parameters<typeof createApp>[0] = {}) {
   const app = createApp({ checkConfiguration: () => {}, extract: async () => response(), ...options });
@@ -157,10 +157,13 @@ test('global concurrency, rate limit, session attempt limit, timeout, and discon
 test('OpenAI adapter sends a strict stateless request with no retries/tools and never sends credentials in content', async (t) => {
   const oldKey = process.env.OPENAI_API_KEY;
   const oldEnabled = process.env.AI_ENABLED;
+  const oldProvider = process.env.AI_PROVIDER;
+  process.env.AI_PROVIDER = 'openai';
   process.env.OPENAI_API_KEY = 'test-placeholder-not-a-real-key'; process.env.AI_ENABLED = 'true';
   t.after(() => {
     if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey;
     if (oldEnabled === undefined) delete process.env.AI_ENABLED; else process.env.AI_ENABLED = oldEnabled;
+    if (oldProvider === undefined) delete process.env.AI_PROVIDER; else process.env.AI_PROVIDER = oldProvider;
   });
   let calls = 0;
   t.mock.method(globalThis, 'fetch', async (_url: unknown, options: RequestInit) => {
@@ -182,10 +185,13 @@ test('OpenAI adapter sends a strict stateless request with no retries/tools and 
 test('provider failures/refusals are sanitized and are not automatically retried', async (t) => {
   const oldKey = process.env.OPENAI_API_KEY;
   const oldEnabled = process.env.AI_ENABLED;
+  const oldProvider = process.env.AI_PROVIDER;
+  process.env.AI_PROVIDER = 'openai';
   process.env.OPENAI_API_KEY = 'test-placeholder-not-a-real-key'; process.env.AI_ENABLED = 'true';
   t.after(() => {
     if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey;
     if (oldEnabled === undefined) delete process.env.AI_ENABLED; else process.env.AI_ENABLED = oldEnabled;
+    if (oldProvider === undefined) delete process.env.AI_PROVIDER; else process.env.AI_PROVIDER = oldProvider;
   });
   for (const status of [401, 429, 500]) {
     await t.test(`HTTP ${status}`, async (t) => {

@@ -59,7 +59,7 @@ export default function App() {
           </div>
           <textarea id="draft" value={planning.draft} onChange={(event) => setPlanning((current) => updateDraft(current, event.target.value))}
             aria-describedby="draft-note" placeholder="Type a synthetic conversation here, or load the sample to try editing." />
-          <p id="draft-note" className="note">Temporary draft · Sent to OpenAI only when you choose Analyze conversation · Cleared when you reload</p>
+          <p id="draft-note" className="note">Temporary draft · Sent to the selected AI provider only when you choose Analyze conversation · Cleared when you reload</p>
           <div className="sample-loader">
             <label className="field"><span>Sample example</span><select value={exampleId} onChange={(event) => setExampleId(event.target.value)}>
               {examples.map((example) => <option key={example.id} value={example.id}>{example.title}</option>)}

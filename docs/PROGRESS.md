@@ -2,6 +2,47 @@
 
 Updated November 6, 2026. Active authorization: **Section 3 only**. Sections 4–12 remain future context. The supplied specification is preserved unchanged.
 
+## Credential containment and one live check
+
+- At the start of this request, the accessible `.env.example` already contained an empty Gemini placeholder and `.env` did not exist. There was no key to migrate. The user then configured it directly in the private file after being told not to send it in chat.
+- Prepared/retained `apps/api/.env` with `AI_PROVIDER=gemini`, `AI_ENABLED=true`, owner-only 0600 permissions, and other settings preserved. The example's key is empty; the private file is ignored and untracked. No credential was printed, added to frontend code, or passed in command arguments.
+- Exact configured-key comparison found zero matches in tracked working files, staging, and stored Git blobs/commits, including unreachable objects. Initial Google-format scans of tracked/staged content and all four available history/reflog snapshots also found none. No committed exposure was found for this key; no history rewrite, push, or billing operation was performed.
+- Inspected the implementation: Gemini support already existed. OpenAI option, full schema/source checks, temporary editable summaries, acceptance confirmations, stale-result handling, and unreviewed AI claims remain unchanged. Re-fetched official model/pricing pages and confirmed `gemini-3.5-flash-lite` structured output and documented Free Tier input/output; project eligibility/billing tier was not inspected.
+- Reran `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build`: all passed, 73 offline tests. Restarted root development so the API loads the private environment; health and public configuration were checked before submission.
+- Made **exactly one live synthetic POST** through Vite `/api/analyze`, with expectedProvider=gemini and the zero-budget sentence. Result: **HTTP 502, invalid_output, 2081 ms end-to-end**. The provider-response path returned data that did not pass application validation; no summary was accepted. The raw response was not logged or retained, so the precise rejected field is unknown. Provider token usage and cost were not available.
+- No automatic retry, second live request, bulk evaluation, paid-provider fallback, billing enablement, or Section 4 work. The validator was not weakened to accept a bad response. Live extraction remains unsuccessful/unverified; investigating the rejected output needs a separately authorized future live attempt with safe diagnostics. Existing browser acceptance remains unverified.
+
+The following earlier sections are retained as history; their missing-key statements describe earlier checks, not the current private configuration.
+
+## Section 3 — optional Gemini provider
+
+The preceding OpenAI work was committed and pushed first, as requested: `1b8754f` — Add Section 3 AI conversation extraction with validated review workflow. Local HEAD and origin/main matched after pushing. The Gemini option was implemented afterward and remains local/uncommitted; no billing or deployment action occurred.
+
+- Inspected the existing adapter, schemas/source validation, configuration, editor/client, tests, and documentation. Internal summary/evidence/uncertainty format is preserved.
+- Explicit `AI_PROVIDER=openai|gemini`; omitted setting preserves OpenAI as default, invalid/empty setting fails. Only the selected credential is required. No fallback to another provider or model.
+- Selected stable `gemini-3.5-flash-lite` using current official Google model/pricing/structured-output documentation: structured output and Free Tier input/output are documented, but project access and quotas were not verified. Google restricts 2.5 models for new projects; they were not chosen.
+- Native stateless Gemini REST, private x-goog-api-key header, fixed host, no redirects/tools/retries. Flattened wire schema converts back through the unchanged full Zod/source checks; no application checks were removed. The existing OpenAI SDK/model/settings remain intact in `openai.ts`.
+- Public provider/model-only configuration enables accurate disclosure and expectedProvider checks. Changed providers reject submission with 409 before extraction. Existing staging, correction, cancellation, and stale-result protections remain.
+- Gemini 429 reports quota exhaustion and manual retry; no paid fallback. API request limits remain unchanged. Live evaluations are opt-in, support one synthetic case, and stop on quota/access failure. Gemini usage cost stays unknown, not a fabricated zero.
+- Backend example/configuration instructions, Free Tier verification/quota steps, unpaid-data handling, and one synthetic live test are documented in [GEMINI_SETUP.md](GEMINI_SETUP.md). Never paste keys into chat.
+
+| Gemini follow-up check | Actual result |
+| --- | --- |
+| `AI_PROVIDER=gemini npm run typecheck` | Passed: shared, web/tool, API |
+| `AI_PROVIDER=gemini npm run lint` | Passed, zero warnings |
+| `AI_PROVIDER=gemini npm test` | 73 offline tests passed, zero failed, including OpenAI regressions, selected credentials, invalid config, schema conversion, source validation, public metadata, mismatch rejection, quota/errors, no fallback/retries, cancellation, client state, fixtures/editor markup |
+| `npm run build` | Shared, web, and API passed |
+| `AI_PROVIDER=gemini AI_ENABLED=true PORT=3002 npm run start:api` | Compiled entry starts; no key required for health/config |
+| HTTP GET health/config on compiled API | Health 200 exact contract; config 200 exactly provider/model with Gemini; no credential fields |
+| Synthetic Analyze on compiled API without Gemini key | HTTP 503 selected-Gemini configuration message, no fallback or fixture response |
+| GET configuration through running Vite proxy | HTTP 200 OpenAI/default metadata, preserving the existing installation |
+| `AI_PROVIDER=gemini AI_ENABLED=true npm run eval:live -- --confirm-live-eval --case=zero-budget` | Exits 1 before provider requests: missing GEMINI_API_KEY. No live call, usage, cost, or extraction result measured |
+| Browser connection/discovery | No browser available; discovery `[]`. Provider disclosure/click/race/layout/storage checks remain unverified |
+
+The one-request live test and exact manual acceptance checks are in the Gemini guide. Actual Google's schema acceptance, project Free Tier eligibility/quotas, model quality, latency, usage, and billing status remain unverified. Google provider handling differs from OpenAI; no zero-retention or free-usage guarantee is claimed. Section 4 remains unstarted.
+
+## Original OpenAI integration verification (before Gemini)
+
 ## Section 3 — integration implemented, live acceptance blocked
 
 - Initial working tree was clean. Existing focused Section 2 commit `f22e040` is the checkpoint; no duplicate/empty commit or global identity changes. No push/deployment in this milestone.
@@ -34,7 +75,7 @@ Updated November 6, 2026. Active authorization: **Section 3 only**. Sections 4�
 
 Browser checks remain **unverified**: page interactions, actual confirmation dialogs/unsaved edits, loading/cancel/race/error flows, narrow-screen layout, keyboard/screen reader, and live browser request/storage observations. The combined precise manual checklists are in README and AI_INTEGRATION. Source/static rendering/HTTP checks do not substitute for a browser.
 
-Remaining blocker: configure `OPENAI_API_KEY` privately in `apps/api/.env`, review a small project budget, set `AI_ENABLED=true`, and restart. Then run the explicitly opted-in synthetic live evaluation and inspect real candidate facts in the editor. Do not paste a key into chat. Provider retention controls/account access were not verified; `store: false` is not zero retention. Section 3 changes remain local and uncommitted. Section 4 has not started.
+This original acceptance blocker remains for OpenAI: configure OPENAI_API_KEY privately, review budget, enable, and restart. The current Gemini alternative has its own key/Free Tier checks above. Provider retention controls/account access were not verified. The original Section 3 changes are now committed/pushed as `1b8754f`; the Gemini follow-up is local. Section 4 has not started.
 
 ## Historical Section 2 record
 

@@ -2,23 +2,26 @@
 
 Turn your group chat into a plan.
 
-Fuzl aims to help existing friend groups turn deliberately supplied conversation context into realistic hangout plans. **Section 3 is integrated:** explicitly send pasted text for AI extraction, then inspect and correct candidate facts in the existing editor. Samples, manual entry, and the real API health check remain available without credentials. **Live AI verification is blocked until a backend API key is configured.**
+Fuzl aims to help existing friend groups turn deliberately supplied conversation context into realistic hangout plans. **Section 3 is integrated with explicit OpenAI or Gemini selection:** send pasted text for AI extraction, then correct candidate facts in the existing editor. Samples, manual entry, and health remain available without credentials. **The latest single Gemini live response was rejected by application validation; successful live extraction remains unverified.**
 
 No uploads, database, auth, guest links, venue recommendations, memory, or native integrations exist. The complete [specification](FUZL_CODEX_SPEC.md) is preserved unchanged; Jace explicitly advanced its original boundary through Section 3. Sections 4 onward remain out of scope.
 
 ## Configure and try AI extraction
 
-1. Copy `apps/api/.env.example` to **`apps/api/.env`** and set `OPENAI_API_KEY` locally. Do not put the key in chat, frontend files, or any `VITE_` variable.
-2. Set a small development budget in your OpenAI project before enabling paid calls. Set `AI_ENABLED=true` in that backend file and restart `npm run dev`. Without a key/enabling flag, Analyze reports an honest configuration error; samples and manual entry still work.
-3. Paste a synthetic conversation or load a sample. Read the disclosure: **Analyze conversation sends the draft and optional conversation reference date to OpenAI.** Editing alone does not send anything. Add the date the messages were written if relevant, then click Analyze conversation.
+1. Copy `apps/api/.env.example` to **`apps/api/.env`** if that file does not exist. Set `AI_PROVIDER=openai` with `OPENAI_API_KEY`, or `AI_PROVIDER=gemini` with `GEMINI_API_KEY`. Only the selected key is required. Keep keys out of chat, frontend code, `VITE_` variables, and Git. Omitted AI_PROVIDER defaults to OpenAI for compatibility; invalid values fail without fallback.
+2. For **Gemini Free Tier testing**, follow [Gemini setup](docs/GEMINI_SETUP.md): obtain an AI Studio key, verify its project's Free Tier status, any required verification, and the model's current quotas. Do not enable billing. For OpenAI, review a small project budget first. Then set `AI_ENABLED=true` and restart `npm run dev`.
+3. The page reads public provider/model metadata before enabling Analyze. Confirm the displayed provider and disclosure. **Analyze sends the draft and optional conversation date only to that provider.** A backend provider change requires reloading the disclosure; it cannot silently send to another provider. Editing alone does not send text. Use synthetic conversations for Gemini development.
 4. The result is staged separately. Choose **Use extracted summary** to open it; replacing an existing summary requires confirmation, including for unapplied form edits. If the draft/reference date changed since submission, that result cannot be applied. Cancel stops waiting and requests backend cancellation; a provider call already started may still incur usage.
 5. Inspect **AI claim — unreviewed**, uncertainty, scope, and **Supporting submitted text**. Use Edit fact and Apply changes to mark a fact reviewed; choose confirmed only when justified. AI-reported confirmation does not silently become user confirmation. Source quotes stay unchanged.
 
 Provider: OpenAI Responses with pinned `gpt-5.4-mini-2026-03-17`, strict structured output, `store: false`, and no tools/retries. The model supports structured outputs and standard token pricing of $0.75/M input and $4.50/M output as checked November 6, 2026. This is an initial selection, not a measured quality claim. [Official model documentation](https://developers.openai.com/api/docs/models/gpt-5.4-mini)
 
+Optional Gemini model: stable `gemini-3.5-flash-lite`, documented with structured output and Free Tier input/output. Account eligibility and quota are not guaranteed or checked by Fuzl. No paid-provider fallback exists. [Google model](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite), [pricing](https://ai.google.dev/gemini-api/docs/pricing#gemini-3.5-flash-lite).
+
 Fuzl keeps planning data in memory and does not log raw text or save it. Provider handling is separate: OpenAI says API content is not used for training by default unless opted in; standard abuse-monitoring logs may retain content for up to 30 days, with exceptions. `store: false` does **not** promise zero retention. Account-specific retention controls have not been verified. [Official data controls](https://developers.openai.com/api/docs/guides/your-data)
 
 See [AI integration and evaluation](docs/AI_INTEGRATION.md) for the contract, validation limits, development request cap, offline/live evaluation, and manual browser checks.
+Google's unpaid-service handling differs; use synthetic text and read [Gemini data handling/setup](docs/GEMINI_SETUP.md#data-handling).
 
 ## Try the three examples
 
@@ -57,7 +60,7 @@ npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. The API listens at **http://127.0.0.1:3001**. Samples, manual entry, and health require no credentials. AI extraction requires a paid API account/key and explicit enabling as above. Ctrl+C stops both servers. Installation builds the shared package automatically; root dev/test/typecheck/build commands also build it first. After editing shared source, restart the root development command to rebuild it.
+Open **http://127.0.0.1:5173**. The API listens at **http://127.0.0.1:3001**. Samples, manual entry, and health require no credentials. AI requires the selected provider's key and explicit enabling; Gemini can use an eligible Free Tier project. Ctrl+C stops both servers. Installation builds the shared package automatically; root dev/test/typecheck/build commands also build it first. After editing shared source, restart root development to rebuild it.
 
 Versions were selected after checking installed versions, the [Node LTS schedule](https://nodejs.org/en/about/previous-releases), [Vite requirements](https://vite.dev/guide/), [Express requirements](https://expressjs.com/en/starter/installing/), and npm engine/peer metadata. React 19, Vite 8, Express 5, and ESLint 10 are pinned in manifests and the root lockfile. TypeScript **6.0.3** is intentional: typescript-eslint 8.72.1 requires TypeScript below 6.1, so TypeScript 7 is incompatible. `concurrently` manages the two development processes; `tsx` watches API TypeScript. No future-feature dependencies are installed.
 
@@ -75,7 +78,7 @@ Run from the repository root:
 | `npm run typecheck` | Strictly check frontend, Vite config, and API TypeScript |
 | `npm run lint` | Lint source and tooling with zero warnings allowed |
 | `npm test` | Offline contract/provider-mock/HTTP/evaluation/state/markup tests; no paid calls |
-| `npm run eval:live -- --confirm-paid-eval` | Explicit paid evaluation of six synthetic cases; blocked without key/enabling flag |
+| `npm run eval:live -- --confirm-live-eval --case=zero-budget` | One explicit synthetic request to the selected provider; check tier/quota/budget first |
 | `npm run build` | Build web assets and compile API JavaScript |
 | `npm run start:api` | Run the compiled API after building |
 
@@ -83,7 +86,7 @@ Stop the development API before starting the compiled API on the same port. Outp
 
 ## Request flow and draft privacy
 
-1. [App.tsx](apps/web/src/App.tsx) holds the draft and summary in temporary React state. Reload clears everything. Samples/manual edits create no requests or browser storage. Analyze explicitly POSTs the draft/reference date through Vite to `/api/analyze`; the API sends them to OpenAI and validates the result before returning it. See [AnalysisPanel.tsx](apps/web/src/planning/AnalysisPanel.tsx) and [provider.ts](apps/api/src/extraction/provider.ts).
+1. [App.tsx](apps/web/src/App.tsx) holds draft/summary in temporary React state. Reload clears everything. Samples/manual edits transmit no planning text and create no browser storage. A bodyless `GET /api/ai-config` supplies only public provider/model metadata. Analyze POSTs draft/reference date/expected provider through Vite to `/api/analyze`; the backend calls only that provider and validates the result. See [AnalysisPanel.tsx](apps/web/src/planning/AnalysisPanel.tsx) and [provider.ts](apps/api/src/extraction/provider.ts).
 2. Check connection calls [api.ts](apps/web/src/lib/api.ts), which makes an **HTTP GET** to `/api/health` without a body. It validates the response, times out after five seconds, supports cancellation, and rejects network, HTTP, and response-format failures. A new check replaces the previous result; there are no automatic retries.
 3. The browser sends the relative request to Vite on port 5173. The **development proxy** in [vite.config.ts](apps/web/vite.config.ts) forwards `/api` to port 3001. Browser requests stay on the frontend origin without CORS configuration.
 4. The **backend**, [app.ts](apps/api/src/app.ts), returns health JSON and handles bounded analysis requests. [server.ts](apps/api/src/server.ts) starts Express and handles shutdown. The API key stays on the backend and is never sent to the frontend or included in the model prompt.
@@ -107,11 +110,12 @@ Both should return HTTP 200 with:
 - **Occupied ports:** both fail clearly instead of silently moving. Stop the conflicting process or change the port. The API preflight makes an occupied/invalid API port fail before watching, allowing the combined command to stop the frontend too. Change the web port in `apps/web/vite.config.ts` if needed.
 - **Different API port:** use `PORT=3002 npm run dev` (or `PORT=3002 npm run dev:api` / `PORT=3002 npm run start:api`) and change the Vite proxy target to `http://127.0.0.1:3002`. Restart Vite after editing configuration. The API now loads optional `apps/api/.env` through Node's environment-file support; exported process variables take precedence. Defaults require no file. Never use `VITE_` variables for secrets.
 - **AI errors:** missing configuration is HTTP 503, invalid input 400/413, throttling/quota 429, unusable provider output 502, and timeout 504. No sample is returned on failure. API limits are global to this local process: one in flight, three attempts/minute, ten attempts until restart. Failed/cancelled provider attempts count. Review spend before restarting; this is not a durable dollar budget. Provider timeout is 45 seconds; client timeout is 55 seconds; retries are manual.
+- **Gemini quota:** HTTP 429 asks you to check this project's active model limits and retry manually after reset. No automatic retries, billing changes, model changes, or provider fallback occur. A different backend provider than the displayed selection yields HTTP 409 before calling a provider; reload the page. Gemini's USD cost is unknown rather than reported as zero.
 - **Dependency audit:** `npm audit` reports 10 moderate development-tool findings through minimatch 10 in ESLint/typescript-eslint. Their current dependency ranges do not accept fixed minimatch 11.0.1. No forced upgrades or overrides were applied. `npm audit --omit=dev` reports zero vulnerabilities. Recheck upstream updates before later work.
 
 ## Verification and manual browser checks
 
-See [docs/PROGRESS.md](docs/PROGRESS.md) for exact results. Offline tests cover validation, mocked provider requests, real local HTTP, state, and static markup—not browser clicks or model quality. **Browser tooling still reported no available browser. No live key was configured.** Browser interaction/layout/accessibility/storage observations and actual model quality/latency/usage/cost remain unverified. CSS uses one-column forms below 540px, wrapping text and shrinkable inputs; source review is not visual verification.
+See [docs/PROGRESS.md](docs/PROGRESS.md) for exact results. Offline tests cover validation, mocked provider requests, real local HTTP, state, and static markup—not browser clicks or model quality. **Browser checks remain unverified. One live Gemini request returned HTTP 502 / invalid_output after about 2.1 seconds; no summary was accepted and no retry/fallback ran.** End-to-end successful extraction, model quality, provider token usage/cost, and rendered browser behavior remain unverified. CSS uses one-column forms below 540px; source review is not visual verification.
 
 With the app running:
 
@@ -119,7 +123,7 @@ With the app running:
 2. Check connection. Using separate web/API terminals, stop the API and check again, then restart and retry. Confirm checking, failure, and recovery messages.
 3. Rename Sam, remap that speaker, and check linked fact attribution changes while the quote stays unchanged. Edit a budget from unknown to `0` and back to blank. Try `-1`, `12.345`, and currency `US` to check errors. Confirm tentative statements and conflicting requirements do not silently become confirmed. Change firmness/status explicitly and apply, then test Cancel.
 4. Edit date/time/activity/travel fields. Try an end time before the start. Add a participant, a missing budget, an activity, and a question manually. Resolve/reopen a question; confirming a resolution requires written text and does not update facts. Reload the same sample to confirm edits reset. Test Start blank summary and manual entry without a sample.
-5. In browser developer tools, confirm sample/manual edits send no requests, health uses GET without a body, and only Analyze sends a POST containing the conversation/reference date. Confirm the key never appears in browser requests/responses, no browser persistence is created, and API logs contain no raw planning text. Follow the Section 3 race/error/privacy checklist in [AI integration](docs/AI_INTEGRATION.md).
+5. In browser developer tools, confirm sample/manual edits send no planning text, configuration/health are bodyless GETs, and only Analyze POSTs conversation/reference date/expected provider. Configuration must contain only provider/model. Confirm keys never appear in browser requests/responses, no browser persistence is created, and API logs contain no raw planning text. Follow [AI integration](docs/AI_INTEGRATION.md) and [Gemini checks](docs/GEMINI_SETUP.md).
 6. Inspect all examples with a fact editor open at desktop and mobile widths, including 320px, for readable layout and no horizontal overflow. Tab through buttons, inputs, selects, supporting-text disclosures, and the textarea; check visible focus and keyboard activation. With a screen reader, check labels and polite connection/mismatch announcements.
 
 **Stop after Section 3.** Screenshot work and all later milestones require a new instruction.

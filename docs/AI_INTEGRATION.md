@@ -1,10 +1,10 @@
 # Section 3 integration
 
-Implemented November 6, 2026. Browser and live-provider acceptance remain unverified. Section 2 checkpoint: `f22e040`. The original Section 3 OpenAI work was subsequently committed/pushed as `1b8754f` at Jace's request, before adding optional Gemini. No deployment.
+Implemented November 6, 2026. One complete Gemini synthetic extraction passed through the API; browser acceptance and OpenAI live verification remain unverified. Section 2 checkpoint: `f22e040`. The original Section 3 OpenAI work was subsequently committed/pushed as `1b8754f`, and the Gemini option as `0f15422`, at Jace's request. The current diagnosis changes remain local. No deployment.
 
 ## Provider choice and setup
 
-Explicit backend setting: `AI_PROVIDER=openai` or `AI_PROVIDER=gemini`, one selected provider per request, no fallback. OpenAI remains the compatibility default when the setting is omitted; invalid values fail. Its existing Responses model remains pinned `gpt-5.4-mini-2026-03-17`, reasoning `none`, 6000 output tokens, strict output, no tools/retries. [Model](https://developers.openai.com/api/docs/models/gpt-5.4-mini), [structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs). Gemini's model, Free Tier/project checks, credential setup, data policy, and one-request test are in [GEMINI_SETUP.md](GEMINI_SETUP.md). Neither model has live quality measurements here.
+Explicit backend setting: `AI_PROVIDER=openai` or `AI_PROVIDER=gemini`, one selected provider per request, no fallback. OpenAI remains the compatibility default when the setting is omitted; invalid values fail. Its existing Responses model remains pinned `gpt-5.4-mini-2026-03-17`, reasoning `none`, 6000 output tokens, strict output, no tools/retries. [Model](https://developers.openai.com/api/docs/models/gpt-5.4-mini), [structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs). Gemini's model, Free Tier/project checks, credential setup, data policy, and one-request test are in [GEMINI_SETUP.md](GEMINI_SETUP.md). A single passing Gemini case is not a broad quality measurement.
 
 Backend-only configuration:
 
@@ -17,7 +17,7 @@ npm run dev
 
 Copy the example only if the real file does not already exist. Set a small development project budget before enabling paid requests; start with USD 1 and inspect the provider's actual spend controls. The in-memory API guard is ten attempts per process, not a persistent monetary cap; restarting resets it. The separate evaluation command is limited to six calls. Neither command creates accounts, changes billing, or claims a hard provider-enforced dollar cap. Keep synthetic inputs during initial verification.
 
-Node loads the optional `.env` from the API workspace for preflight, watch, compiled start, and evaluation. Existing process variables override file values. Restart after changing it. `.env` is ignored; `.env.example` is safe and tracked. Defaults have AI disabled; health/samples/manual entry work without a file. No key was present during implementation; no real provider request was made.
+Node loads the optional `.env` from the API workspace for preflight, watch, compiled start, and evaluation. Existing process variables override file values. Restart after changing it. `.env` is ignored; `.env.example` is safe and tracked. Defaults have AI disabled; health/samples/manual entry work without a file. No key was present during the original OpenAI implementation. The user subsequently configured Gemini privately; actual live results are recorded below.
 
 The README describes OpenAI data handling: `store: false`, foreground operation, no previous response/conversation IDs, and no tools. These settings do not promise zero provider retention; account controls were not inspected. [Official data controls](https://developers.openai.com/api/docs/guides/your-data). Gemini is stateless but has a different unpaid-service policy; see its guide before testing.
 
@@ -46,7 +46,17 @@ npm run eval:live -- --confirm-live-eval --case=zero-budget
 
 This explicitly sends one synthetic case to the selected provider. Omit the case option to run all six sequentially without retries. The legacy `--confirm-paid-eval` flag is still accepted. Without opt-in/key/enabling it exits before requests, and quota/access failures stop the run. JSON reports include pass/fail and available metrics, never raw conversation, output, or key. Gemini aggregate cost remains null. These checks are not comprehensive semantic evaluation or proof of free-tier eligibility; inspect extraction in the editor too.
 
-Latest live result: Gemini credentials are now configured privately and exactly one synthetic extraction was attempted. Fuzl returned HTTP 502 / `invalid_output` after 2081 ms; no summary was accepted, and no retry or fallback ran. This verifies neither successful extraction nor semantic quality. Provider tokens/cost were unavailable because the result was rejected. Earlier missing-key results are historical. See PROGRESS for the security audit and offline checks.
+Live history: earlier requests failed with `invalid_output` (2081 ms) and generic `provider_failure` (1701 ms); their exact causes were not retained. The earlier kind-specific wire-schema fix was demonstrated offline, not proven to explain those requests.
+
+The current diagnostic run used **2 of at most 3 authorized live requests**, both synthetic. Request 1 reached source validation and failed `speakers[0].label` / `speaker_not_in_source` (HTTP 502, 1672 ms). Thus this attempt reached Google successfully and passed envelope/JSON/wire checks; it was not a connectivity failure. Generation previously allowed arbitrary speaker strings. Its request-specific schema now limits speaker labels and named participants to explicit prefixes from the submitted draft, with Unknown only for unlabeled content. The validator is unchanged; invalid claims still fail without repair or silent deletion. This lexical constraint is not a second extraction system. Drafts with over 20 distinct labeled speakers fail before a provider request.
+
+Request 2 completed extraction (HTTP 200, 1531 ms total / 1497 ms adapter time, 713 input / 168 output tokens). The one fact preserved USD 0, cited an exact source, and stayed unreviewed; none was confirmed. Cost is null and project tier unknown. No third request, minimal probe, automatic retry, fallback, billing change, or bulk evaluation ran. All 93 offline tests pass, including separate HTTP/network/timeout/cancellation/parsing/adapter failures, source-label constraints, and server-only diagnostic privacy. Type checking, linting, build, and health checks pass. See PROGRESS for the historical distinction and remaining limitations.
+
+## Safe failure diagnostics
+
+`provider-diagnostics.ts` classifies provider HTTP, network/TLS, timeout/cancellation, response parsing, validation, and unexpected adapter failures. HTTP diagnostics retain upstream status, a recognized provider code, and a fixed interpretation of recognized technical messages. Unknown free-form provider text is withheld because it may echo private content. Transport diagnostics allowlist technical codes; unexpected errors retain only exception type and local adapter filename/line frames, never raw messages, URLs, or full stacks. The API's own deadline also receives an explicit timeout category.
+
+The API logs a JSON `analysis_failure` with a random reference and these safe details. Validation diagnostics contain stage, schema-owned field path, and rule, never input values or raw Zod messages. UI responses contain only a useful controlled message, code, and matching reference. The client displays that reference; detailed diagnostics stay in the API terminal. No request/response bodies, conversations, authorization headers, keys, or credential-bearing URLs are logged. Existing summary replacement, unreviewed labels, manual corrections, and stale-result controls are unchanged.
 
 ## Manual browser acceptance — unverified
 

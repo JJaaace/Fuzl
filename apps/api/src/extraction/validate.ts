@@ -1,6 +1,6 @@
 import { applyFields, editFields, providerOutputSchema } from '@fuzl/planning';
 import type { AnalysisRequest, PlanningFact, PlanningSummary } from '@fuzl/planning';
-import { invalidOutput } from './errors.js';
+import { invalidOutput, schemaFailure } from './errors.js';
 
 const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function containsNumber(quotes: string, value: number): boolean {
@@ -18,56 +18,63 @@ function explicitDate(date: string, quotes: string): boolean {
 
 export function validateExtraction(raw: unknown, request: AnalysisRequest): { summary: PlanningSummary; warnings: string[] } {
   const parsed = providerOutputSchema.safeParse(raw);
-  if (!parsed.success) invalidOutput();
+  if (!parsed.success) schemaFailure('canonical_schema', parsed.error);
   const output = parsed.data;
   const warnings: string[] = [];
-  for (const items of [output.participants, output.speakers, output.sources, output.questions, output.facts.map((item) => item.fact)]) {
-    if (new Set(items.map((item) => item.id)).size !== items.length) invalidOutput();
+  for (const [collection, items] of [['participants', output.participants], ['speakers', output.speakers], ['sources', output.sources], ['questions', output.questions], ['facts', output.facts.map((item) => item.fact)]] as const) {
+    const ids = new Set<string>();
+    for (const [index, item] of items.entries()) {
+      if (ids.has(item.id)) invalidOutput('source_validation', [collection, index, 'id'], 'duplicate_id');
+      ids.add(item.id);
+    }
   }
   const people = new Map(output.participants.map((person) => [person.id, person]));
   const speakers = new Map(output.speakers.map((speaker) => [speaker.id, speaker]));
   const sources = new Map(output.sources.map((source) => [source.id, source]));
   const facts = new Map(output.facts.map((item) => [item.fact.id, item.fact]));
-  for (const speaker of output.speakers) {
-    if (speaker.participantId !== null && !people.has(speaker.participantId)) invalidOutput();
+  for (const [index, speaker] of output.speakers.entries()) {
+    if (speaker.participantId !== null && !people.has(speaker.participantId)) invalidOutput('source_validation', ['speakers', index, 'participantId'], 'unknown_reference');
     if (speaker.label === 'Unknown') {
-      if (speaker.participantId !== null) invalidOutput();
-    } else if (!new RegExp(`^\\s*${escape(speaker.label)}\\s*:`, 'm').test(request.conversation)) invalidOutput();
+      if (speaker.participantId !== null) invalidOutput('source_validation', ['speakers', index, 'participantId'], 'unknown_speaker_has_participant');
+    } else if (!new RegExp(`^\\s*${escape(speaker.label)}\\s*:`, 'm').test(request.conversation)) invalidOutput('source_validation', ['speakers', index, 'label'], 'speaker_not_in_source');
   }
-  for (const person of output.participants) {
-    if (person.name !== null && !output.speakers.some((speaker) => speaker.label === person.name && speaker.participantId === person.id)) invalidOutput();
+  for (const [index, person] of output.participants.entries()) {
+    if (person.name !== null && !output.speakers.some((speaker) => speaker.label === person.name && speaker.participantId === person.id)) invalidOutput('source_validation', ['participants', index, 'name'], 'participant_not_in_speakers');
   }
-  for (const source of output.sources) {
+  for (const [index, source] of output.sources.entries()) {
     const speaker = speakers.get(source.speakerId);
-    if (!speaker || !request.conversation.includes(source.text)) invalidOutput();
-    if (speaker.label !== 'Unknown' && !new RegExp(`^\\s*${escape(speaker.label)}\\s*:`).test(source.text)) invalidOutput();
+    if (!speaker) invalidOutput('source_validation', ['sources', index, 'speakerId'], 'unknown_reference');
+    if (!request.conversation.includes(source.text)) invalidOutput('source_validation', ['sources', index, 'text'], 'quote_not_exact');
+    if (speaker.label !== 'Unknown' && !new RegExp(`^\\s*${escape(speaker.label)}\\s*:`).test(source.text)) invalidOutput('source_validation', ['sources', index, 'text'], 'quote_speaker_mismatch');
   }
   const summary: PlanningSummary = { ...output, facts: [], questions: output.questions.map((question) => ({ ...question, resolution: null })) };
-  for (const question of summary.questions) {
-    if (question.relatedFactIds.some((id) => !facts.has(id))) invalidOutput();
+  for (const [index, question] of summary.questions.entries()) {
+    const missing = question.relatedFactIds.findIndex((id) => !facts.has(id));
+    if (missing !== -1) invalidOutput('source_validation', ['questions', index, 'relatedFactIds', missing], 'unknown_reference');
   }
-  for (const candidate of output.facts) {
+  for (const [index, candidate] of output.facts.entries()) {
     const fact = candidate.fact;
-    if (fact.sourceIds.some((id) => !sources.has(id))) invalidOutput();
+    const missingSource = fact.sourceIds.findIndex((id) => !sources.has(id));
+    if (missingSource !== -1) invalidOutput('source_validation', ['facts', index, 'fact', 'sourceIds', missingSource], 'unknown_reference');
     const subject = fact.subject;
     if (subject.kind === 'speaker' && (!speakers.has(subject.speakerId) ||
-      !fact.sourceIds.some((id) => sources.get(id)?.speakerId === subject.speakerId))) invalidOutput();
+      !fact.sourceIds.some((id) => sources.get(id)?.speakerId === subject.speakerId))) invalidOutput('source_validation', ['facts', index, 'fact', 'subject'], 'subject_evidence_mismatch');
     if (subject.kind === 'participant' && (!people.has(subject.participantId) || !fact.sourceIds.some((id) => {
       const source = sources.get(id)!;
       return speakers.get(source.speakerId)?.participantId === subject.participantId;
-    }))) invalidOutput();
+    }))) invalidOutput('source_validation', ['facts', index, 'fact', 'subject'], 'subject_evidence_mismatch');
     if (candidate.supersedes.some((id) => {
       const previous = facts.get(id);
       return !previous || id === fact.id || previous.kind !== fact.kind || JSON.stringify(previous.subject) !== JSON.stringify(fact.subject);
-    })) invalidOutput();
+    })) invalidOutput('source_validation', ['facts', index, 'supersedes'], 'invalid_supersession');
     const quotes = fact.sourceIds.map((id) => sources.get(id)!.text).join('\n');
     if (fact.kind === 'budget') {
-      if (fact.amount !== null && !containsNumber(quotes, fact.amount)) invalidOutput();
+      if (fact.amount !== null && !containsNumber(quotes, fact.amount)) invalidOutput('source_validation', ['facts', index, 'fact', 'amount'], 'number_not_in_quote');
       if (fact.currency !== null && !quotes.includes(fact.currency) &&
         !(fact.currency === 'EUR' && quotes.includes('€')) && !(fact.currency === 'GBP' && quotes.includes('£')) &&
-        !(fact.currency === 'USD' && quotes.includes('US$'))) invalidOutput();
+        !(fact.currency === 'USD' && quotes.includes('US$'))) invalidOutput('source_validation', ['facts', index, 'fact', 'currency'], 'currency_not_in_quote');
     }
-    if (fact.kind === 'travel' && fact.maxMinutes !== null && !containsNumber(quotes, fact.maxMinutes)) invalidOutput();
+    if (fact.kind === 'travel' && fact.maxMinutes !== null && !containsNumber(quotes, fact.maxMinutes)) invalidOutput('source_validation', ['facts', index, 'fact', 'maxMinutes'], 'number_not_in_quote');
     const checked: PlanningFact = { ...fact,
       // Source certainty and user confirmation are distinct. Only the editor can confirm a candidate.
       status: fact.status === 'confirmed' ? 'proposed' : fact.status,
@@ -89,7 +96,7 @@ export function validateExtraction(raw: unknown, request: AnalysisRequest): { su
       }
     }
     const fields = applyFields(checked, editFields(checked));
-    if (!fields.ok) invalidOutput();
+    if (!fields.ok) invalidOutput('field_validation', ['facts', index, 'fact', fields.field], fields.rule);
     summary.facts.push(fields.fact);
   }
   if (request.referenceDate === null && /\b(friday|saturday|sunday|monday|tuesday|wednesday|thursday|today|tomorrow|tonight|next week)\b/i.test(request.conversation)) {

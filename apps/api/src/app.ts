@@ -3,8 +3,9 @@ import type { ErrorRequestHandler } from 'express';
 import { analysisRequestSchema, analysisResponseSchema, PROVIDER_TIMEOUT_MS } from '@fuzl/planning';
 import type { AnalysisRequest, AnalysisResponse } from '@fuzl/planning';
 import { ensureAIConfigured, extractConversation } from './extraction/provider.js';
-import { ExtractionError, invalidOutput } from './extraction/errors.js';
+import { ExtractionError, schemaFailure } from './extraction/errors.js';
 import { getAIConfiguration } from './extraction/configuration.js';
+import { exceptionFailure } from './extraction/provider-diagnostics.js';
 
 type Extractor = (request: AnalysisRequest, signal: AbortSignal) => Promise<AnalysisResponse>;
 export function createApp(options: { extract?: Extractor; checkConfiguration?: () => void; now?: () => number; timeoutMs?: number } = {}) {
@@ -59,12 +60,17 @@ export function createApp(options: { extract?: Extractor; checkConfiguration?: (
       controller = new AbortController();
       response.once('close', disconnected);
       const abort = new Promise<never>((_resolve, reject) => {
-        controller!.signal.addEventListener('abort', () => reject(new ExtractionError(504, 'analysis_timeout', 'Analysis timed out or was cancelled. Retry explicitly or use manual entry.')), { once: true });
+        controller!.signal.addEventListener('abort', () => {
+          const timedOut = controller!.signal.reason instanceof DOMException && controller!.signal.reason.name === 'TimeoutError';
+          reject(new ExtractionError(timedOut ? 504 : 499, timedOut ? 'analysis_timeout' : 'analysis_cancelled',
+            timedOut ? 'Analysis timed out. Your summary was kept; retry explicitly or use manual entry.' : 'Analysis was cancelled. Your summary was kept.',
+            undefined, { category: timedOut ? 'timeout' : 'cancelled', operation: 'request_send', action: timedOut ? 'deadline_exceeded' : 'request_cancelled' }));
+        }, { once: true });
       });
-      timer = setTimeout(() => controller!.abort(), options.timeoutMs ?? PROVIDER_TIMEOUT_MS);
+      timer = setTimeout(() => controller!.abort(new DOMException('Analysis deadline exceeded', 'TimeoutError')), options.timeoutMs ?? PROVIDER_TIMEOUT_MS);
       const result = await Promise.race([extract(parsed.data, controller.signal), abort]);
       const valid = analysisResponseSchema.safeParse(result);
-      if (!valid.success) invalidOutput();
+      if (!valid.success) schemaFailure('response_contract', valid.error);
       if (!response.destroyed) response.json(valid.data);
     } catch (error) { if (!response.destroyed) next(error); }
     finally {
@@ -77,13 +83,20 @@ export function createApp(options: { extract?: Extractor; checkConfiguration?: (
   const errors: ErrorRequestHandler = (error: unknown, _request, response, _next) => {
     void _next; // Four arguments select Express's error-handler middleware.
     if (error instanceof ExtractionError) {
-      response.status(error.status).json({ error: { code: error.code, message: error.message } });
+      const detail = error.serverFailure ?? (error.diagnostic ? {
+        category: 'validation', operation: 'response_contract', validation: error.diagnostic,
+      } : undefined);
+      if (detail) console.error(JSON.stringify({ event: 'analysis_failure', reference: error.reference, ...detail }));
+      response.status(error.status).json({ error: { code: error.code, message: error.message, reference: error.reference } });
       return;
     }
     const tooLarge = typeof error === 'object' && error !== null && 'type' in error && error.type === 'entity.too.large';
     const malformed = typeof error === 'object' && error !== null && 'type' in error && error.type === 'entity.parse.failed';
+    const reference = crypto.randomUUID();
+    if (!tooLarge && !malformed) console.error(JSON.stringify({ event: 'analysis_failure', reference, ...exceptionFailure(error, 'response_contract', false) }));
     response.status(tooLarge ? 413 : malformed ? 400 : 500).json({ error: {
       code: tooLarge ? 'input_too_large' : malformed ? 'invalid_request' : 'internal_error',
+      reference,
       message: tooLarge ? 'The request exceeds the 32 KB limit. Use a shorter conversation.' : malformed ? 'The request could not be read. Check the input and try again.' : 'The API could not complete analysis. Your existing summary was kept. Retry later or use manual entry.',
     } });
   };

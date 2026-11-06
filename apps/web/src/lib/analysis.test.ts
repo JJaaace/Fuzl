@@ -11,6 +11,16 @@ test('analysis source checks prevent old drafts/reference dates being applied', 
   assert.equal(sameAnalysisSource({ ...submitted, expectedProvider: 'gemini' }, submitted.conversation, null, 'openai'), false);
 });
 
+test('error UI helper includes the safe reference and omits server-only detail', async (t) => {
+  const reference = '41d1870e-e760-4b06-9873-b9dc5c952303';
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: {
+    message: 'Google rejected access. Your summary was kept.', reference,
+    diagnostic: { stage: 'private-stage' }, serverFailure: { upstreamMessage: 'private-detail' },
+  } }, { status: 503 }));
+  await assert.rejects(analyzeConversation({ conversation: 'Alex: Maybe Friday', referenceDate: null }, new AbortController().signal),
+    { message: `Google rejected access. Your summary was kept. Error reference: ${reference}.` });
+});
+
 test('configuration is public allowlisted metadata, and invalid/error responses do not enable analysis', async (t) => {
   await t.test('selected Gemini', async (t) => {
     t.mock.method(globalThis, 'fetch', async (url: string) => {

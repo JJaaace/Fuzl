@@ -24,7 +24,9 @@ export async function analyzeConversation(request: AnalysisRequest, signal: Abor
   if (!response.ok) {
     const message = typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'object' &&
       body.error !== null && 'message' in body.error && typeof body.error.message === 'string' ? body.error.message : `Analysis failed (HTTP ${response.status}). Retry later or use manual entry.`;
-    throw new Error(message);
+    const reference = typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'object' && body.error !== null &&
+      'reference' in body.error && typeof body.error.reference === 'string' && /^[0-9a-f-]{36}$/.test(body.error.reference) ? body.error.reference : null;
+    throw new Error(message + (reference ? ` Error reference: ${reference}.` : ''));
   }
   const result = analysisResponseSchema.safeParse(body);
   if (!result.success) throw new Error('The API returned an invalid summary. Your existing work was kept.');

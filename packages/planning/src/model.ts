@@ -163,24 +163,24 @@ export function editFields(fact: PlanningFact): FactFields {
 }
 
 export function applyFields(fact: PlanningFact, fields: FactFields):
-  { ok: true; fact: PlanningFact } | { ok: false; error: string } {
+  { ok: true; fact: PlanningFact } | { ok: false; error: string; field: keyof FactFields; rule: 'invalid_amount' | 'invalid_currency' | 'invalid_minutes' | 'invalid_date' | 'invalid_time' | 'invalid_window' } {
   const optional = (value: string) => value.trim() || null;
   switch (fact.kind) {
     case 'budget': {
       const amount = optional(fields.amount);
       const currency = optional(fields.currency)?.toUpperCase() ?? null;
       if (amount !== null && (!/^\d+(\.\d{1,2})?$/.test(amount) || !Number.isFinite(Number(amount)) || Number(amount) > Number.MAX_SAFE_INTEGER / 100)) {
-        return { ok: false, error: 'Enter a non-negative amount with up to two decimal places, or leave it blank for unknown.' };
+        return { ok: false, field: 'amount', rule: 'invalid_amount', error: 'Enter a non-negative amount with up to two decimal places, or leave it blank for unknown.' };
       }
       if (currency !== null && !/^[A-Z]{3}$/.test(currency)) {
-        return { ok: false, error: 'Use a three-letter currency code, such as USD, or leave it blank for unknown.' };
+        return { ok: false, field: 'currency', rule: 'invalid_currency', error: 'Use a three-letter currency code, such as USD, or leave it blank for unknown.' };
       }
       return { ok: true, fact: { ...fact, amount: amount === null ? null : Number(amount), currency } };
     }
     case 'travel': {
       const minutes = optional(fields.maxMinutes);
       if (minutes !== null && (!/^\d+$/.test(minutes) || !Number.isSafeInteger(Number(minutes)))) {
-        return { ok: false, error: 'Enter a non-negative whole number of minutes, or leave it blank for unknown.' };
+        return { ok: false, field: 'maxMinutes', rule: 'invalid_minutes', error: 'Enter a non-negative whole number of minutes, or leave it blank for unknown.' };
       }
       return { ok: true, fact: { ...fact, maxMinutes: minutes === null ? null : Number(minutes), mode: optional(fields.mode) } };
     }
@@ -190,13 +190,14 @@ export function applyFields(fact: PlanningFact, fields: FactFields):
       const endTime = optional(fields.endTime);
       if (exactDate !== null && (!/^\d{4}-\d{2}-\d{2}$/.test(exactDate) ||
         !Number.isFinite(Date.parse(exactDate)) || new Date(exactDate).toISOString().slice(0, 10) !== exactDate)) {
-        return { ok: false, error: 'Enter a valid exact date in YYYY-MM-DD format, or leave it unknown.' };
+        return { ok: false, field: 'exactDate', rule: 'invalid_date', error: 'Enter a valid exact date in YYYY-MM-DD format, or leave it unknown.' };
       }
       if ([startTime, endTime].some((time) => time !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))) {
-        return { ok: false, error: 'Use 24-hour times in HH:MM format, or leave them unknown.' };
+        const invalidStart = startTime !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime);
+        return { ok: false, field: invalidStart ? 'startTime' : 'endTime', rule: 'invalid_time', error: 'Use 24-hour times in HH:MM format, or leave them unknown.' };
       }
       if (startTime !== null && endTime !== null && endTime <= startTime) {
-        return { ok: false, error: 'End time must follow start time on the same day. For overnight plans, use separate date & time facts.' };
+        return { ok: false, field: 'endTime', rule: 'invalid_window', error: 'End time must follow start time on the same day. For overnight plans, use separate date & time facts.' };
       }
       return { ok: true, fact: { ...fact, description: optional(fields.description), exactDate, startTime, endTime } };
     }

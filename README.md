@@ -2,7 +2,7 @@
 
 Turn your group chat into a plan.
 
-Fuzl aims to help existing friend groups turn deliberately supplied conversation context into realistic hangout plans. **Section 3 is integrated with explicit OpenAI or Gemini selection:** send pasted text for AI extraction, then correct candidate facts in the existing editor. Samples, manual entry, and health remain available without credentials. **The latest single Gemini live response was rejected by application validation; successful live extraction remains unverified.**
+Fuzl aims to help existing friend groups turn deliberately supplied conversation context into realistic hangout plans. **Section 3 is integrated with explicit OpenAI or Gemini selection:** send pasted text for AI extraction, then correct candidate facts in the existing editor. Samples, manual entry, and health remain available without credentials. **A complete synthetic Gemini extraction passed through the API; browser acceptance remains unverified.**
 
 No uploads, database, auth, guest links, venue recommendations, memory, or native integrations exist. The complete [specification](FUZL_CODEX_SPEC.md) is preserved unchanged; Jace explicitly advanced its original boundary through Section 3. Sections 4 onward remain out of scope.
 
@@ -115,7 +115,9 @@ Both should return HTTP 200 with:
 
 ## Verification and manual browser checks
 
-See [docs/PROGRESS.md](docs/PROGRESS.md) for exact results. Offline tests cover validation, mocked provider requests, real local HTTP, state, and static markup—not browser clicks or model quality. **Browser checks remain unverified. One live Gemini request returned HTTP 502 / invalid_output after about 2.1 seconds; no summary was accepted and no retry/fallback ran.** End-to-end successful extraction, model quality, provider token usage/cost, and rendered browser behavior remain unverified. CSS uses one-column forms below 540px; source review is not visual verification.
+See [docs/PROGRESS.md](docs/PROGRESS.md) for exact results. All 93 offline tests, type checking, linting, and builds pass. The latest diagnosis used **two live synthetic requests**: the first failed source validation at `speakers[0].label` (`speaker_not_in_source`); after constraining generated labels to source prefixes, the second completed with HTTP 200. It preserved the USD 0 budget, exact supporting source, and unreviewed status. Provider latency was 1497 ms, with 713 input / 168 output tokens; cost and project billing tier are unknown. No retry, fallback, billing change, or bulk evaluation ran. Earlier generic failures cannot be reconstructed because their responses were not retained. **Browser flow and broad live extraction quality remain unverified.**
+
+Gemini failures now distinguish upstream HTTP errors, network/TLS failures, deadlines/cancellation, malformed responses, validation, and unexpected adapter exceptions. The UI shows a useful sanitized message and error reference; only server diagnostics include stage/path/rule, upstream status/recognized code, and a fixed safe interpretation of the provider message. Unknown provider text, raw exceptions, keys, URLs, headers, and conversations are never logged. Match the UI reference to the `analysis_failure` line in the API terminal; do not add raw-response logging.
 
 With the app running:
 

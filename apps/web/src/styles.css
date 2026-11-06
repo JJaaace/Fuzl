@@ -89,3 +89,20 @@ blockquote { margin: 12px 0; border-left: 2px solid var(--border); padding-left:
   .sample-loader, .add-information { flex-direction: column; align-items: stretch; }
   .fact-card, .question-card { padding: 12px; }
 }
+.screenshot-panel { padding: 20px 0; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+.screenshot-panel h2 { font-size: 17px; }
+.screenshot-panel p, .source-trace { font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.screenshot-panel .actions, .fact-actions { flex-wrap: wrap; }
+.screenshot-panel .field { margin: 14px 0; }
+.screenshot-panel input[type=file] { max-width: 100%; }
+.screenshot-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 0; list-style: none; }
+.screenshot-list li, .transcript-message { min-width: 0; border: 1px solid var(--border); border-radius: 6px; padding: 12px; background: var(--surface); }
+.screenshot-list img { display: block; max-width: 100%; max-height: 240px; margin: 0 auto; object-fit: contain; }
+.transcript-message { margin: 16px 0; }
+.transcript-message textarea { min-height: 100px; }
+.transcript-review h3 { font-size: 17px; }
+.transcript-message h4 { font-size: 14px; margin: 0; }
+.source-trace { border-left: 2px solid var(--border); padding-left: 12px; }
+.source-trace a { overflow-wrap: anywhere; color: var(--ink); }
+a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+@media (max-width: 540px) { .screenshot-list { grid-template-columns: minmax(0, 1fr); } }

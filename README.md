@@ -2,9 +2,17 @@
 
 Turn your group chat into a plan.
 
-Fuzl aims to help existing friend groups turn deliberately supplied conversation context into realistic hangout plans. **Section 3 is integrated with explicit OpenAI or Gemini selection:** send pasted text for AI extraction, then correct candidate facts in the existing editor. Samples, manual entry, and health remain available without credentials. **A complete synthetic Gemini extraction passed through the API; browser acceptance remains unverified.**
+Fuzl aims to help existing friend groups turn deliberately supplied conversation context into realistic hangout plans. **Section 4 adds selected screenshots:** read them into an editable transcript, explicitly analyze the reviewed text, then correct candidate facts in the existing editor. Pasted-text analysis still supports explicit OpenAI or Gemini selection. Samples, manual entry, and health remain available without credentials. **A complete synthetic Gemini extraction passed through the API; browser acceptance remains unverified.**
 
-No uploads, database, auth, guest links, venue recommendations, memory, or native integrations exist. The complete [specification](FUZL_CODEX_SPEC.md) is preserved unchanged; Jace explicitly advanced its original boundary through Section 3. Sections 4 onward remain out of scope.
+Selected PNG/JPEG uploads are processed temporarily in memory. No database, auth, guest links, venue recommendations, group memory, or native integrations exist. The complete [specification](FUZL_CODEX_SPEC.md) is preserved unchanged; Jace explicitly advanced its original boundary through Section 4. Sections 5 onward remain out of scope.
+
+## Try screenshot reading
+
+Select up to five PNG/JPEG screenshots (5 MiB each, 15 MiB total), check previews/order, and explicitly choose **Read screenshots**. Review/correct text and unknown aliases, then **Use reviewed transcript as draft**. Choose **Analyze conversation** separately, review the candidate summary, and accept it into the existing editor. Reading and analysis are separate AI requests; selecting or editing files sends nothing. Gemini is required for image reading; OpenAI remains available for pasted text. No automatic provider fallback occurs.
+
+Use the five synthetic images in `fixtures/screenshots`. Pixel limits are 4096 per side, 8 megapixels per image and 20 total; very large encoded sets may also exceed Google's 20 MB inline-request budget. Raw images stay in browser/backend memory, with no disk uploads or persistence. Removed previews are revoked. Explicit Clear/reload releases screenshot/transcript state; existing draft/summary clearing has separate controls. Google's retention is separate from Fuzl's lifecycle.
+
+See [Screenshot workflow, lifecycle, tests and exact manual checks](docs/SCREENSHOTS.md). All 114 offline tests, type checking, linting, builds and health checks pass. A synthetic screenshot read matched its fixture, and final text extraction preserved separately attributed zero/unknown budgets and tentative dates with unreviewed claims. Three Gemini calls were used, including one planning completeness failure before a prompt correction; one extra local attempt failed before reaching the API. Full results and measured usage are in PROGRESS. Browser interactions remain unverified because no browser is connected. Section 3 is checkpointed locally as `9e9383a`; Section 4 changes are uncommitted for review and have not been pushed.
 
 ## Configure and try AI extraction
 
@@ -78,6 +86,8 @@ Run from the repository root:
 | `npm run typecheck` | Strictly check frontend, Vite config, and API TypeScript |
 | `npm run lint` | Lint source and tooling with zero warnings allowed |
 | `npm test` | Offline contract/provider-mock/HTTP/evaluation/state/markup tests; no paid calls |
+| `npm run fixtures:screenshots` | Regenerate the five synthetic chat-image fixtures |
+| `npm run eval:screenshots -- --confirm-live` | One deliberate synthetic screenshot read; add --analyze-reviewed for a second planning call after fixture review |
 | `npm run eval:live -- --confirm-live-eval --case=zero-budget` | One explicit synthetic request to the selected provider; check tier/quota/budget first |
 | `npm run build` | Build web assets and compile API JavaScript |
 | `npm run start:api` | Run the compiled API after building |
@@ -115,7 +125,7 @@ Both should return HTTP 200 with:
 
 ## Verification and manual browser checks
 
-See [docs/PROGRESS.md](docs/PROGRESS.md) for exact results. All 93 offline tests, type checking, linting, and builds pass. The latest diagnosis used **two live synthetic requests**: the first failed source validation at `speakers[0].label` (`speaker_not_in_source`); after constraining generated labels to source prefixes, the second completed with HTTP 200. It preserved the USD 0 budget, exact supporting source, and unreviewed status. Provider latency was 1497 ms, with 713 input / 168 output tokens; cost and project billing tier are unknown. No retry, fallback, billing change, or bulk evaluation ran. Earlier generic failures cannot be reconstructed because their responses were not retained. **Browser flow and broad live extraction quality remain unverified.**
+See [docs/PROGRESS.md](docs/PROGRESS.md) for exact results. The Section 3 checkpoint passed 93 offline tests, type checking, linting, and builds. Current Section 4 verification is recorded in [PROGRESS](docs/PROGRESS.md) and [SCREENSHOTS](docs/SCREENSHOTS.md). The historical Section 3 diagnosis used **two live synthetic requests**: the first failed source validation at `speakers[0].label` (`speaker_not_in_source`); after constraining generated labels to source prefixes, the second completed with HTTP 200. It preserved the USD 0 budget, exact supporting source, and unreviewed status. Provider latency was 1497 ms, with 713 input / 168 output tokens; cost and project billing tier are unknown. No retry, fallback, billing change, or bulk evaluation ran. Earlier generic failures cannot be reconstructed because their responses were not retained. **Browser flow and broad live extraction quality remain unverified.**
 
 Gemini failures now distinguish upstream HTTP errors, network/TLS failures, deadlines/cancellation, malformed responses, validation, and unexpected adapter exceptions. The UI shows a useful sanitized message and error reference; only server diagnostics include stage/path/rule, upstream status/recognized code, and a fixed safe interpretation of the provider message. Unknown provider text, raw exceptions, keys, URLs, headers, and conversations are never logged. Match the UI reference to the `analysis_failure` line in the API terminal; do not add raw-response logging.
 

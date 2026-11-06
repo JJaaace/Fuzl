@@ -32,7 +32,7 @@ export const geminiWireSchema = providerOutputSchema.omit({ facts: true }).exten
 });
 
 const allowedKeywords = new Set(['type', 'properties', 'required', 'items', 'enum', 'anyOf', 'additionalProperties', 'description']);
-function generationSchema(value: unknown): unknown {
+export function generationSchema(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(generationSchema);
   if (typeof value !== 'object' || value === null) return value;
   const converted = Object.fromEntries(Object.entries(value).filter(([key]) => allowedKeywords.has(key)).map(([key, child]) => [key,

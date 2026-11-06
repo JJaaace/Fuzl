@@ -1,6 +1,6 @@
 # Section 3 integration
 
-Implemented November 6, 2026. One complete Gemini synthetic extraction passed through the API; browser acceptance and OpenAI live verification remain unverified. Section 2 checkpoint: `f22e040`. The original Section 3 OpenAI work was subsequently committed/pushed as `1b8754f`, and the Gemini option as `0f15422`, at Jace's request. The current diagnosis changes remain local. No deployment.
+Implemented November 6, 2026. One complete Gemini synthetic extraction passed through the API; browser acceptance and OpenAI live verification remain unverified. Section 2 checkpoint: `f22e040`. The original Section 3 OpenAI work was subsequently committed/pushed as `1b8754f`, and the Gemini option as `0f15422`, at Jace's request. Section 3 diagnosis changes were checkpointed locally as `9e9383a` without pushing; Section 4 changes remain uncommitted for review. No deployment.
 
 ## Provider choice and setup
 
@@ -68,4 +68,4 @@ The API logs a JSON `analysis_failure` with a random reference and these safe de
 6. With developer tools, test empty/oversized input, the 3/minute/10-attempt limits, stopped API, provider quota/access error, refusal, invalid output, timeout, cancellation, and recovery. Some failures need a controlled test provider/account; do not manufacture passing results. All must preserve existing work and avoid fixture fallback/retry loops.
 7. Confirm only Analyze POSTs the draft/reference date; all other editing stays local. The key must never appear in frontend assets, requests, responses, logs, or storage. Verify no app browser persistence is created; reload clears planning data. Test embedded-instruction text only with synthetic examples, and inspect that it neither creates invented facts nor alters extraction rules.
 
-Section 4 has not started. No screenshot, account, guest-link, venue, recommendation, memory, or native feature is included.
+Section 4 is now implemented separately in [SCREENSHOTS.md](SCREENSHOTS.md). It sends reviewed transcripts through this same planning flow. No account, guest-link, venue, recommendation, group memory or native feature is included.

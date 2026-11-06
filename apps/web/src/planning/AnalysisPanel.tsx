@@ -4,10 +4,11 @@ import type { AIConfiguration, AnalysisRequest, AnalysisResponse } from '@fuzl/p
 import { analyzeConversation, fetchAIConfiguration, sameAnalysisSource } from '../lib/analysis';
 import { Field } from './FactEditor';
 
-export default function AnalysisPanel({ draft, onAccept }: {
-  draft: string; onAccept: (result: AnalysisResponse, request: AnalysisRequest) => void;
+export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, onAccept }: {
+  draft: string; sourceVersion?: number; draftIssue?: string | null; onAccept: (result: AnalysisResponse, request: AnalysisRequest) => void;
 }) {
   const [referenceDate, setReferenceDate] = useState('');
+  const [submittedVersion, setSubmittedVersion] = useState(0);
   const [submitted, setSubmitted] = useState<AnalysisRequest | null>(null);
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'cancelled'>('idle');
@@ -27,15 +28,15 @@ export default function AnalysisPanel({ draft, onAccept }: {
     }).finally(() => { if (!controller.signal.aborted) setConfigurationLoading(false); });
     return () => controller.abort();
   }, [configurationVersion]);
-  const mismatch = submitted !== null && !sameAnalysisSource(submitted, draft, referenceDate || null, configuration?.provider);
+  const mismatch = submitted !== null && (submittedVersion !== sourceVersion || !sameAnalysisSource(submitted, draft, referenceDate || null, configuration?.provider));
   const tooLong = draft.length > MAX_CONVERSATION_LENGTH;
 
   async function analyze() {
-    if (pending.current || !configuration) return;
+    if (pending.current || !configuration || draftIssue) return;
     const controller = new AbortController();
     pending.current = controller;
     const request = { conversation: draft, referenceDate: referenceDate || null, expectedProvider: configuration.provider };
-    setSubmitted(request); setResult(null); setError(''); setStatus('loading');
+    setSubmitted(request); setSubmittedVersion(sourceVersion); setResult(null); setError(''); setStatus('loading');
     try {
       const response = await analyzeConversation(request, controller.signal);
       if (pending.current !== controller || controller.signal.aborted) return;
@@ -63,8 +64,9 @@ export default function AnalysisPanel({ draft, onAccept }: {
       <Field label="Date of the conversation (optional reference)" type="date" value={referenceDate} onChange={(event) => setReferenceDate(event.target.value)} />
       <p className="note">Use the date the messages were written, not automatically today. Ambiguous days still need your confirmation.</p>
       <p className={tooLong ? 'validation-error' : 'note'}>{draft.length} / {MAX_CONVERSATION_LENGTH} characters</p>
+      {draftIssue && <p className="validation-error">{draftIssue}</p>}
       <div className="actions">
-        <button type="submit" disabled={!configuration || configurationLoading || status === 'loading' || !draft.trim() || tooLong}>{status === 'loading' ? 'Analyzing…' : 'Analyze conversation'}</button>
+        <button type="submit" disabled={!configuration || configurationLoading || status === 'loading' || !!draftIssue || !draft.trim() || tooLong}>{status === 'loading' ? 'Analyzing…' : 'Analyze conversation'}</button>
         {status === 'loading' && <button type="button" onClick={() => {
           pending.current?.abort(); pending.current = null; setStatus('cancelled'); setResult(null);
         }}>Cancel analysis</button>}
@@ -74,14 +76,14 @@ export default function AnalysisPanel({ draft, onAccept }: {
       {status === 'loading' && <p>Analyzing the submitted draft. Your existing summary remains editable.</p>}
       {status === 'cancelled' && <p>Analysis cancelled locally. Your summary was kept. A provider request already started may still incur usage.</p>}
       {status === 'error' && <p className="validation-error">{error}</p>}
-      {mismatch && (status === 'loading' || status === 'done') && <p className="source-warning">The draft or reference date changed after submission. This result cannot replace your summary. Cancel or analyze the current draft again.</p>}
+      {mismatch && (status === 'loading' || status === 'done') && <p className="source-warning">The draft, linked transcript, or reference date changed after submission. This result cannot replace your summary. Cancel or analyze the current draft again.</p>}
       {status === 'done' && !mismatch && <p>AI extraction received. Claims are unreviewed. Use the result below to open it in the editor.</p>}
     </div>
     {result && submitted && <div className="analysis-result">
       <ul>{result.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>
       <p>{result.summary.facts.length} candidate facts · {result.summary.questions.length} questions. Existing work is kept until you choose to replace it.</p>
       <button disabled={mismatch} onClick={() => {
-        if (!sameAnalysisSource(submitted, draft, referenceDate || null, configuration?.provider)) return;
+        if (submittedVersion !== sourceVersion || !sameAnalysisSource(submitted, draft, referenceDate || null, configuration?.provider)) return;
         onAccept(result, submitted);
       }}>Use extracted summary</button>
       <details><summary>Request details</summary><p className="note">{result.metrics.provider} · {result.metrics.model} · {result.metrics.latencyMs} ms · Input tokens: {result.metrics.inputTokens ?? 'unavailable'} · Output tokens: {result.metrics.outputTokens ?? 'unavailable'} · Estimated USD: {result.metrics.estimatedCostUsd?.toFixed(5) ?? 'unavailable; project billing tier not verified'} (not a billing record)</p></details>

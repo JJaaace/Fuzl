@@ -30,17 +30,19 @@ const envelopeSchema = z.object({
   }).optional(),
 });
 
-export async function extractWithGemini(request: AnalysisRequest, signal: AbortSignal, apiKey: string): Promise<AnalysisResponse> {
+export async function generateGeminiJson<T>(input: { system: string; parts: unknown[]; schema: unknown }, signal: AbortSignal, apiKey: string,
+  validate: (raw: unknown, operation: (value: Operation) => void) => T): Promise<{ result: T; metrics: AnalysisResponse['metrics'] }> {
   const started = performance.now();
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(PROVIDER_TIMEOUT_MS)]);
   let operation: Operation = 'request_build';
   let upstreamStatus: number | undefined;
   try {
     const body = JSON.stringify({
-      systemInstruction: { parts: [{ text: `${extractionInstructions}\n${geminiFormatInstructions}` }] },
-      contents: [{ role: 'user', parts: [{ text: JSON.stringify({ untrustedConversation: request.conversation, referenceDate: request.referenceDate }) }] }],
-      generationConfig: { responseMimeType: 'application/json', responseJsonSchema: geminiSchemaForConversation(request.conversation), maxOutputTokens: MAX_OUTPUT_TOKENS, candidateCount: 1 },
+      systemInstruction: { parts: [{ text: input.system }] },
+      contents: [{ role: 'user', parts: input.parts }],
+      generationConfig: { responseMimeType: 'application/json', responseJsonSchema: input.schema, maxOutputTokens: MAX_OUTPUT_TOKENS, candidateCount: 1 },
     });
+    if (Buffer.byteLength(body) > 20_000_000) throw new ExtractionError(413, 'provider_request_size', 'The combined request exceeds Gemini’s 20 MB inline limit after encoding. Remove or resize screenshots; no provider request was sent.');
     // Fixed host, key in a header (never URL/prompt), no redirects/tools/retries.
     operation = 'request_send';
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
@@ -80,14 +82,11 @@ export async function extractWithGemini(request: AnalysisRequest, signal: AbortS
     let raw: unknown;
     operation = 'response_json';
     try { raw = JSON.parse(parts.map((part) => part.text).join('')); } catch { invalidOutput('provider_json', [], 'invalid_json'); }
-    operation = 'wire_conversion';
-    const converted = convertGeminiOutput(raw);
-    operation = 'source_validation';
-    const result = validateExtraction(converted, request);
+    const result = validate(raw, (value) => { operation = value; });
     const inputTokens = envelope.usageMetadata?.promptTokenCount ?? null;
     const candidateTokens = envelope.usageMetadata?.candidatesTokenCount;
     const outputTokens = candidateTokens === undefined ? null : candidateTokens + (envelope.usageMetadata?.thoughtsTokenCount ?? 0);
-    return { ...result, metrics: {
+    return { result, metrics: {
       provider: 'gemini', model: GEMINI_MODEL, latencyMs: Math.round(performance.now() - started), inputTokens, outputTokens,
       // The API key's billing tier is not known to Fuzl. Never label usage as $0.
       estimatedCostUsd: null,
@@ -110,4 +109,18 @@ export async function extractWithGemini(request: AnalysisRequest, signal: AbortS
       : 'The server could not connect to Gemini. Check the server network; your summary was kept.', undefined, details);
     throw new ExtractionError(500, 'adapter_error', 'An internal Gemini adapter error prevented extraction. Your summary was kept; inspect the server error reference.', undefined, details);
   }
+}
+
+export async function extractWithGemini(request: AnalysisRequest, signal: AbortSignal, apiKey: string): Promise<AnalysisResponse> {
+  const response = await generateGeminiJson({
+    system: `${extractionInstructions}\n${geminiFormatInstructions}`,
+    parts: [{ text: JSON.stringify({ untrustedConversation: request.conversation, referenceDate: request.referenceDate }) }],
+    schema: geminiSchemaForConversation(request.conversation),
+  }, signal, apiKey, (raw, operation) => {
+    operation('wire_conversion');
+    const converted = convertGeminiOutput(raw);
+    operation('source_validation');
+    return validateExtraction(converted, request);
+  });
+  return { ...response.result, metrics: response.metrics };
 }

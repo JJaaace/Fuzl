@@ -1,8 +1,51 @@
 # Fuzl progress
 
-Updated November 6, 2026. Active authorization: **Section 3 only**. Sections 4–12 remain future context. The supplied specification is preserved unchanged.
+Updated November 6, 2026. Active authorization: **Section 4 only**. Sections 5–12 remain future context. The supplied specification is preserved unchanged.
 
-## Current Gemini diagnosis — complete extraction succeeded
+## Section 4 implementation
+
+- Baseline: reviewed the specification/instructions, README, progress and Section 3 diff. Reused recent unchanged checks, reran the 93-test baseline and type check, and confirmed browser discovery returns `[]`. No interactive Analyze/accept/edit, replacement-dialog or mobile claim is made. Exact current private key matched zero project candidates; `.env` remains ignored/untracked. Created local Section 3 checkpoint **9e9383a — Fix Gemini attribution and add safe extraction diagnostics**. No push.
+- Added deliberate image selection → preview/order/remove → Read screenshots → editable transcript → Use reviewed transcript as draft → separate Analyze conversation → existing explicit summary acceptance. Selection/reordering/removal never call AI. Existing samples, manual editor, pasted-text analysis, Gemini selection and separate OpenAI option stay. Screenshot reading requires the selected Gemini option; there is no fallback or billing change.
+- Shared screenshot/transcript types retain stable screenshot/message references, visible aliases/timestamps, uncertainty and uncertain duplicates. Original readings, organizer corrections/manual additions and planning claims remain distinct. Source quotes lead to reviewed messages, original readings and available screenshots; a quote match is explicitly not pixel verification. Unknown attribution stays Unknown unless the organizer supplies an alias. Overlaps, corrections and conflicts are retained, not merged or resolved automatically.
+- Browser/server limits: 5 files, 5 MiB each / 15 MiB total, 4096 pixels per side, 8 MP each / 20 MP total. Backend Sharp 0.35.5 checks actual PNG/JPEG type and full decoding, rejects animations/corrupt/truncated files and bounds pixels independently. Encoded JSON is capped and uncompressed; provider inline payload is checked against Google's 20 MB budget before sending. No file uploads to disk, cloud storage, Files API or database.
+- Both routes share bounded attempts/concurrency/deadlines and existing sanitized failure diagnostics. Read results bind to exact order plus revision; edits/clear invalidate old results. Linked transcript edits, including reference-only edits, invalidate pending planning results through an additional source revision. Draft/summary replacement confirmations and visibly unreviewed claims stay. Invalid transcript inputs block planning; manual textarea edits detach image traceability clearly.
+- Temporary handling: browser object URLs revoked on removal/replacement/cleanup, including abandoned previews. Backend uses Buffer input, disables Sharp's cache, zeroes decoded input Buffers and releases references in success/failure/cancel finally paths. Route body references are released. Native operations can finish before release and JS strings await garbage collection; no immediate secure erasure guarantee. Full screenshot/transcript Clear clears its trail but retains the separately editable draft/summary as disclosed. Removing individual images retains reference-only provenance.
+- Added five reproducible synthetic image fixtures and generator, offline mocked image/provider/HTTP tests, source-trace/editor markup tests, selection/revision/URL cleanup tests and opt-in two-stage evaluation. Broader visual accuracy on overlap/cropped/correction/conflict/hostile images remains unmeasured live. README, SCREENSHOTS, AI_INTEGRATION and GEMINI_SETUP document current lifecycle/configuration and exact manual checks.
+
+
+## Actual Section 4 verification
+
+| Check | Result |
+| --- | --- |
+| npm test | Passed: **114 offline tests**, mocked provider calls; no live requests from tests |
+| npm run typecheck | Passed for shared package, web, Vite tooling and API |
+| npm run lint | Passed, zero warnings |
+| npm run build | Passed, compiled shared/API and Vite assets |
+| API and Vite-proxied health; public provider config | HTTP 200; Gemini / gemini-3.5-flash-lite remains selected |
+| Compiled API runtime on temporary port 3002 | Started compiled ESM API, health HTTP 200; stopped cleanly, existing dev servers kept |
+| Screenshot eval without opt-in | Exited 1 before any requests with explicit opt-in instructions |
+| npm audit --omit=dev | Zero runtime vulnerabilities |
+| git diff --check; exact-key candidate scan | Passed; zero private-key matches, .env ignored/untracked; no secret printed |
+| Browser discovery | `[]`; interactive and rendered checks **unverified** |
+
+### Live synthetic results — stopped at three Gemini calls
+
+All raw conversations/images stayed out of logs. Metrics below were actually reported; estimated USD cost is null for each call, with project tier/remaining quota unknown. No billing changes, fallback, automatic retries, or bulk evaluation.
+
+| Attempt | Result |
+| --- | --- |
+| Gemini call 1: Read fixtures/screenshots/01-clear.png | HTTP 200, 2049 ms total / **2019 ms provider-adapter**. 1408 input / 276 output tokens. Three transcribed messages/aliases/texts/timestamps matched the authored synthetic fixture exactly. |
+| Local planning attempt after that read | Failed before reaching the API/provider: Vite reported ECONNREFUSED because a shared-package type check restarted the watched API during evaluation. No Gemini request or token metrics for this attempt. Corrected test procedure: finish checks before live work, verify health, and do not rebuild from the screenshot-evaluation command. No image reread. |
+| Gemini call 2: planning from the reviewed, fixture-matched text | HTTP 200, 2411 ms total / **2376 ms adapter**. 730 input / 707 output tokens. Schema/source validation passed and claims stayed unreviewed, but the semantic evaluation **failed**: no explicit null-budget fact for Sam (two facts total). This result is not reported as a fully passing extraction. |
+| Gemini call 3: targeted planning verification | Clarified the extraction prompt to retain an explicitly stated unknown budget as a per-speaker null fact plus question; application validation unchanged. Added a deterministic regression for separate zero/null budgets and attribution. Offline checks passed before the final call. HTTP 200, 2281 ms total / **2245 ms adapter**, 792 input / 493 output tokens. Three facts; Alex USD 0 and Sam amount/currency null were correctly attributed, tentative availability had no invented date, all claims remained unreviewed, none confirmed, all source quotes matched the reviewed transcript. All six evaluation checks passed. |
+
+This demonstrates a synthetic image read → review against its fixture → text extraction → validated planning summary through the API. It does **not** establish an uninterrupted browser journey, arbitrary-image accuracy, or robust semantics from one case. The first two-stage script stopped on the local failure; subsequent planning checks used the manually reviewed text whose image reading had matched exactly, not fixture planning output substituted for AI. There were **four local POST attempts total, three reached Gemini**. No further requests were made after the final success.
+
+Browser selection/order/removal, actual transcript edits and dialogs, acceptance/edit/keyboard behavior, narrow viewport, live network/storage observations and cancellation races remain unverified. Follow [SCREENSHOTS manual checks](SCREENSHOTS.md#manual-browser-checks--unverified). Overlap, cropped identities, corrections, conflicts and embedded instructions have synthetic fixtures/offline validation coverage but were not sent in further live image requests. Remaining semantic limitations include omissions despite prompts and unverified visual transcription: organizer review/manual fallback remains necessary.
+
+Section 3 checkpoint **9e9383a** is local and unpushed. Section 4 changes remain **uncommitted** for review. No push, deployment, database, account, saved-group, recommendation, voting, memory, messaging integration, or Section 5 work.
+
+## Historical Section 3 Gemini diagnosis — complete extraction succeeded
 
 - Scope: Section 3 only, no push or deployment. Preserved existing local changes, OpenAI selection, strict schema/source validation, temporary state, editor/acceptance controls, unreviewed labels, and stale-result protections. Private environment contents were not printed or changed.
 - Before live work, introduced distinct safe provider HTTP, network/TLS, timeout/cancelled, response parsing, validation, and unexpected adapter diagnostics. Server-only structured errors carry category/operation, recognized upstream status/code and safe message interpretation, known transport code or local exception frame, and controlled validation stage/path/rule as applicable. Unknown raw provider text and exception messages are withheld. The UI receives only a useful controlled message/code plus matching error reference. API-owned deadlines also retain timeout classification.
@@ -189,4 +232,4 @@ Drafts clear on reload. Health is a snapshot of reachability, with no automatic 
 
 Foundation implementation and available automated/HTTP checks are complete; manual browser acceptance remains pending. A focused local foundation commit records this work. No remote was created, pushed, published, or deployed.
 
-This historical stopping boundary was advanced by Jace’s later instructions. The active boundary is now **after Section 3**.
+This historical stopping boundary was advanced by Jace’s later instructions. The active boundary is now **after Section 4**, as authorized by the later attached request.

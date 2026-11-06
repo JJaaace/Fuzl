@@ -1,6 +1,6 @@
-# Gemini option within Section 3
+# Gemini configuration — Sections 3 and 4
 
-Checked November 6, 2026. The prior OpenAI implementation was committed and pushed as `1b8754f` before this optional provider was added. The Gemini option was subsequently committed/pushed as `0f15422`; current diagnostics and fixes remain local and have not been pushed. No billing, deployment, or Section 4 work was performed.
+Checked November 6, 2026. The prior OpenAI implementation was committed and pushed as `1b8754f` before this optional provider was added. The Gemini option was subsequently committed/pushed as `0f15422`; Section 3 diagnostics/fixes were checkpointed locally as `9e9383a` and have not been pushed. Section 4 now reuses this configuration; see [SCREENSHOTS.md](SCREENSHOTS.md). No billing or deployment changes were made.
 
 ## Model and Free Tier checks
 
@@ -69,7 +69,7 @@ Fuzl itself still keeps drafts/summaries temporary without database, browser per
 - `gemini-schema.ts` flattens nested fact/subject unions for Google's generation grammar. Unsupported or expensive grammar constraints are omitted only from the generation schema. The wire output is converted back and validated by the full existing Zod and source-reference checks. Unknowns, exact quotes, uncertainty, human review, dates, corrections, and stale-result protections are unchanged. Irrelevant non-null wire fields are rejected, not silently discarded. [Structured-output guidance](https://ai.google.dev/gemini-api/docs/structured-output).
 - `GET /api/ai-config` exposes provider/model only. The UI waits for it before enabling Analyze; the POST includes expectedProvider. The backend checks that consent still matches its current setting, and the client validates returned provider/model metadata.
 
-### Latest diagnosis and live result
+### Historical Section 3 diagnosis and live result
 
 Reviewed the current [GenerateContent reference](https://ai.google.dev/api/generate-content), [structured-output guide](https://ai.google.dev/gemini-api/docs/structured-output), and [troubleshooting reference](https://ai.google.dev/gemini-api/docs/troubleshooting) on November 6, 2026. The model supports structured output. This adapter uses native REST, not a Google SDK: POST `v1beta/models/gemini-3.5-flash-lite:generateContent`, private key header, systemInstruction/contents, and generationConfig with `responseMimeType: application/json`, `responseJsonSchema`, one candidate and 6000 output tokens. The guide documents those schema settings, enum/anyOf, and nulls. The successful request below verifies this precise format for the selected model. No endpoint, SDK, or paid model change was needed.
 
@@ -86,7 +86,7 @@ Generation now constrains speaker labels to the prefixes actually present in the
 
 Failures are separated into provider HTTP, network/TLS, timeout/cancelled, response parsing, validation, and unexpected adapter categories. HTTP server diagnostics retain upstream status, recognized provider status code, and a fixed safe message interpretation; unknown free-form text is withheld. Server logs contain only controlled details and a matching UI error reference. They never include raw exceptions, provider bodies, credentials, headers, URLs, or conversations. API deadline errors remain classified as timeout. Inspect the API terminal's matching analysis_failure reference when diagnosing; never enable raw-body logging.
 
-All **93 offline tests**, type checking, linting, and builds pass. Tests cover provider selection, missing selected credentials, no fallback, HTTP/quota/account errors, transport/TLS codes, timeouts/cancellation, envelope/JSON/truncation, unexpected exceptions, schema conversion, source checks, unknowns, tentative/corrected/conflicting claims, and review/stale-state safeguards. There was no minimal probe, third request, bulk evaluation, paid fallback, billing change, push, or deployment. The key remains in ignored/untracked `.env`, with an empty example placeholder.
+At the Section 3 checkpoint, all **93 offline tests**, type checking, linting, and builds pass. Tests cover provider selection, missing selected credentials, no fallback, HTTP/quota/account errors, transport/TLS codes, timeouts/cancellation, envelope/JSON/truncation, unexpected exceptions, schema conversion, source checks, unknowns, tentative/corrected/conflicting claims, and review/stale-state safeguards. There was no minimal probe, third request, bulk evaluation, paid fallback, billing change, push, or deployment. The key remains in ignored/untracked `.env`, with an empty example placeholder.
 
 Browser discovery returned no connected browser. Rendered flow remains unverified. One passing zero-budget case is not proof of general model reliability, account Free Tier eligibility, exact provider retention, or zero cost.
 
@@ -100,4 +100,4 @@ Browser discovery returned no connected browser. Rendered flow remains unverifie
 
 Manual checks still needed: selected-provider disclosure on desktop/mobile; disabled analysis if configuration cannot load; private-header behavior via backend-only inspection; broad live source/unknown/tentative/conflict quality; cancellation/draft mismatch; declined replacement preserving edits; quota-error recovery; absence of keys/raw text from frontend/logs/storage. Switch the backend provider after loading the page and confirm submission is rejected before refresh. Reuse the detailed editor checklist in [AI_INTEGRATION.md](AI_INTEGRATION.md).
 
-Stop after this Section 3 option. Section 4 remains unstarted.
+Section 4 screenshot reading reuses this provider/model; see [SCREENSHOTS.md](SCREENSHOTS.md). Section 5 remains out of scope.

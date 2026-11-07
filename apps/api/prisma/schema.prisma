@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated/prisma"
+  moduleFormat = "esm"
+  importFileExtension = "js"
+}
+datasource db {
+  provider = "postgresql"
+  schemas = ["fuzl"]
+}
+model Organizer {
+  id String @id @default(uuid()) @db.Uuid
+  authSubject String @unique @db.Uuid
+  createdAt DateTime @default(now())
+  groups Group[]
+  @@schema("fuzl")
+  @@map("fuzl_organizers")
+}
+model Group {
+  id String @id @default(uuid()) @db.Uuid
+  ownerId String @db.Uuid
+  owner Organizer @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name String @db.VarChar(100)
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  aliases ParticipantAlias[]
+  sessions PlanningSession[]
+  @@index([ownerId])
+  @@schema("fuzl")
+  @@map("fuzl_groups")
+}
+model ParticipantAlias {
+  id String @id @default(uuid()) @db.Uuid
+  groupId String @db.Uuid
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name String @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([groupId])
+  @@schema("fuzl")
+  @@map("fuzl_aliases")
+}
+model PlanningSession {
+  id String @id @default(uuid()) @db.Uuid
+  groupId String @db.Uuid
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title String @db.VarChar(100)
+  summaryVersion Int @default(1)
+  summary Json
+  provenance Json
+  origin String @db.VarChar(10)
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([groupId])
+  @@schema("fuzl")
+  @@map("fuzl_sessions")
+}

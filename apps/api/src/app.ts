@@ -1,3 +1,4 @@
+import { accountRouter } from './accounts/router.js';
 import express from 'express';
 import type { ErrorRequestHandler } from 'express';
 import { analysisRequestSchema, analysisResponseSchema, screenshotReadRequestSchema, transcriptionResponseSchema, PROVIDER_TIMEOUT_MS } from '@fuzl/planning';
@@ -9,7 +10,7 @@ import { readScreenshots } from './extraction/transcribe.js';
 import { exceptionFailure } from './extraction/provider-diagnostics.js';
 
 type Extractor = (request: AnalysisRequest, signal: AbortSignal) => Promise<AnalysisResponse>;
-export function createApp(options: { transcribe?: (request: ScreenshotReadRequest, signal: AbortSignal) => Promise<TranscriptionResponse>; extract?: Extractor; checkConfiguration?: () => void; now?: () => number; timeoutMs?: number } = {}) {
+export function createApp(options: { accounts?: Parameters<typeof accountRouter>[0]; transcribe?: (request: ScreenshotReadRequest, signal: AbortSignal) => Promise<TranscriptionResponse>; extract?: Extractor; checkConfiguration?: () => void; now?: () => number; timeoutMs?: number } = {}) {
   const app = express();
   app.disable('x-powered-by');
   const extract = options.extract ?? extractConversation;
@@ -112,6 +113,7 @@ export function createApp(options: { transcribe?: (request: ScreenshotReadReques
       message: tooLarge ? 'The request exceeds its screenshot-upload or text limit. Use smaller screenshots or a shorter conversation.' : malformed ? 'The request could not be read. Check the input and try again.' : 'The API could not complete analysis. Your existing summary was kept. Retry later or use manual entry.',
     } });
   };
+  app.use('/api', accountRouter(options.accounts));
   app.use(errors);
   return app;
 }

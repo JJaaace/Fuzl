@@ -106,3 +106,19 @@ blockquote { margin: 12px 0; border-left: 2px solid var(--border); padding-left:
 .source-trace a { overflow-wrap: anywhere; color: var(--ink); }
 a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 @media (max-width: 540px) { .screenshot-list { grid-template-columns: minmax(0, 1fr); } }
+[hidden] { display: none !important; }
+.workspace-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0; }
+.workspace-nav [aria-pressed=true] { border-color: var(--ink); }
+.account-card, .saved-library { padding: 20px 0; }
+.account-card h2, .saved-library h2 { font-size: 20px; }
+.account-card .field, .saved-library .field { margin: 16px 0; }
+.account-card form { max-width: 420px; }
+.saved-library p, .save-session p { font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.library-layout { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 3fr); gap: 24px; }
+.saved-library ul { list-style: none; padding: 0; }
+.saved-library li { padding: 12px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.saved-library .actions, .save-session .actions { flex-wrap: wrap; margin-top: 16px; }
+.save-session { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+@media (max-width: 540px) { .library-layout { grid-template-columns: minmax(0, 1fr); } }
+.workspace-nav .note, .saved-library h2 { min-width: 0; overflow-wrap: anywhere; }
+.saved-library button { max-width: 100%; overflow-wrap: anywhere; }

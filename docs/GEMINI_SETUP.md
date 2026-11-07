@@ -60,7 +60,7 @@ Omitting `--case=zero-budget` deliberately evaluates all six synthetic cases. `-
 
 Google's unpaid-service terms allow submitted content and generated responses to be used for product/model improvement and processed by human reviewers. Google instructs users not to submit personal, sensitive, or confidential information. Use synthetic conversations only. The terms describe different handling for the EEA, Switzerland, and UK; review what applies to your account. Fuzl promises neither zero provider retention nor the OpenAI data policy for Gemini. [Official terms](https://ai.google.dev/gemini-api/terms#unpaid-services).
 
-Fuzl itself still keeps drafts/summaries temporary without database, browser persistence, or raw-text logging. It uses stateless `generateContent`, no uploaded files, tools, caches, or stored conversation resources. These app settings do not change Google's terms or your project tier. [Stateless endpoint guidance](https://ai.google.dev/gemini-api/docs/migrate-to-interactions).
+Fuzl keeps raw imports and unsaved workspace data temporary. Section 5 optionally saves structured sessions and fact-linked excerpts to PostgreSQL only on Save session; auth sessions alone use browser storage. No raw images/full draft or raw-text logging is added. See [ACCOUNTS](ACCOUNTS.md). It uses stateless `generateContent`, no uploaded files, tools, caches, or stored conversation resources. These app settings do not change Google's terms or your project tier. [Stateless endpoint guidance](https://ai.google.dev/gemini-api/docs/migrate-to-interactions).
 
 ## Adapter and verification
 
@@ -100,4 +100,4 @@ Browser discovery returned no connected browser. Rendered flow remains unverifie
 
 Manual checks still needed: selected-provider disclosure on desktop/mobile; disabled analysis if configuration cannot load; private-header behavior via backend-only inspection; broad live source/unknown/tentative/conflict quality; cancellation/draft mismatch; declined replacement preserving edits; quota-error recovery; absence of keys/raw text from frontend/logs/storage. Switch the backend provider after loading the page and confirm submission is rejected before refresh. Reuse the detailed editor checklist in [AI_INTEGRATION.md](AI_INTEGRATION.md).
 
-Section 4 screenshot reading reuses this provider/model; see [SCREENSHOTS.md](SCREENSHOTS.md). Section 5 remains out of scope.
+Section 4 screenshot reading reuses this provider/model; see [SCREENSHOTS.md](SCREENSHOTS.md). Section 5 is now implemented in [ACCOUNTS](ACCOUNTS.md); Section 6 remains out of scope.

@@ -64,7 +64,7 @@ export default function ScreenshotPanel({ onUse, onTranscriptChange, onFilesChan
   return <section className="screenshot-panel" aria-labelledby="screenshots-title">
     <h2 id="screenshots-title">Read chat screenshots</h2>
     <p>Choose images, check their order, then read them into an editable transcript. Reading screenshots and analyzing the conversation are separate AI requests. Selecting, moving, or removing files sends nothing.</p>
-    <p id="screenshot-privacy">Read screenshots sends these images through Fuzl’s backend to Google Gemini. Use synthetic screenshots only: Google’s unpaid-service terms allow product improvement and human review. Fuzl keeps images in memory, with no uploads saved to disk. Clearing Fuzl does not delete provider-held data.</p>
+    <p id="screenshot-privacy">Read screenshots sends these images through Fuzl’s backend to Google Gemini. Use synthetic screenshots only: Google’s unpaid-service terms allow product improvement and human review. Fuzl keeps images in memory, with no image uploads saved to disk. A separate Save session action stores the structured summary and its supporting excerpts, never raw images. Clearing Fuzl does not delete provider-held data.</p>
     <p className="note">PNG or JPEG · Up to 5 screenshots · 5 MiB each / 15 MiB total · Up to 4096 pixels per side, 8 megapixels each / 20 total. Names and bubble positions do not establish verified identities.</p>
     <label className="field"><span>Select screenshots (multiple allowed)</span><input type="file" accept="image/png,image/jpeg" multiple disabled={preparing} aria-describedby="screenshot-privacy" onChange={(event) => {
       const selected = [...(event.target.files ?? [])]; event.target.value = '';
@@ -88,7 +88,7 @@ export default function ScreenshotPanel({ onUse, onTranscriptChange, onFilesChan
     <div className="actions"><button disabled={!files.length || status === 'loading' || preparing || configuration?.provider !== 'gemini'} onClick={() => void read()}>{status === 'loading' ? 'Reading screenshots…' : 'Read screenshots'}</button>
       {status === 'loading' && <button onClick={() => { pending.current?.abort(); pending.current = null; setStatus('cancelled'); }}>Cancel reading</button>}
       <button disabled={!files.length && !snapshot && !preparing} onClick={() => {
-        if (snapshot && !window.confirm('Clear all screenshots and transcript edits? Your existing conversation draft and summary stay. The screenshot transcript trail will be cleared.')) return;
+        if (snapshot && !window.confirm('Clear all screenshots and transcript edits? Your existing conversation draft and summary stay. The temporary screenshot transcript trail will be cleared. Explicitly saved summaries and excerpts remain saved.')) return;
         pending.current?.abort(); pending.current = null; replaceFiles([]); setSnapshot(null); setResult(null); setStatus('idle'); setMessage(''); onClear();
       }}>Clear screenshots and transcript</button></div>
     <div role="status" aria-live="polite">{preparing && <p>Checking local previews…</p>}{message && <p className={status === 'draft_ready' ? 'note' : 'validation-error'}>{message}</p>}

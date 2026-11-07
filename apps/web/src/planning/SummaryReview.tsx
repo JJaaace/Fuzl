@@ -1,3 +1,5 @@
+import SavedSource from '../accounts/SavedSource';
+import type { SavedProvenance } from '@fuzl/planning';
 import type { TranscriptSnapshot } from '@fuzl/planning';
 import SourceTrace from '../screenshots/SourceTrace';
 import { useRef, useState } from 'react';
@@ -6,9 +8,9 @@ import Questions from './Questions';
 import { blankFact, factKinds, factStatuses, factValue, kindLabels, subjectLabel } from './model';
 import type { FactKind, PlanningFact, PlanningSummary } from './model';
 
-function FactCard({ fact, summary, sourceKind, transcript, availableScreenshots, onApply, onRemove }: {
+function FactCard({ fact, summary, sourceKind, transcript, provenance, availableScreenshots, onApply, onRemove }: {
   fact: PlanningFact; summary: PlanningSummary;
-  sourceKind: 'sample' | 'manual' | 'ai'; transcript?: TranscriptSnapshot | null; availableScreenshots: string[];
+  sourceKind: 'sample' | 'manual' | 'ai'; transcript?: TranscriptSnapshot | null; provenance: SavedProvenance; availableScreenshots: string[];
   onApply: (fact: PlanningFact) => void; onRemove: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -29,7 +31,7 @@ function FactCard({ fact, summary, sourceKind, transcript, availableScreenshots,
       <p className="note">Original quotes stay unchanged when you correct a fact. They may not support your edits.</p>
       {fact.sourceIds.map((id) => {
         const source = summary.sources.find((item) => item.id === id);
-        return source ? <div key={id}><blockquote>{source.text}</blockquote>{transcript && <SourceTrace snapshot={transcript} quote={source.text} available={availableScreenshots} />}</div> : null;
+        return source ? <div key={id}><blockquote>{source.text}</blockquote>{transcript && <SourceTrace snapshot={transcript} quote={source.text} available={availableScreenshots} />}{!transcript && <SavedSource provenance={provenance} sourceId={id} />}</div> : null;
       })}
     </details> : <p className="note">No supporting text linked. Entered manually or unknown in the sample.</p>}
     <div className="actions fact-actions">
@@ -42,9 +44,9 @@ function FactCard({ fact, summary, sourceKind, transcript, availableScreenshots,
   </article>;
 }
 
-export default function SummaryReview({ summary, sourceKind = 'sample', transcript, availableScreenshots = [], onChange }: {
+export default function SummaryReview({ summary, sourceKind = 'sample', transcript, provenance = [], availableScreenshots = [], onChange }: {
   summary: PlanningSummary; onChange: (summary: PlanningSummary) => void;
-  sourceKind?: 'sample' | 'manual' | 'ai'; transcript?: TranscriptSnapshot | null; availableScreenshots?: string[];
+  sourceKind?: 'sample' | 'manual' | 'ai'; transcript?: TranscriptSnapshot | null; provenance?: SavedProvenance; availableScreenshots?: string[];
 }) {
   const [newKind, setNewKind] = useState<FactKind>('schedule');
   const [newFact, setNewFact] = useState<PlanningFact | null>(null);
@@ -76,7 +78,7 @@ export default function SummaryReview({ summary, sourceKind = 'sample', transcri
       <p className="note">Status is separate from firmness. Confirmed facts do not establish a booking or everyone’s attendance.</p>
       <ul className="status-overview" aria-label="Fact statuses">{factStatuses.map((status) => <li key={status}>{status}: {summary.facts.filter((fact) => fact.status === status).length}</li>)}</ul>
       {summary.facts.length === 0 && <p>No facts yet. Add information manually below.</p>}
-      {summary.facts.map((fact) => <FactCard key={fact.id} fact={fact} summary={summary} sourceKind={sourceKind} transcript={transcript} availableScreenshots={availableScreenshots} onApply={(next) => onChange({
+      {summary.facts.map((fact) => <FactCard key={fact.id} fact={fact} summary={summary} sourceKind={sourceKind} transcript={transcript} provenance={provenance} availableScreenshots={availableScreenshots} onApply={(next) => onChange({
         ...summary, facts: summary.facts.map((item) => item.id === next.id ? next : item),
       })} onRemove={() => onChange({
         ...summary, facts: summary.facts.filter((item) => item.id !== fact.id),

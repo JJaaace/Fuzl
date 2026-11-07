@@ -2,6 +2,15 @@
 
 Updated November 7, 2026. Active authorization: **local visual/usability design milestone between Sections 5 and 6**. Sections 6–12 remain future context. The supplied specification is preserved unchanged. Section 5 remains incompletely verified.
 
+## Local skills and first UI/milestone review
+
+- Created instruction-only **code-cleanup** and **milestone-check** under `~/.agents/skills/`, and **fuzl-ui-review**, **fuzl-extraction-eval**, **fuzl-access-review** under the repository's `.agents/skills/`. Existing system/plugin/user discovery was inspected first; none of the five names existed, so there were no cleanup instructions to overwrite. Automatic discovery remains enabled by default; no Codex configuration was changed.
+- All five pass the bundled skill validator (temporary PyYAML environment only), and every repo-document link resolves. Installed Codex CLI **0.151.0** discovery was tested directly with `skills/list`/forceReload: all five enabled at the root and apps/web, only the two user skills in an outside directory, no loader errors. Temporary tooling used no model turn/provider call and is not a committed skill helper.
+- Applied **fuzl-ui-review**, then **milestone-check**, to current design commit **a2d9f5c**. No new confirmed source/DOM/SVG defect was found, so the app implementation is unchanged. Warm tokens, orange/yellow/ivory fuse and filled crescent are implemented; fresh SVG proofs were inspected at 16/24/40/header/favicon sizes. Shared wave/quiet-center/pausing invariants pass offline tests; actual motion quality cannot be judged without a browser.
+- Reran **npm test: 160 passed, one intentional DB-suite skip**, type checking, lint and build. Local workspace/preview/modules/favicon/health returned 200. Existing synthetic built-in sample and failure-path DOM tests establish draft/editor retention, cancellation/stale/replacement and explicit acceptance protections, not rendered browser acceptance.
+- **Unverified:** no browser is connected; running wave/ignition, actual sample journey, desktop/narrow layout, reduced-motion rendering and keyboard/scroll feel still need observation. Hosted Section 5 auth/save/two-account checks remain separately unverified. No live AI call, email, hosted database mutation, commit, push, deployment or Section 6 work. New skills and review documentation stay local.
+- Full first-review findings, passed/failed/unverified status and exact manual replay steps are in [DESIGN.md](DESIGN.md#first-skill-driven-review--november-7-2026).
+
 ## Local ripple and crescent refinement
 
 - Started from clean **083d78b**. This follow-up is checkpointed at the user's request and changes only background/mascot rendering, its focused tests, exported assets and documentation. Charcoal/ivory/amber tokens, visible density (760 desktop / 240 phone points), page layout and all planning/account/provider flows remain unchanged.

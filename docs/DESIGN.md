@@ -70,6 +70,25 @@ Inspection of the existing animation code found overlapping summary/panel/card e
 
 The small Happy DOM registrator is a development-only dependency for interaction tests. It disables resource loading and script evaluation, and every request is mocked. The runtime dependencies, backend behavior, provider validation/configuration, database schema and auth architecture are unchanged. The real disposable PostgreSQL suite was not rerun for this frontend milestone; its prior nine passing checks are recorded in PROGRESS.
 
+## First skill-driven review — November 7, 2026
+
+Used `$fuzl-ui-review`, then `$milestone-check`, on design commit **a2d9f5c**. The working tree started clean; no application implementation or runtime dependency was changed during this review.
+
+- **Opening/input controls:** source and React DOM checks confirm the empty placeholder/count, deferred stage navigation, visible provider disclosure, and adjacent example loader. Built-in sample loading opens the existing Sample summary without Analyze/Read/email requests. The exact draft, canvas and unapplied editor nodes survive mode/stage/group navigation in the DOM tests.
+- **Palette/fuse/crescent:** source uses warm shared tokens and orange → gold → ivory resting dots, with brightness-only ignition. Fresh rasterized SVG proofs show the filled crescent readable at 16/24/40px; the static favicon and header use the same geometry. This is SVG inspection, not a rendered application or animation observation.
+- **Background:** source and five deterministic/controller tests establish shared spatial phase, bounded neighbor rise/settle, quiet-center falloff, stable point counts, no elapsed-time catch-up after a pause, reduced-motion static drawing and cleanup. The fresh desktop geometry proof retains visible edge density and a quiet center. Whether the wave feels noticeable and smooth in the app remains unverified.
+- **Summary/failure paths:** existing React interaction tests use actual prepared examples and mocked synthetic responses to cover replacement cancellation, explicit AI acceptance/unreviewed labels, newer drafts/stale results, error/cancel stopping cues, focus handoff and a summary reveal that stays settled during edits. No new confirmed source/DOM/SVG defect was found; no speculative UI changes were made.
+
+| Milestone result | Evidence |
+| --- | --- |
+| Passed | All five new skill manifests pass the bundled validator; relative documentation links resolve. Installed Codex CLI 0.151.0 `skills/list` discovers all five enabled skills at the repo root and apps/web, with only the two user skills outside Fuzl and no loader errors. No skill/configuration symlinks or global configuration changes were needed |
+| Passed | Reran `npm test`: 160 passed, one intentional DB-suite skip. Type checking, lint and build passed. Workspace, logo preview, UI modules, static favicon and proxied health returned 200 |
+| Failed | No remaining failed checks. The validator initially lacked PyYAML; validation completed in a temporary virtual environment, without adding a project/global dependency |
+| Unverified | Browser discovery returned no connected browser. Actual desktop/phone layout, compositor performance, visible wave/ignition timing, reduced-motion rendering and real keyboard/scroll behavior were not observed. The shortest checks are below |
+| Unverified | Hosted sign-in/callback, save/reopen, sign-out and real two-account isolation remain separately pending in ACCOUNTS; no email, live AI call or hosted database test was performed |
+
+The two reusable skills live in `~/.agents/skills/code-cleanup/` and `~/.agents/skills/milestone-check/`. Project skills live in `.agents/skills/fuzl-ui-review/`, `.agents/skills/fuzl-extraction-eval/` and `.agents/skills/fuzl-access-review/`. Each has an instruction-only SKILL.md, a scoped description, short workflow and expected result; no helper scripts were added. Invoke them as `$skill-name` in a request. Loader discovery is verified; the desktop skill picker itself was not inspected. Official discovery/reload guidance: <https://learn.chatgpt.com/docs/build-skills>.
+
 ## Exact local review, with no AI request or email
 
 If needed, run `npm run dev` from the root, then open <http://127.0.0.1:5173>. The existing dev servers were reachable during verification.

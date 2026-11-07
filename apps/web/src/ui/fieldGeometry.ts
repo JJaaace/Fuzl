@@ -22,12 +22,19 @@ export function makeDotField(count = desktopDotCount): FieldDot[] {
   });
 }
 export function dotAppearance(dot: FieldDot, seconds: number) {
-  const wave = Math.exp((Math.cos(dot.angle - seconds * TAU / 26) - 1) / .13) * dot.warmth;
+  // Spatial phase makes neighbors lift together. No per-particle motion clock,
+  // frame integration or loop reset: a broad crest crosses top-left → bottom-right.
+  const x = dot.x - .5, y = dot.y - .43;
+  const wave = Math.pow(.5 + .5 * Math.cos(TAU * (.65 * x + .82 * y - seconds / 13)), 3);
+  const echo = Math.pow(.5 + .5 * Math.cos(TAU * (.8 * x - .45 * y - seconds / 19) + 1.6), 3);
+  const distance = Math.hypot(x / .475, y / .39);
+  const edge = Math.max(0, Math.min(1, (distance - .36) / .36));
+  const quiet = edge * edge * (3 - 2 * edge);
   return {
-    dx: dot.depth * Math.sin(seconds * TAU / 38 + dot.phase),
-    dy: dot.depth * .5 * Math.cos(seconds * TAU / 46 + dot.phase),
-    alpha: Math.min(.95, dot.opacity * (.78 + .22 * Math.sin(seconds * TAU / dot.period + dot.phase)) + wave * .17),
-    warmth: wave * .9,
+    dx: quiet * (.45 * wave - .2 * echo),
+    dy: -quiet * (5 * wave + echo),
+    alpha: Math.min(.95, dot.opacity * (.82 + .06 * Math.sin(seconds * TAU / dot.period + dot.phase)) + quiet * (.11 * wave + .025 * echo)),
+    warmth: quiet * (.55 * wave + .1 * echo),
   };
 }
 export type FieldColor = readonly [number, number, number];

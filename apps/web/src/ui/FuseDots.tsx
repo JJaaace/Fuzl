@@ -1,3 +1,4 @@
+import { fuseDotNames, fuseRestColors } from './brand';
 export default function FuseDots() {
-  return <svg className="fuse-indicator fuse-waiting" width="34" height="12" viewBox="0 0 34 12" aria-hidden="true"><circle className="fuse-dot fuse-dot-far" cx="5" cy="6" r="3" /><circle className="fuse-dot fuse-dot-middle" cx="17" cy="6" r="3" /><circle className="fuse-dot fuse-dot-near" cx="29" cy="6" r="3" /></svg>;
+  return <svg className="fuse-indicator fuse-waiting" width="34" height="12" viewBox="0 0 34 12" aria-hidden="true">{fuseDotNames.map((name, index) => <circle key={name} className={`fuse-dot fuse-dot-${name}`} cx={5 + index * 12} cy="6" r="3" fill={fuseRestColors[index]} />)}</svg>;
 }

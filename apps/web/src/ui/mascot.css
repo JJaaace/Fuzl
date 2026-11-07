@@ -1,10 +1,11 @@
-/* Light the fuse: one 800ms ignition; only dots repeat during a real request. */
+/* One 800ms ignition. Resting hues never change; only brightness/glow pulses. */
 .fuzl-mascot { display: block; width: 100%; height: 100%; overflow: visible; }
-.fuse-dot-far { fill: var(--spark-amber, #ffbe69); }
-.fuse-dot-middle, .fuse-dot-near { fill: currentColor; }
+.fuse-dot-far { fill: var(--fuse-ember, #ff944d); }
+.fuse-dot-middle { fill: var(--fuse-gold, #ffd36a); }
+.fuse-dot-near { fill: var(--ink, #f5f0e7); }
 .is-monochrome .fuse-dot { fill: currentColor; }
 .mascot-body { transform-box: fill-box; transform-origin: 50% 70%; }
-.mascot-smile { transform-box: fill-box; transform-origin: 50% 30%; }
+.mascot-smile { transform-box: fill-box; transform-origin: 50% 20%; }
 .fuzl-mascot.is-lighting .fuse-dot-far, .fuse-waiting .fuse-dot-far { animation: fuse-far 800ms ease-in-out; }
 .fuzl-mascot.is-lighting .fuse-dot-middle, .fuse-waiting .fuse-dot-middle { animation: fuse-middle 800ms ease-in-out; }
 .fuzl-mascot.is-lighting .fuse-dot-near, .fuse-waiting .fuse-dot-near { animation: fuse-near 800ms ease-in-out; }
@@ -12,10 +13,9 @@
 .fuzl-mascot.is-lighting .mascot-smile { animation: fuse-smile 800ms cubic-bezier(.35, 0, .2, 1); }
 .fuse-waiting .fuse-dot { animation-iteration-count: infinite; }
 .fuse-indicator { color: var(--ink, #f5f0e7); flex-shrink: 0; }
-/* Crossfaded color/brightness, without popping individual dots in size. */
-@keyframes fuse-far { 0%, 10%, 100% { fill: var(--spark-amber, #ffbe69); opacity: 1; } 32%, 74% { fill: currentColor; opacity: .65; } }
-@keyframes fuse-middle { 0%, 12%, 64%, 100% { fill: currentColor; opacity: 1; } 32%, 40% { fill: var(--spark-amber, #ffbe69); opacity: 1; } }
-@keyframes fuse-near { 0%, 36%, 90%, 100% { fill: currentColor; opacity: 1; } 56%, 65% { fill: var(--spark-amber, #ffbe69); opacity: 1; } }
+@keyframes fuse-far { 0%, 34%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 16% { filter: brightness(1.4) drop-shadow(0 0 1px #ff944d80); } }
+@keyframes fuse-middle { 0%, 12%, 52%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 32% { filter: brightness(1.3) drop-shadow(0 0 1px #ffd36a80); } }
+@keyframes fuse-near { 0%, 28%, 72%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.15) drop-shadow(0 0 1px #f5f0e780); } }
 @keyframes fuse-lift { 0%, 48%, 100% { transform: translateY(0); } 70% { transform: translateY(-1.35px); } }
-@keyframes fuse-smile { 0%, 48%, 100% { transform: scale(1); } 70% { transform: scale(1.035, 1.075); } }
+@keyframes fuse-smile { 0%, 48%, 100% { transform: scale(1); } 70% { transform: scale(1.035, 1.08); } }
 @media (prefers-reduced-motion: reduce) { .fuzl-mascot *, .fuse-waiting * { animation: none !important; transform: none !important; } }

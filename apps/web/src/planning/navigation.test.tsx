@@ -122,10 +122,13 @@ test('Light the fuse is one-shot, uses exactly three dots, and typing or mode ch
   await mount(t);
   const logo = document.querySelector('.app-header .fuzl-mascot')!;
   assert.equal(logo.querySelectorAll('.fuse-dot').length, 3);
-  assert.equal(logo.querySelector('.fuse-dot-far')!.getAttribute('fill'), '#ffbe69');
-  assert.equal(logo.querySelector('.fuse-dot-middle')!.getAttribute('fill'), 'currentColor');
-  assert.equal(logo.querySelector('.fuse-dot-near')!.getAttribute('fill'), 'currentColor');
-  assert.equal(logo.querySelector('.mascot-smile')!.getAttribute('stroke-width'), '6.4');
+  assert.equal(logo.querySelector('.fuse-dot-far')!.getAttribute('fill'), '#ff944d');
+  assert.equal(logo.querySelector('.fuse-dot-middle')!.getAttribute('fill'), '#ffd36a');
+  assert.equal(logo.querySelector('.fuse-dot-near')!.getAttribute('fill'), '#f5f0e7');
+  const crescent = logo.querySelector('.mascot-smile')!;
+  assert.equal(crescent.getAttribute('fill'), '#24170b');
+  assert.equal(crescent.getAttribute('stroke'), null, 'mouth is a filled silhouette, not a thick stroked line');
+  assert.ok(crescent.getAttribute('d')!.endsWith('Z'), 'closed custom crescent');
   assert.ok(logo.classList.contains('is-lighting'));
   await act(async () => { t.mock.timers.tick(800); });
   assert.ok(!logo.classList.contains('is-lighting'));

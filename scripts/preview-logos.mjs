@@ -2,7 +2,7 @@
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { mascotColors } from '../apps/web/src/ui/brand.ts';
+import { fuseRestColors, mascotColors } from '../apps/web/src/ui/brand.ts';
 const variants = ['spark', 'arc'];
 const sizes = [16, 24, 40];
 const output = new URL('../artifacts/design/', import.meta.url);
@@ -19,7 +19,10 @@ for (const [modeIndex, mode] of ['color', 'monochrome'].entries()) {
       layers.push({ input: await sharp(Buffer.from(label)).png().toBuffer(), left: column * 460 + 20, top: row * 184 + 20 });
       for (const [index, size] of sizes.entries()) {
         let proof = svg.replace(`style="color:${mascotColors.body}"`, `style="color:${color}"`);
-        if (mode === 'monochrome') proof = proof.replaceAll(`fill="${mascotColors.spark}"`, `fill="${ink}"`).replaceAll(`stroke="${mascotColors.smile}"`, `stroke="${background === 'dark' ? mascotColors.canvas : mascotColors.body}"`);
+        if (mode === 'monochrome') {
+          for (const color of fuseRestColors) proof = proof.replaceAll(`fill="${color}"`, `fill="${ink}"`);
+          proof = proof.replace(/(<path class="mascot-smile"[^>]*fill=")[^"]+"/, `$1${background === 'dark' ? mascotColors.canvas : mascotColors.body}"`);
+        }
         const png = await sharp(Buffer.from(proof)).resize(size, size).png().toBuffer();
         await writeFile(new URL(`${variant}-${background}-${mode}-${size}.png`, output), png);
         layers.push({ input: png, left: column * 460 + 20 + 72 + index * 140 - Math.floor(size / 2), top: row * 184 + 20 + 84 - Math.floor(size / 2) });

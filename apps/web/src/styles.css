@@ -16,6 +16,8 @@
   --accent-ink: #24170b;
   --primary: #ffbe69;
   --spark-amber: #ffbe69;
+  --fuse-ember: #ff944d;
+  --fuse-gold: #ffd36a;
   --accent-wash: #332a1d;
   --warning: #e3ce99;
   --warning-surface: #302a1d;
@@ -273,8 +275,8 @@ blockquote { margin: 10px 0; border-left: 2px solid var(--accent); padding-left:
 .logo-strip-dark { background: var(--canvas); color: var(--ink); }
 .logo-strip-light { background: var(--ink); color: var(--accent-ink); }
 .logo-strip .brand-mark { color: var(--ink); }
-.logo-strip-light .brand-mark.is-monochrome .mascot-smile { stroke: var(--ink); }
-.logo-strip-dark .brand-mark.is-monochrome .mascot-smile { stroke: var(--canvas); }
+.logo-strip-light .brand-mark.is-monochrome .mascot-smile { fill: var(--ink); }
+.logo-strip-dark .brand-mark.is-monochrome .mascot-smile { fill: var(--canvas); }
 .logo-strip.is-monochrome .brand-mark { color: inherit; }
 @keyframes arrive { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 760px) {

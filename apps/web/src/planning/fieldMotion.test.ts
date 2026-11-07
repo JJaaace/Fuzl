@@ -41,22 +41,39 @@ test('field positions are deterministic, hundreds strong, and keep an oval quiet
   assert.ok(dots.filter((dot) => dot.depth > 0).length > 100);
 });
 
-test('breathing and wave are smooth elapsed-time functions without global resets or synchronized phases', () => {
+test('ripple is smooth across cycle boundaries, bounded, and moves visibly within a few seconds', () => {
   const dots = makeDotField(); assert.ok(new Set(dots.map((dot) => dot.phase)).size > 700);
   for (const dot of dots) {
-    const before = dotAppearance(dot, 26 - 1 / 60), after = dotAppearance(dot, 26 + 1 / 60);
-    assert.ok(Math.abs(before.alpha - after.alpha) < .02); assert.ok(Math.abs(before.dx - after.dx) < .03);
-    assert.ok(Math.abs(dotAppearance(dot, 3).warmth - dotAppearance(dot, 29).warmth) < .000001);
+    const before = dotAppearance(dot, 13 - 1 / 60), after = dotAppearance(dot, 13 + 1 / 60);
+    assert.ok(Math.abs(before.alpha - after.alpha) < .02); assert.ok(Math.abs(before.dy - after.dy) < .15);
+    assert.ok(after.dy >= -6 && after.dy <= 0);
     assert.ok(after.alpha > 0 && after.alpha <= .95);
   }
+  assert.ok(dots.filter((dot) => Math.abs(dotAppearance(dot, 0).dy - dotAppearance(dot, 3).dy) > 2).length > 150);
+});
+
+test('neighbors share a diagonal ripple phase, while the reading center stays quiet', () => {
+  const dot = makeDotField().find((point) => point.x > .7 && point.y > .5)!;
+  const neighbor = { ...dot, x: dot.x + .005, y: dot.y + .005, phase: dot.phase + Math.PI, period: 4, depth: 0 };
+  const center = { ...dot, x: .5, y: .43 };
+  for (let time = 0; time < 40; time += .25) {
+    assert.ok(Math.abs(dotAppearance(dot, time).dy - dotAppearance(neighbor, time).dy) < .3, 'nearby dots rise together despite different individual seeds');
+    assert.equal(Math.abs(dotAppearance(center, time).dy), 0);
+    assert.equal(dotAppearance(center, time).warmth, 0);
+  }
+  const a = { ...dot, x: .75, y: .65 }, b = { ...dot, x: .75 - .082, y: .65 + .065 };
+  // The primary phase is constant along a diagonal crest, rather than a ring.
+  assert.ok(Math.abs(dotAppearance(a, 2).dy - dotAppearance(b, 2).dy) < 1.1, 'only the weaker echo differs along a primary crest');
 });
 
 test('canvas caps density/rate, reduces phone count, pauses offscreen/hidden/inactive, and releases every observer/frame', () => {
   const h = harness(); assert.equal(h.frames.size, 0); assert.equal(h.canvas.width, 1800, 'DPR capped at 1.5');
   h.intersect(true); assert.equal(h.arcs, desktopDotCount); assert.equal(h.frames.size, 1);
   h.tick(0); const paintCount = h.paints; h.tick(16); assert.equal(h.paints, paintCount, 'not painted at every 60Hz frame'); h.tick(40); assert.ok(h.paints > paintCount);
+  const phaseBeforePause = h.context.fillStyle;
   h.intersect(false); assert.equal(h.frames.size, 0); const paused = h.paints; h.visibility(true); assert.equal(h.paints, paused);
   h.intersect(true); assert.equal(h.frames.size, 0); h.visibility(false); assert.equal(h.frames.size, 1);
+  h.tick(100000); assert.equal(h.context.fillStyle, phaseBeforePause, 'resume preserves elapsed phase instead of catching up across hidden time');
   h.controller.setActive(false); assert.equal(h.frames.size, 0); h.controller.setActive(true); assert.equal(h.frames.size, 1);
   h.bounds.width = 348; h.bounds.height = 760; h.resize(); assert.equal(h.canvas.width, 522); assert.equal(h.arcs, phoneDotCount);
   h.controller.dispose(); assert.equal(h.frames.size, 0); assert.equal(h.disconnected, 2);

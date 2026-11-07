@@ -1,10 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="fuzl-mascot is-lighting" style="color:#f5f0e7"><title>Light the fuse</title><style>/* Light the fuse: one 800ms ignition; only dots repeat during a real request. */
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="fuzl-mascot is-lighting" style="color:#f5f0e7"><title>Light the fuse</title><style>/* One 800ms ignition. Resting hues never change; only brightness/glow pulses. */
 .fuzl-mascot { display: block; width: 100%; height: 100%; overflow: visible; }
-.fuse-dot-far { fill: var(--spark-amber, #ffbe69); }
-.fuse-dot-middle, .fuse-dot-near { fill: currentColor; }
+.fuse-dot-far { fill: var(--fuse-ember, #ff944d); }
+.fuse-dot-middle { fill: var(--fuse-gold, #ffd36a); }
+.fuse-dot-near { fill: var(--ink, #f5f0e7); }
 .is-monochrome .fuse-dot { fill: currentColor; }
 .mascot-body { transform-box: fill-box; transform-origin: 50% 70%; }
-.mascot-smile { transform-box: fill-box; transform-origin: 50% 30%; }
+.mascot-smile { transform-box: fill-box; transform-origin: 50% 20%; }
 .fuzl-mascot.is-lighting .fuse-dot-far, .fuse-waiting .fuse-dot-far { animation: fuse-far 800ms ease-in-out; }
 .fuzl-mascot.is-lighting .fuse-dot-middle, .fuse-waiting .fuse-dot-middle { animation: fuse-middle 800ms ease-in-out; }
 .fuzl-mascot.is-lighting .fuse-dot-near, .fuse-waiting .fuse-dot-near { animation: fuse-near 800ms ease-in-out; }
@@ -12,11 +13,10 @@
 .fuzl-mascot.is-lighting .mascot-smile { animation: fuse-smile 800ms cubic-bezier(.35, 0, .2, 1); }
 .fuse-waiting .fuse-dot { animation-iteration-count: infinite; }
 .fuse-indicator { color: var(--ink, #f5f0e7); flex-shrink: 0; }
-/* Crossfaded color/brightness, without popping individual dots in size. */
-@keyframes fuse-far { 0%, 10%, 100% { fill: var(--spark-amber, #ffbe69); opacity: 1; } 32%, 74% { fill: currentColor; opacity: .65; } }
-@keyframes fuse-middle { 0%, 12%, 64%, 100% { fill: currentColor; opacity: 1; } 32%, 40% { fill: var(--spark-amber, #ffbe69); opacity: 1; } }
-@keyframes fuse-near { 0%, 36%, 90%, 100% { fill: currentColor; opacity: 1; } 56%, 65% { fill: var(--spark-amber, #ffbe69); opacity: 1; } }
+@keyframes fuse-far { 0%, 34%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 16% { filter: brightness(1.4) drop-shadow(0 0 1px #ff944d80); } }
+@keyframes fuse-middle { 0%, 12%, 52%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 32% { filter: brightness(1.3) drop-shadow(0 0 1px #ffd36a80); } }
+@keyframes fuse-near { 0%, 28%, 72%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.15) drop-shadow(0 0 1px #f5f0e780); } }
 @keyframes fuse-lift { 0%, 48%, 100% { transform: translateY(0); } 70% { transform: translateY(-1.35px); } }
-@keyframes fuse-smile { 0%, 48%, 100% { transform: scale(1); } 70% { transform: scale(1.035, 1.075); } }
+@keyframes fuse-smile { 0%, 48%, 100% { transform: scale(1); } 70% { transform: scale(1.035, 1.08); } }
 @media (prefers-reduced-motion: reduce) { .fuzl-mascot *, .fuse-waiting * { animation: none !important; transform: none !important; } }
-</style><g class="mascot-body" fill="currentColor"><path d="M25 18Q27 19 29 23" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><rect x="25" y="15" width="14" height="11" rx="3" transform="rotate(-36 32 20.5)"/><circle cx="39" cy="41" r="21"/><path class="mascot-smile" d="M25 37C25 55 53 55 53 37" fill="none" stroke="#24170b" stroke-width="6.4" stroke-linecap="round"/></g><circle class="fuse-dot fuse-dot-far" cx="4" cy="5" r="2" fill="#ffbe69"/><circle class="fuse-dot fuse-dot-middle" cx="12" cy="8" r="2.6" fill="currentColor"/><circle class="fuse-dot fuse-dot-near" cx="20" cy="13" r="3.2" fill="currentColor"/></svg>
+</style><g class="mascot-body" fill="currentColor"><path d="M25 18Q27 19 29 23" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><rect x="25" y="15" width="14" height="11" rx="3" transform="rotate(-36 32 20.5)"/><circle cx="39" cy="41" r="21"/><path class="mascot-smile" d="M24 38C24.1 36.9 25.1 36.9 25.6 38.1C28.6 43.8 33.4 46.1 39 46.1C44.6 46.1 49.4 43.8 52.4 38.1C52.9 36.9 53.9 36.9 54 38C53.4 47.8 47.6 54 39 54C30.4 54 24.6 47.8 24 38Z" fill="#24170b"/></g><circle class="fuse-dot fuse-dot-far" cx="4" cy="5" r="2" fill="#ff944d"/><circle class="fuse-dot fuse-dot-middle" cx="12" cy="8" r="2.6" fill="#ffd36a"/><circle class="fuse-dot fuse-dot-near" cx="20" cy="13" r="3.2" fill="#f5f0e7"/></svg>

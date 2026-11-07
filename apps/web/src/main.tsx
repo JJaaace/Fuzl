@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { captureMagicLink } from './accounts/magicLink';
 import './styles.css';
+import { selectedLogo } from './ui/brand';
 
 function AccountWorkspace() {
   const { privacyEpoch } = useAccount();
@@ -11,6 +12,8 @@ function AccountWorkspace() {
 }
 
 const magicLink = captureMagicLink(window.location.href, (path) => window.history.replaceState(null, '', path));
+const favicon = document.getElementById('fuzl-favicon');
+if (favicon instanceof HTMLLinkElement) favicon.href = selectedLogo.favicon;
 createRoot(document.getElementById('root')!).render(
   <StrictMode><AccountProvider magicLink={magicLink}><AccountWorkspace /></AccountProvider></StrictMode>,
 );

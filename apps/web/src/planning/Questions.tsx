@@ -32,7 +32,7 @@ function QuestionForm({ question, onApply, onCancel }: {
     </div>
     <p className="note">Recording an answer does not edit related facts. Update them separately.</p>
     {error && <p className="validation-error" role="alert">{error}</p>}
-    <div className="actions"><button type="submit">Apply question</button><button type="button" className="quiet" onClick={onCancel}>Cancel</button></div>
+    <div className="actions"><button className="primary" type="submit">Apply question</button><button type="button" className="quiet" onClick={onCancel}>Cancel</button></div>
   </form>;
 }
 
@@ -41,15 +41,15 @@ export default function Questions({ summary, onChange }: { summary: PlanningSumm
   const [newQuestion, setNewQuestion] = useState<OpenQuestion | null>(null);
   return <section className="review-section" aria-labelledby="questions-title">
     <h3 id="questions-title">Missing answers & conflicts</h3>
-    <p className="note">Review these questions and conflicts. Edits do not automatically detect or resolve conflicts.</p>
+    <p className="note">Add an answer or record a conflict. Related facts stay unchanged until you edit them.</p>
     {summary.questions.length === 0 && <p>No questions recorded. This does not establish that the plan is complete.</p>}
     {summary.questions.map((question) => <article className="question-card" key={question.id}>
       <span className="fact-status">{question.resolution === null ? 'Open' : 'Resolved manually'} · {question.kind === 'conflict' ? 'Conflict' : 'Missing answer'}</span>
       <p>{question.text}</p>
-      {question.relatedFactIds.length > 0 && <ul className="related-facts" aria-label="Related facts">{question.relatedFactIds.map((id) => {
+      {question.relatedFactIds.length > 0 && <details className="related-details"><summary>Related facts</summary><ul className="related-facts" aria-label="Related facts">{question.relatedFactIds.map((id) => {
         const fact = summary.facts.find((item) => item.id === id);
         return fact ? <li key={id}>{kindLabels[fact.kind]} · {subjectLabel(fact.subject, summary)}</li> : null;
-      })}</ul>}
+      })}</ul></details>}
       {question.resolution !== null && <p><strong>Resolution:</strong> {question.resolution}</p>}
       {editing === question.id ? <QuestionForm question={question} onApply={(next) => {
         onChange({ ...summary, questions: summary.questions.map((item) => item.id === next.id ? next : item) });

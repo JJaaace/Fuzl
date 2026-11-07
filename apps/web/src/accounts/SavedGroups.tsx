@@ -22,7 +22,7 @@ function SignIn() {
         else { setSent(true); setMessage('Link requested. Check your organization-member inbox and spam folder. Open the email link in this browser, preferably a new tab; then return to this tab without reloading to keep your unsaved work. Sending a link does not mean you are signed in. No planning data was sent.'); }
       }).catch(() => { if (lifetime.current.current(sequence)) setMessage('Could not reach sign-in. Your temporary work was kept.'); }).finally(() => { if (lifetime.current.current(sequence)) setBusy(false); });
     }}><Field label="Email" type="email" required autoComplete="email" value={email} disabled={sent || busy} onChange={(event) => setEmail(event.target.value)} />
-      <button disabled={!client || busy || loading || sent}>{busy ? 'Requesting link…' : sent ? 'Check your email' : 'Send sign-in link'}</button>
+      <button className="primary" disabled={!client || busy || loading || sent}>{busy ? 'Requesting link…' : sent ? 'Check your email' : 'Send sign-in link'}</button>
       {sent && <button type="button" disabled={busy} onClick={() => { setSent(false); setMessage('Request another link only if needed; the default sender has a very small quota.'); }}>Use another email or prepare a new link</button>}
     </form><p role="status">{message}</p>{(!client || error) && <button type="button" disabled={loading || busy} onClick={reload}>Reload account configuration</button>}<p className="note">Free development email delivery is restricted to Supabase organization members and currently two messages/hour. Follow the setup guide before testing.</p>
   </section>;
@@ -65,8 +65,8 @@ function GroupLibrary({ token, active, onOpen, onWorkspace }: { token: string; a
     if (editing && !window.confirm('Discard these unsaved group edits and open another group?')) return;
     setSelected(group); setSessions([]); setEditing(false); setVersion((value) => value + 1);
   }
-  return <section className="saved-library"><h1>Your saved groups</h1><p>Groups belong only to your organizer account. Participant aliases are names, not authenticated members. Budgets and availability remain session-specific.</p>
-    <div className="library-layout"><aside><button disabled={busy} onClick={() => { if (editing && !window.confirm('Discard these unsaved group edits and create another group?')) return; setSelected(null); setEditing(true); setName(''); setAliases(''); }}>Create group</button>
+  return <section className="saved-library"><p className="eyebrow">Your corner of Fuzl</p><h1>Your saved groups</h1><p>Pick a group to reopen a session, or make room for a new plan.</p><details className="library-details"><summary>How private groups work</summary><p>Groups belong only to your organizer account. Participant aliases are names, not authenticated members. Budgets and availability remain session-specific.</p></details>
+    <div className="library-layout"><aside><button className="primary" disabled={busy} onClick={() => { if (editing && !window.confirm('Discard these unsaved group edits and create another group?')) return; setSelected(null); setEditing(true); setName(''); setAliases(''); }}>Create group</button>
       <ul>{groups.map((group) => <li key={group.id}><button disabled={busy} onClick={() => void select(group)} aria-pressed={selected?.id === group.id}>{group.name} ({group.sessionCount})</button></li>)}</ul></aside>
       <div>{editing ? <form onSubmit={(event) => { event.preventDefault(); void act(async (active) => {
         const input = { name, aliases: aliases.split('\n').map((item) => item.trim()).filter(Boolean) };
@@ -74,17 +74,17 @@ function GroupLibrary({ token, active, onOpen, onWorkspace }: { token: string; a
         if (active.signal.aborted) return; setSelected(group); setSessions([]); setEditing(false); setVersion((value) => value + 1);
       }); }}><Field label="Group name" required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} />
         <label className="field"><span>Participant aliases (one per line, up to 20)</span><textarea value={aliases} onChange={(event) => setAliases(event.target.value)} /></label>
-        <div className="actions"><button disabled={busy}>{busy ? 'Saving group…' : 'Save group'}</button><button type="button" disabled={busy} onClick={() => setEditing(false)}>Cancel</button></div></form> : selected ? <>
+        <div className="actions"><button className="primary" disabled={busy}>{busy ? 'Saving group…' : 'Save group'}</button><button type="button" disabled={busy} onClick={() => setEditing(false)}>Cancel</button></div></form> : selected ? <>
         <h2>{selected.name}</h2><p className="note">Updated {new Date(selected.updatedAt).toLocaleString()} · Aliases: {selected.aliases.map((alias) => alias.name).join(', ') || 'None yet'}</p>
         <div className="actions"><button disabled={busy} onClick={() => { setName(selected.name); setAliases(selected.aliases.map((alias) => alias.name).join('\n')); setEditing(true); }}>Edit group and aliases</button>
-          <button disabled={busy} onClick={() => { if (!window.confirm(`Delete “${selected.name}” and ALL its saved sessions, aliases and source excerpts? This cannot be undone in Fuzl.`)) return; void act(async (active) => {
+          <button className="danger quiet" disabled={busy} onClick={() => { if (!window.confirm(`Delete “${selected.name}” and ALL its saved sessions, aliases and source excerpts? This cannot be undone in Fuzl.`)) return; void act(async (active) => {
             await privateRequest(token, `/groups/${selected.id}`, active.signal, 'DELETE'); if (active.signal.aborted) return; setSelected(null); setSessions([]); setVersion((value) => value + 1);
           }); }}>Delete group</button></div>
         <button onClick={onWorkspace}>Go to workspace to save a session</button>
-        <ul>{sessions.map((item) => <li key={item.id}><strong>{item.title}</strong><p className="note">Updated {new Date(item.updatedAt).toLocaleString()}</p>
+        <ul className="session-list">{sessions.map((item) => <li key={item.id}><strong>{item.title}</strong><p className="note">Updated {new Date(item.updatedAt).toLocaleString()}</p>
           <div className="actions"><button disabled={busy} onClick={() => void act(async (active) => {
             const result = validateLoadedSession(await privateRequest<SavedSession>(token, `/sessions/${item.id}`, active.signal)); if (!active.signal.aborted) onOpen(result);
-          })}>Open session</button><button disabled={busy} onClick={() => { if (!window.confirm(`Delete “${item.title}”, including its saved summary and source excerpts?`)) return;
+          })}>Open session</button><button className="danger quiet" disabled={busy} onClick={() => { if (!window.confirm(`Delete “${item.title}”, including its saved summary and source excerpts?`)) return;
             void act(async (active) => { await privateRequest(token, `/sessions/${item.id}`, active.signal, 'DELETE'); if (!active.signal.aborted) { setSessions((current) => current.filter((entry) => entry.id !== item.id)); setVersion((value) => value + 1); } });
           }}>Delete session</button></div></li>)}</ul>
       </> : <p>Create a group or choose one to see its saved sessions.</p>}</div></div><p role="status" aria-live="polite">{message}</p><button onClick={() => setVersion((value) => value + 1)}>Refresh groups</button>

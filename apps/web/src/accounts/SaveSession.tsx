@@ -10,7 +10,7 @@ export default function SaveSession({ input, loaded, onSaved, onOpen, onSignIn, 
 }) {
   const { session } = useAccount();
   return session ? <SignedInSave key={session.user.id} token={session.access_token} getEditRevision={getEditRevision} input={input} loaded={loaded} onSaved={onSaved} onOpen={onOpen} />
-    : <div className="save-session"><p>Save only when ready. Saved summaries include supporting message excerpts; raw screenshots and the entire conversation are not saved.</p><button onClick={onSignIn}>Sign in to save session</button></div>;
+    : <div className="save-session"><p>Save the summary and supporting message excerpts. Raw screenshots and the entire conversation are not saved.</p><button className="primary" onClick={onSignIn}>Sign in to save session</button></div>;
 }
 function SignedInSave({ token, input, loaded, onSaved, onOpen, getEditRevision }: {
   token: string; getEditRevision: () => number; input: SessionInput; loaded: SavedSession | null; onSaved: (session: SavedSession, unchanged: boolean) => void; onOpen: (session: SavedSession) => void;
@@ -47,11 +47,11 @@ function SignedInSave({ token, input, loaded, onSaved, onOpen, getEditRevision }
     } finally { if (!active.signal.aborted) setBusy(false); }
   }
   return <section className="save-session" aria-labelledby="save-title"><h3 id="save-title">Save this session</h3>
-    <p className="note">Explicit saving only. Stores the applied summary, review state and required supporting excerpts/corrections. No raw screenshot or full imported transcript is saved. Apply or cancel open fact/question forms first.</p>
+    <p className="note">Keeps the applied summary, review labels and supporting excerpts. Raw imports stay temporary. Apply or cancel open editors before saving.</p>
     <div className="form-grid"><Field label="Session title" value={title} maxLength={100} disabled={busy} onChange={(event) => setTitle(event.target.value)} />
       <label className="field"><span>Save under group</span><select value={groupId} disabled={busy} onChange={(event) => setGroupId(event.target.value)}><option value="">Choose a group</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label></div>
     {!groups.length && <p>Create a group in Saved groups, then refresh this list. Your editor stays available.</p>}
-    <div className="actions"><button disabled={busy || !groupId || !title.trim()} onClick={() => void save()}>{busy ? 'Saving…' : 'Save session'}</button>
+    <div className="actions"><button className="primary" disabled={busy || !groupId || !title.trim()} onClick={() => void save()}>{busy ? 'Saving…' : 'Save session'}</button>
       {loaded && <button disabled={busy || !groupId} onClick={() => void save(true)}>Save as new session</button>}
       <button disabled={busy} onClick={() => setVersion((value) => value + 1)}>Refresh groups</button>
       {conflict && loaded && <button disabled={busy} onClick={() => {

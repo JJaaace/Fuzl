@@ -6,10 +6,22 @@ Fuzl helps one organizer turn selected conversation context into an editable pla
 
 Supabase supplies managed email magic-link Auth and PostgreSQL; Prisma migrations and server ownership checks protect saved work. No invitations, guest links, voting, recommendations, group memory, messaging integrations or native features are implemented. The original [specification](FUZL_CODEX_SPEC.md) is unchanged; Jace authorized through Section 5. Stop before Section 6.
 
+## Current design review
+
+The local design milestone uses a warm charcoal, ivory and amber palette and existing Section 1–5 behavior. The opening workspace puts **Paste conversation / Upload screenshots**, the empty composer and **Try an example** first. Stage navigation appears when there is somewhere useful to return; pasted text skips transcript review. Results lead with availability, budgets and open questions, with names, full fact editors and sources in expandable sections.
+
+Open http://127.0.0.1:5173 and choose **Try an example → Sample example → Load sample**. All three prepared examples reveal a **Sample summary** without an AI request. Open **Planning facts** to edit details, or **Participants & speaker mappings** to correct attribution. The provider disclosure stays visible before Analyze; live results still need explicit acceptance and remain labeled unreviewed.
+
+The provisional **Spark** mascot has an ivory body, a deep espresso U-shaped smile and exactly three fuse dots (amber outer, ivory inner). **Light the fuse** crossfades inward over 800ms and runs once on workspace opening and on deliberate logo hover; actual requests use only the waiting-dot sequence. Reduced motion uses immediate/static states. Compare Spark and Arc at 16/24/40 pixels, inspect the header/static favicon, and replay the animation in the development-only [design preview](http://127.0.0.1:5173/?design=logos). Run `node scripts/make-brand-assets.mjs` then `node scripts/preview-logos.mjs` to regenerate SVGs and ignored raster proofs.
+
+**Verification:** 159 offline tests passed, one database-suite skip; type checking, lint and builds passed. These include 14 isolated DOM/navigation tests plus four field geometry/lifecycle checks with synthetic responses, not a real browser. SVG raster proofs were inspected; desktop/phone app rendering, screenshots and hosted account interactions remain unverified because no browser is connected. See [design decisions and precise manual checks](docs/DESIGN.md). This design checkpoint is not deployed; rendered visual review is still pending. Section 6 has not started.
+
+The opening composition includes a persistent canvas field: 760 desktop dots (240 on phones), staggered breathing, a diffuse amber wave and slight outer drift. It stays visible around screenshot input and dims behind the summary. Rendering pauses offscreen, on hidden tabs and in Saved groups; reduced motion draws a static field. To see it locally, leave the opening workspace visible for 30 seconds, switch input modes, then load an example. No AI request is needed.
+
 ## Save and reopen a session
 
 1. Follow [account/database setup](docs/ACCOUNTS.md). Add SUPABASE_URL, the designated public SUPABASE_PUBLISHABLE_KEY, private DATABASE_URL, and optional private migration-only DIRECT_URL to the existing apps/api/.env; preserve the AI settings. The local setup uses DIRECT_URL to avoid a demonstrated macOS pooler-certificate incompatibility while retaining strict TLS. Use the Free project and default magic-link sender/templates. Set Site URL to `http://127.0.0.1:5173` and allow only `http://127.0.0.1:5173/auth/callback` as the local redirect. No SMTP or billing setup is required. No credentials or email links go into chat or frontend environment variables.
-2. Run `npm ci`, `npm run db:migrate`, then `npm run dev`. Open http://127.0.0.1:5173. **Saved groups** has sign-in and group creation; **Temporary workspace** keeps the editor separate.
+2. Run `npm ci`, `npm run db:migrate`, then `npm run dev`. Open http://127.0.0.1:5173. **Saved groups** has sign-in and group creation; **Workspace** keeps the editor separate.
 3. Sign in, create a group, then return to the workspace and load a sample. Edit/apply a fact, enter a session title/group, and choose **Save session**. Saving stores the applied summary, review labels and fact-linked supporting/correction excerpts. It does not store raw images or the full imported conversation, call AI, or confirm claims.
 4. Reload, select the group, and **Open session** to continue editing. Later saves use revisions; stale edits produce a recoverable conflict. Sign-out/account switching clears loaded private work and cancels old responses. The auth SDK session cache persists in browser storage; planning data does not.
 
@@ -21,7 +33,7 @@ Select up to five PNG/JPEG screenshots (5 MiB each, 15 MiB total), check preview
 
 Use the five synthetic images in `fixtures/screenshots`. Pixel limits are 4096 per side, 8 megapixels per image and 20 total; very large encoded sets may also exceed Google's 20 MB inline-request budget. Raw images stay in browser/backend memory, with no raw image persistence. Explicit Save stores only the summary and required supporting/correction excerpts. Removed previews are revoked. Explicit Clear/reload releases screenshot/transcript state; existing draft/summary clearing has separate controls. Google's retention is separate from Fuzl's lifecycle.
 
-See [Screenshot workflow, lifecycle, tests and exact manual checks](docs/SCREENSHOTS.md). All 114 offline tests, type checking, linting, builds and health checks pass. A synthetic screenshot read matched its fixture, and final text extraction preserved separately attributed zero/unknown budgets and tentative dates with unreviewed claims. Three Gemini calls were used, including one planning completeness failure before a prompt correction; one extra local attempt failed before reaching the API. Full results and measured usage are in PROGRESS. Browser interactions remain unverified because no browser is connected. Section 3/4 are committed; Section 5 is checkpointed with manual verification pending.
+See [Screenshot workflow, lifecycle, tests and exact manual checks](docs/SCREENSHOTS.md). At the Section 4 checkpoint, all 114 offline tests, type checking, linting, builds and health checks passed; current design checks are recorded above. A synthetic screenshot read matched its fixture, and final text extraction preserved separately attributed zero/unknown budgets and tentative dates with unreviewed claims. Three Gemini calls were used, including one planning completeness failure before a prompt correction; one extra local attempt failed before reaching the API. Full results and measured usage are in PROGRESS. Browser interactions remain unverified because no browser is connected. Section 3/4 are committed; Section 5 is checkpointed with manual verification pending.
 
 ## Configure and try AI extraction
 
@@ -42,7 +54,7 @@ Google's unpaid-service handling differs; use synthetic text and read [Gemini da
 
 ## Try the three examples
 
-At http://127.0.0.1:5173, select a **Sample example**, then click **Load sample**:
+At http://127.0.0.1:5173, open **Try an example** beside the composer, select a **Sample example**, then click **Load sample**:
 
 | Example | What to inspect |
 | --- | --- |
@@ -50,11 +62,11 @@ At http://127.0.0.1:5173, select a **Sample example**, then click **Load sample*
 | Missing & tentative details | Original Foundation conversation: “Friday” has no invented exact date, “maybe” stays tentative, missing budgets and currency stay unknown |
 | Conflicts & a correction | Indoor/outdoor requirements conflict; Ren’s corrected USD 15 limit is used and both original statements remain inspectable |
 
-Each is prominently labeled **Manually authored sample data**, never AI analysis. Loading replaces the current draft and summary, including edits; an existing summary requires confirmation. Merely selecting another example does not replace anything. To test live extraction of a sample conversation, explicitly use Analyze conversation; the sample summary is never substituted for a provider response.
+Each opens as **Sample summary**, labeled **Manually authored sample data**, never AI analysis. Loading replaces the current draft and summary, including edits; existing drafts, summaries or selected screenshots trigger replacement confirmation. Screenshot selections remain until separately cleared. Merely selecting another example does not replace anything. To test live extraction of a sample conversation, explicitly use Analyze conversation; the sample summary is never substituted for a provider response.
 
-Rename participants directly, or change a speaker mapping to correct attribution across linked facts. Select **Edit fact**, change its fields/status/firmness, and **Apply changes**; Cancel discards unapplied edits. Expand **Supporting sample text** to inspect original quotes. These quotes never silently change to justify your corrections.
+Expand **Participants & speaker mappings** to rename participants or change a speaker mapping to correct attribution across linked facts. Expand **Planning facts**, select **Edit fact**, change its fields/status/firmness, and **Apply changes**; Cancel discards unapplied edits. Expand **Supporting sample text** to inspect original quotes. These quotes never silently change to justify your corrections.
 
-Use **Add participant** and **Add information** for missing details. For a manual fallback, choose **Start blank summary**, which preserves the draft and starts with no inferred facts. **Clear** clears only the conversation, **Remove summary** removes only the summary, and reload clears all planning state. Replacing/removing an existing summary requires confirmation.
+Use **Add participant** and **Add information** for missing details. For a manual fallback, choose **Start blank summary**, which preserves the draft and starts with no inferred facts. **Clear draft** clears only the conversation, **Remove summary** removes only the summary, and reload clears all planning state. Replacing/removing an existing summary requires confirmation.
 
 Editing or clearing the draft after loading a summary shows a mismatch warning while preserving summary edits. Returning it exactly to the original snapshot clears the warning. Analysis runs only on explicit submission; edits never automatically reanalyze or resolve conflicts. Questions/conflicts remain separate: an issue needs a written resolution to be marked resolved, and an answer does not silently change related facts.
 
@@ -97,7 +109,7 @@ Run from the repository root:
 | `npm run test:db` | Exercise real migrations/CRUD/isolation on an owned disposable local PostgreSQL cluster |
 | `npm run typecheck` | Strictly check frontend, Vite config, and API TypeScript |
 | `npm run lint` | Lint source and tooling with zero warnings allowed |
-| `npm test` | Offline contract/provider-mock/HTTP/evaluation/state/markup tests; no paid calls |
+| `npm test` | Offline contract/provider-mock/HTTP/evaluation/state/DOM tests; no provider calls |
 | `npm run fixtures:screenshots` | Regenerate the five synthetic chat-image fixtures |
 | `npm run eval:screenshots -- --confirm-live` | One deliberate synthetic screenshot read; add --analyze-reviewed for a second planning call after fixture review |
 | `npm run eval:live -- --confirm-live-eval --case=zero-budget` | One explicit synthetic request to the selected provider; check tier/quota/budget first |
@@ -113,7 +125,7 @@ Stop the development API before starting the compiled API on the same port. Outp
 3. The browser sends the relative request to Vite on port 5173. The **development proxy** in [vite.config.ts](apps/web/vite.config.ts) forwards `/api` to port 3001. Browser requests stay on the frontend origin without CORS configuration.
 4. The **backend**, [app.ts](apps/api/src/app.ts), returns health JSON and handles bounded analysis requests. [server.ts](apps/api/src/server.ts) starts Express and handles shutdown. The API key stays on the backend and is never sent to the frontend or included in the model prompt.
 
-The compact connection panel is development scaffolding that can leave the main flow later. “Connected” means the API answered the last check; it is not continuous monitoring or evidence of AI availability.
+The connection panel is under **Development & details**; open it and choose **Check connection**. “Connected” means the API answered the last check; it is not continuous monitoring or evidence of AI availability.
 
 ```sh
 curl -i http://127.0.0.1:3001/api/health
@@ -128,7 +140,7 @@ Both should return HTTP 200 with:
 
 ## Troubleshooting
 
-- **Stopped API:** start `npm run dev:api` and select Retry connection. For failure/recovery testing, run web and API in separate terminals, stop the API, check again, then restart it and retry.
+- **Stopped API:** start `npm run dev:api` and choose **Development & details → Check connection**. For failure/recovery testing, run web and API in separate terminals, stop the API, check again, then restart it and retry.
 - **Occupied ports:** both fail clearly instead of silently moving. Stop the conflicting process or change the port. The API preflight makes an occupied/invalid API port fail before watching, allowing the combined command to stop the frontend too. Change the web port in `apps/web/vite.config.ts` if needed.
 - **Different API port:** use `PORT=3002 npm run dev` (or `PORT=3002 npm run dev:api` / `PORT=3002 npm run start:api`) and change the Vite proxy target to `http://127.0.0.1:3002`. Restart Vite after editing configuration. The API now loads optional `apps/api/.env` through Node's environment-file support; exported process variables take precedence. Defaults require no file. Never use `VITE_` variables for secrets.
 - **AI errors:** missing configuration is HTTP 503, invalid input 400/413, throttling/quota 429, unusable provider output 502, and timeout 504. No sample is returned on failure. API limits are global to this local process: one in flight, three attempts/minute, ten attempts until restart. Failed/cancelled provider attempts count. Review spend before restarting; this is not a durable dollar budget. Provider timeout is 45 seconds; client timeout is 55 seconds; retries are manual.

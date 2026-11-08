@@ -15,6 +15,7 @@ export type Subject =
   | { kind: 'speaker'; speakerId: string };
 
 interface FactBase {
+  guest?: import('./guests.js').GuestOrigin;
   id: string;
   subject: Subject;
   status: FactStatus;
@@ -39,6 +40,7 @@ export type PlanningFact = FactBase & (
 );
 
 export interface OpenQuestion {
+  guest?: import('./guests.js').GuestOrigin;
   id: string;
   kind: 'missing' | 'conflict';
   text: string;

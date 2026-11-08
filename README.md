@@ -2,9 +2,9 @@
 
 Turn your group chat into a plan.
 
-Fuzl helps one organizer turn selected conversation context into an editable plan. **Section 5 adds managed organizer sign-in, private saved groups, and explicit session saving/reopening.** The temporary text/screenshot workspace remains usable without an account. Friends do not need accounts.
+Fuzl helps one organizer turn selected conversation context into an editable plan. **Section 6 adds account-free guest answers to owned saved sessions**, alongside organizer sign-in, private groups and explicit saving/reopening. The temporary text/screenshot workspace remains usable without an account. Friends do not need accounts.
 
-Supabase supplies managed email magic-link Auth and PostgreSQL; Prisma migrations and server ownership checks protect saved work. No invitations, guest links, voting, recommendations, group memory, messaging integrations or native features are implemented. The original [specification](FUZL_CODEX_SPEC.md) is unchanged; Jace authorized through Section 5. Stop before Section 6.
+Supabase supplies managed email magic-link Auth and PostgreSQL; Prisma migrations and server ownership checks protect saved work. No voting, attendance confirmation, recommendations, final-plan sharing, group memory, messaging integrations or native features are implemented. The original [specification](FUZL_CODEX_SPEC.md) is unchanged; Jace authorized through Section 6. Stop before Section 7.
 
 ## Current design review
 
@@ -14,9 +14,19 @@ Open http://127.0.0.1:5173 and choose **Try an example → Sample example → Lo
 
 The provisional **Spark** mascot has an ivory body, a wide filled espresso crescent and exactly three fuse dots (ember orange, golden yellow, then ivory toward the body). **Light the fuse** pulses brightness inward over 800ms and runs once on workspace opening and on deliberate logo hover; actual requests use only the waiting-dot sequence. Reduced motion uses immediate/static states. Compare Spark and Arc at 16/24/40 pixels, inspect the header/static favicon, and replay the animation in the development-only [design preview](http://127.0.0.1:5173/?design=logos). Run `node scripts/make-brand-assets.mjs` then `node scripts/preview-logos.mjs` to regenerate SVGs and ignored raster proofs.
 
-**Verification:** 160 offline tests passed, one database-suite skip; type checking, lint and builds passed. These include 14 isolated DOM/navigation tests plus five field geometry/lifecycle checks with synthetic responses, not a real browser. SVG raster proofs were inspected; desktop/phone app rendering, screenshots and hosted account interactions remain unverified because no browser is connected. See [design decisions and precise manual checks](docs/DESIGN.md). This design checkpoint is not deployed; rendered visual review is still pending. Section 6 has not started.
+**Historical design checkpoint verification:** 160 offline tests passed, one database-suite skip; type checking, lint and builds passed. These include 14 isolated DOM/navigation tests plus five field geometry/lifecycle checks with synthetic responses, not a real browser. SVG raster proofs were inspected; desktop/phone app rendering, screenshots and hosted account interactions remain unverified because no browser is connected. See [design decisions and precise manual checks](docs/DESIGN.md). This design checkpoint is not deployed; rendered visual review is still pending. Section 6 guest-response work is local; Section 7 has not started.
 
 The opening composition includes a persistent canvas field: 760 desktop dots (240 on phones), a shared diagonal ripple that lifts nearby dots together, slight brightening and a weaker crossing wave. It stays visible around screenshot input and dims behind the summary. Rendering pauses offscreen, on hidden tabs and in Saved groups; reduced motion draws a static field. To see it locally, watch the opening workspace for 5–15 seconds, switch input modes, then load an example. No AI request is needed.
+
+## Ask the group (Section 6)
+
+Open an owned saved session and choose **Ask the group**. Write/review a guest-visible title and up to five questions, preview the form, approve its wording, then create/copy an expiring invite into your existing chat. Temporary work says **Save this session to create a link**. One link is active per session; replacement is explicit and revokes the old link and its edit permissions.
+
+Guests need no account. The form preserves tentative wording, unknown currency, known zero, explicit unknown and optional blank answers. Private spending limits are the default: only the respondent sees the amount in this interface; the backend stores it separately and the organizer sees a marker. Other guests never receive replies. This browser retains separate response-edit permission so reload can restore a sent response; it does not store typed drafts. See [guest flow, privacy, routes, migration and exact manual checks](docs/GUESTS.md).
+
+In **Responses**, refresh manually, match an alias explicitly and apply a shareable answer as a proposed fact or resolve a question. Original excerpts and unrelated edits remain; incoming replies do not autosave or overwrite the summary. Explicit Save rechecks fresh guest sources and existing session revisions. Revocation/expiry stops guest read/edit/submission access; collected owner-visible replies remain until session/group deletion.
+
+**Setup/verification:** the new additive migration was applied/reapplied only to an owned disposable PostgreSQL cluster; the configured hosted project has not received it. After review, run `npm run db:migrate` against your intended development database before trying real links. No new credentials are required. Current checks: **168 offline tests passed, two intentional DB-suite skips; 16 disposable-database checks passed; types/lint/build passed.** Browser/mobile, real organizer sign-in/save and hosted owner/guest acceptance remain unverified. A copied `127.0.0.1` link works on the same computer; friends need a reachable HTTPS frontend/API and exact APP_ORIGIN configuration, described in GUESTS. No deployment or network exposure was enabled.
 
 ## Save and reopen a session
 
@@ -162,4 +172,4 @@ With the app running:
 5. In browser developer tools, confirm sample/manual edits send no planning text, configuration/health are bodyless GETs, Analyze POSTs conversation/reference date/expected provider; Read screenshots separately sends selected images, and Save separately sends the structured summary/excerpts. AI configuration must contain only provider/model; account configuration exposes only designated public Supabase URL/publishable key. Confirm backend keys/database credentials are absent from frontend assets/responses, tokens travel only in private/auth transport and stay out of logs, planning data is absent from browser persistence, and API logs contain no raw planning text. Follow [AI integration](docs/AI_INTEGRATION.md) and [Gemini checks](docs/GEMINI_SETUP.md).
 6. Inspect all examples with a fact editor open at desktop and mobile widths, including 320px, for readable layout and no horizontal overflow. Tab through buttons, inputs, selects, supporting-text disclosures, and the textarea; check visible focus and keyboard activation. With a screen reader, check labels and polite connection/mismatch announcements.
 
-**Stop after Section 5.** Section 5 manual acceptance remains pending; Section 6 requires a new instruction.
+**Stop after Section 6.** Its implementation is local for review; hosted migration and browser acceptance remain pending. Section 5 manual acceptance also remains pending. Current results and guest checks are in [GUESTS](docs/GUESTS.md).

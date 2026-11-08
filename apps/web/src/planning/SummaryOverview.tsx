@@ -12,8 +12,8 @@ export default function SummaryOverview({ summary, active = true }: { summary: P
   }, [active]);
   // Stage switches don't cancel/restart an entrance already in progress.
   useEffect(() => () => { clearTimeout(timer.current); started.current = false; }, []);
-  const timing = summary.facts.filter((fact) => fact.kind === 'schedule');
-  const budgets = summary.facts.filter((fact) => fact.kind === 'budget');
+  const timing = summary.facts.filter((fact) => fact.kind === 'schedule').filter(fact => fact.extraction?.scope !== 'historical');
+  const budgets = summary.facts.filter((fact) => fact.kind === 'budget').filter(fact => fact.extraction?.scope !== 'historical');
   const open = summary.questions.filter((question) => question.resolution === null).length;
   const unreviewed = summary.facts.filter((fact) => fact.extraction && !fact.extraction.reviewed).length;
   return <div className={`summary-overview ${active && !settled ? 'is-revealing' : ''}`}>

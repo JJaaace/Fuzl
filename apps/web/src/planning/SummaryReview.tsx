@@ -24,6 +24,7 @@ function FactCard({ fact, summary, sourceKind, transcript, provenance, available
     </div>
     <p className="fact-value">{factValue(fact)}</p>
     <div className="fact-meta"><span>{fact.strength === 'unknown' ? 'Firmness unknown' : fact.strength === 'firm' ? 'Firm constraint' : 'Flexible preference'}</span>{fact.extraction && <span className={`review-badge ${fact.extraction.reviewed ? 'reviewed' : ''}`}>{fact.extraction.reviewed ? 'Reviewed by you' : 'AI claim — unreviewed'}</span>}</div>
+    {fact.guest && <p className="review-notice">Guest answer · explicitly applied by you · {fact.guest.alias}, revision {fact.guest.revision}. {fact.guest.supersedes && 'Replaces an earlier tentative interpretation.'}</p>}
     {fact.extraction && <><p className="uncertainty-note">{fact.extraction.uncertainty}</p><details className="claim-details"><summary>AI claim details</summary><p className="note">Scope: {fact.extraction.scope} · AI-reported status: {fact.extraction.reportedStatus}.{fact.extraction.supersedes.length > 0 && ` Replaces earlier claims: ${fact.extraction.supersedes.map((id) => {
       const previous = summary.facts.find((item) => item.id === id); return previous ? factValue(previous) : 'Earlier removed claim';
     }).join('; ')}.`}</p></details></>}

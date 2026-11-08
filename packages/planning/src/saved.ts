@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { guestOriginSchema } from './guests.js';
 import { planningSummarySchema } from './contract.js';
 import { applyFields, editFields } from './model.js';
 import type { PlanningSummary } from './model.js';
@@ -35,6 +36,7 @@ export function summaryReferencesValid(summary: PlanningSummary): boolean {
   const unique = (items: { id: string }[]) => new Set(items.map((item) => item.id)).size === items.length;
   if (![summary.participants, summary.speakers, summary.sources, summary.facts, summary.questions].every(unique)) return false;
   const has = (items: { id: string }[], id: string) => items.some((item) => item.id === id);
+  if ([...summary.facts,...summary.questions].some(item => item.guest && !summary.participants.some(p => p.id === item.guest!.participantId))) return false;
   return summary.speakers.every((speaker) => speaker.participantId === null || has(summary.participants, speaker.participantId)) &&
     summary.sources.every((source) => has(summary.speakers, source.speakerId)) &&
     summary.questions.every((question) => question.relatedFactIds.every((id) => has(summary.facts, id))) &&
@@ -45,11 +47,11 @@ export function summaryReferencesValid(summary: PlanningSummary): boolean {
 // Save the existing editor model, including manually entered facts without
 // evidence. Provider output and analysis-response schemas remain unchanged.
 const [schedule, budget, activity, travel, preference] = planningSummarySchema.shape.facts.element.options;
-const manualEvidence = { sourceIds: z.array(schedule.shape.sourceIds.element).max(20) };
-export const savedSummarySchema = planningSummarySchema.extend({ facts: z.array(z.discriminatedUnion('kind', [
+const manualEvidence = { guest: guestOriginSchema.optional(), sourceIds: z.array(schedule.shape.sourceIds.element).max(20) };
+export const savedSummarySchema = planningSummarySchema.extend({ questions: z.array(planningSummarySchema.shape.questions.element.extend({ guest: guestOriginSchema.optional() })).max(30), facts: z.array(z.discriminatedUnion('kind', [
   schedule.extend(manualEvidence), budget.extend(manualEvidence), activity.extend(manualEvidence),
   travel.extend(manualEvidence), preference.extend(manualEvidence),
-])).max(60) }).refine((summary) => summary.facts.every((fact) => !fact.extraction || fact.sourceIds.length > 0));
+])).max(60) }).refine((summary) => summary.facts.every((fact) => (!fact.extraction && !fact.guest) || fact.sourceIds.length > 0));
 export const sessionInputSchema = z.strictObject({
   title, summaryVersion: z.literal(1), summary: savedSummarySchema.refine(summaryReferencesValid).refine((summary) => summary.sources.every((source) => summary.facts.some((fact) => fact.sourceIds.includes(source.id)))),
   provenance: savedProvenanceSchema, origin: z.enum(['sample', 'manual', 'ai']),

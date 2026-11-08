@@ -1,3 +1,4 @@
+import { validateGuestOrigins } from '../guests/store.js';
 import { quotesUnchanged, sessionInputSchema } from '@fuzl/planning';
 import type { SavedGroup, SavedSession, SessionInput, SessionListItem } from '@fuzl/planning';
 import type { PrismaClient, Prisma } from '../generated/prisma/client.js';
@@ -51,6 +52,7 @@ export class OrganizerStore {
   async createSession(subject: string, groupId: string, input: SessionInput) {
     return this.db.$transaction(async (tx) => {
       if (!await tx.group.findFirst({ where: groupScope(subject, groupId), select: { id: true } })) throw missing();
+      await validateGuestOrigins(tx,subject,input);
       return sessionDTO(await tx.planningSession.create({ data: { groupId, title: input.title, origin: input.origin, summaryVersion: input.summaryVersion, summary: json(input.summary), provenance: json(input.provenance) } }));
     });
   }
@@ -59,6 +61,7 @@ export class OrganizerStore {
       const previous = await tx.planningSession.findFirst({ where: sessionScope(subject, id) });
       if (!previous || !await tx.group.findFirst({ where: groupScope(subject, groupId), select: { id: true } })) throw missing();
       if (!quotesUnchanged(sessionDTO(previous).payload, input)) throw new ExtractionError(422, 'source_immutable', 'Original supporting quotations and image-reading provenance cannot be replaced. Save this replacement summary as a new session.');
+      await validateGuestOrigins(tx,subject,input,sessionDTO(previous).payload,id);
       const result = await tx.planningSession.updateMany({ where: { ...sessionScope(subject, id), revision }, data: { groupId, title: input.title, origin: input.origin, summaryVersion: input.summaryVersion, summary: json(input.summary), provenance: json(input.provenance), revision: { increment: 1 } } });
       if (result.count !== 1) throw conflict();
       return sessionDTO(await tx.planningSession.findFirstOrThrow({ where: sessionScope(subject, id) }));

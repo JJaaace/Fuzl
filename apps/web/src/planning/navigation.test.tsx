@@ -102,6 +102,12 @@ test('the opening composer is empty and explicit; samples reveal three useful ti
   assert.deepEqual([...document.querySelectorAll('.summary-panel .overview-grid dt')].map((item) => item.textContent), ['Availability', 'Budgets', 'Open questions']);
   assert.equal([...document.querySelectorAll('.stage-nav button')].filter(visible).length, 2);
   assert.ok(![...document.querySelectorAll('.stage-nav button')].filter(visible).some((item) => item.textContent?.includes('Transcript')));
+  await reviewFacts(); await click(button('Edit fact'));
+  await enter(input('Date / availability description'), 'Maybe Friday after 8; synthetic organizer correction');
+  await click(button('Apply changes'));
+  assert.ok(document.querySelector('.summary-panel')!.textContent!.includes('synthetic organizer correction'));
+  assert.ok(visible(button('Sign in to save session')), 'the current sample/edit flow still reaches saving');
+  assert.ok(document.querySelector('.save-session')!.textContent!.includes('Save this session to create a link'));
   assert.equal(calls.filter((url) => url === '/api/analyze' || url === '/api/transcribe').length, 0);
 });
 

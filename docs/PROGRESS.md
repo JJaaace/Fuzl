@@ -1,6 +1,29 @@
 # Fuzl progress
 
-Updated November 7, 2026. Active authorization: **local visual/usability design milestone between Sections 5 and 6**. Sections 6–12 remain future context. The supplied specification is preserved unchanged. Section 5 remains incompletely verified.
+Updated November 7, 2026. Active authorization: **Section 6 — account-free guest responses**. Sections 7–12 remain future context. The supplied specification is preserved unchanged. Section 5 remains incompletely verified.
+
+## Section 6 — local implementation and verification
+
+- Read the full specification and new request; its Section 6 authorization supersedes the original document's Section 1-only boundary. Used **fuzl-access-review**, **fuzl-ui-review** and **milestone-check**. The design code was already committed as a2d9f5c; separately checkpointed the prior skill/review documentation as **923deb3**, with a clean credential scan. No push. Section 6 remains uncommitted/local.
+- Existing synthetic sample/edit/save-control flow remains available and is covered by React DOM checks. Hosted sign-in callback, identity, original-tab preservation, save/reopen, sign-out and real two-account isolation remain unverified; no extra email was sent.
+- Added organizer-approved **Ask the group** for owned saved sessions: explicit title/question wording, shared input preview, approval reset on changes, one active invite, 1/7/14-day expiry, one-time copy/manual clipboard fallback, explicit replacement/revoke. Temporary summaries clearly require saving first. No messages are sent.
+- Guest route renders outside account/provider initialization and offers alias, short answer/availability/spending fields, optional blank/explicit unknown/known zero and unknown currency. Replies can be edited after reload using a separate browser-held response credential. Failed sends keep typed values and explicitly reuse the original idempotency key/credential. No raw guest draft is persisted.
+- Server invite tokens and response tokens use separate 256-bit capabilities, with only SHA-256 digests in the database. Guest DTOs allowlist approved title/questions/expiry or one respondent's own reply. Scoped edit credentials, server-side expiry/revocation, invite-row write locks, request-size/rate limits, no-store/no-referrer, safe errors and no raw token/answer logging protect the routes. Existing verified organizer ownership gates every invite/response management operation.
+- Private spending values are kept in a separate private-answer table; organizer DTOs return only a private-answer marker. Output validation also redacts accidentally misplaced private values. A guest can instead explicitly share an amount with the owner. Previously shared/accepted data cannot be retracted by changing visibility later. No feasibility engine was added.
+- **Responses** refreshes manually and never alters summary state automatically. Explicit matching/apply or question-only resolution records guest origin and its original excerpt, preserving imported sources and unrelated edits. Tentative AI claims can remain historical behind the new proposed guest fact. Reply and workspace revisions are rechecked before Apply; newly accepted provenance is revalidated at Save while existing session CAS protection remains. Private/blank answers cannot be accepted as guest-sourced summary values. Duplicate answer-version application is rejected; stale question selections cannot replace a resolution, and repeated answers reuse their matched guest speaker.
+- Added migration **202611070001_guest_responses**: invites, responses and separate private answers, cascading FKs, active/submission uniqueness, RLS and revoked public grants. Applied and reapplied **only to an owned disposable PostgreSQL cluster**, preserving unrelated sentinel data. The configured hosted project is untouched and still needs this migration before real guest links work. No reset/deletion of hosted data, new runtime dependency, credential or provider/configuration change.
+
+| Section 6 check | Actual result |
+| --- | --- |
+| `npm test` | **168 passed, 2 intentional DB-suite skips** (170 reported tests), including synthetic guest send/reload/edit, failed send/idempotent retry, approval/private DTOs, stale response rejection then fresh Apply, zero/unknown/blank contracts, source preservation and existing workspace tests |
+| `npm run test:db` | **16 passed**: existing nine plus seven Section 6 parent/subtest results. Real migrated PostgreSQL and actual HTTP routes cover owner create → guest submit/edit → owner apply/save; private-budget redaction, concurrent duplicate sends, same-alias/wrong-session/cross-owner isolation, stale guest/summary revisions, question-only resolution, replacement/expiry/revocation, RLS/grants and session/group deletion with no accessible orphans. Own cluster stopped/removed |
+| Type checking, lint, build | Passed for shared/web/API; zero lint warnings |
+| Compiled API / development smoke | Compiled API started on an owned temporary port and stopped: health 200/no-store, missing guest bearer 400/no-store/private, unauthenticated private guest management 401/no-store. Existing development workspace, `/guest` and guest component modules return 200. One proxied health probe during the shared-package/watch rebuild returned 502; after the restart, direct API and proxied health both return 200 with the exact required JSON/no-store. No valid invite or hosted guest-table query was used |
+| Sensitive-file / diff review | No configured private credential matches in changed/untracked candidate files or emitted frontend assets. API `.env` stays ignored, untracked and 0600; no private certificate/configuration change. `git diff --check` passed. Nothing staged |
+| Browser/manual | **Unverified:** no browser available. Narrow phone layout, focus/clipboard feel, separate real owner/guest profiles and hosted account workflow require the short checklist in GUESTS. No browser success is inferred from mocks or HTTP checks |
+| Scope | No AI/provider request, sign-in email, billing, deployment, network exposure, Section 6 push or Section 7 feature. The prior skill/design-doc checkpoint is local |
+
+See [GUESTS.md](GUESTS.md) for code flow, credential/storage lifetimes, expiry/deletion/privacy limits, migration instructions and the same-computer versus another-device setup. Existing design and Section 5 records below are historical evidence, not current hosted acceptance.
 
 ## Local skills and first UI/milestone review
 
@@ -324,4 +347,4 @@ Drafts clear on reload. Health is a snapshot of reachability, with no automatic 
 
 Foundation implementation and available automated/HTTP checks are complete; manual browser acceptance remains pending. A focused local foundation commit records this work. No remote was created, pushed, published, or deployed.
 
-This historical stopping boundary was advanced by Jace’s later instructions. The active boundary is now **after Section 5**, as authorized by the latest attached request.
+This historical stopping boundary was advanced by Jace’s later instructions. The active boundary is now **after Section 6**, as authorized by the latest attached request.

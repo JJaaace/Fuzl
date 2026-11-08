@@ -45,7 +45,7 @@ export default function Questions({ summary, onChange }: { summary: PlanningSumm
     {summary.questions.length === 0 && <p>No questions recorded. This does not establish that the plan is complete.</p>}
     {summary.questions.map((question) => <article className="question-card" key={question.id}>
       <span className="fact-status">{question.resolution === null ? 'Open' : 'Resolved manually'} · {question.kind === 'conflict' ? 'Conflict' : 'Missing answer'}</span>
-      <p>{question.text}</p>
+      <p>{question.text}</p>{question.guest && <div><p className="note">Guest answer · applied by you · {question.guest.alias}, revision {question.guest.revision}</p><details><summary>Original guest answer</summary><blockquote>{question.guest.sourceText}</blockquote></details></div>}
       {question.relatedFactIds.length > 0 && <details className="related-details"><summary>Related facts</summary><ul className="related-facts" aria-label="Related facts">{question.relatedFactIds.map((id) => {
         const fact = summary.facts.find((item) => item.id === id);
         return fact ? <li key={id}>{kindLabels[fact.kind]} · {subjectLabel(fact.subject, summary)}</li> : null;

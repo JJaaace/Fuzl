@@ -46,6 +46,7 @@ model PlanningSession {
   groupId String @db.Uuid
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   title String @db.VarChar(100)
+  invites GuestInvite[]
   summaryVersion Int @default(1)
   summary Json
   provenance Json
@@ -56,4 +57,50 @@ model PlanningSession {
   @@index([groupId])
   @@schema("fuzl")
   @@map("fuzl_sessions")
+}
+
+model GuestInvite {
+  id String @id @default(uuid()) @db.Uuid
+  sessionId String @db.Uuid
+  session PlanningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  activeSessionId String? @unique @db.Uuid
+  tokenDigest String @unique @db.VarChar(64)
+  title String @db.VarChar(100)
+  questions Json
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  responses GuestResponse[]
+  @@index([sessionId])
+  @@schema("fuzl")
+  @@map("fuzl_guest_invites")
+}
+model GuestResponse {
+  id String @id @default(uuid()) @db.Uuid
+  inviteId String @db.Uuid
+  invite GuestInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  submissionId String @db.Uuid
+  editDigest String @unique @db.VarChar(64)
+  alias String @db.VarChar(80)
+  answers Json
+  revision Int @default(1)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  privateAnswers GuestPrivateAnswer[]
+  @@unique([inviteId, submissionId])
+  @@index([inviteId])
+  @@schema("fuzl")
+  @@map("fuzl_guest_responses")
+}
+model GuestPrivateAnswer {
+  id String @id @default(uuid()) @db.Uuid
+  responseId String @db.Uuid
+  response GuestResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  questionId String @db.Uuid
+  amount Decimal? @db.Decimal(12,2)
+  currency String? @db.VarChar(3)
+  state String @db.VarChar(10)
+  @@unique([responseId, questionId])
+  @@schema("fuzl")
+  @@map("fuzl_guest_private_answers")
 }

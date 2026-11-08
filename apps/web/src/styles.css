@@ -396,3 +396,27 @@ blockquote { margin: 10px 0; border-left: 2px solid var(--accent); padding-left:
 button.primary[aria-busy=true] { background: var(--accent-wash); color: var(--ink); border-color: var(--accent); opacity: 1; }
 @media (max-width: 480px) { .dot-field { top: 145px; width: calc(100vw - 12px); height: 760px; } }
 @media (prefers-reduced-motion: reduce) { .dot-field { transition: none; } }
+
+/* Section 6: solid form surfaces keep the subdued field behind the reading area. */
+.guest-page main { max-width: 620px; padding: 32px 0 64px; }
+.guest-page h1 { font-size: clamp(28px, 5vw, 38px); }
+.guest-page .provider-disclosure { display: block; margin-bottom: 24px; }
+.guest-fields { border: 0; padding: 0; margin: 16px 0; min-width: 0; }
+.guest-fields > .field { margin-bottom: 18px; }
+.guest-question { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin: 22px 0; background: var(--surface); }
+.guest-question legend { padding: 0 7px; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+.guest-question legend .muted { font-size: 12px; }
+.guest-question .field { margin-bottom: 14px; }
+.guest-question textarea { min-height: 84px; }
+.check-label { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; line-height: 1.6; }
+.check-label input { width: 18px; height: 18px; flex: 0 0 18px; accent-color: var(--primary); }
+.share-question, .response-card { min-width: 0; border: 1px solid var(--border); padding: 18px; border-radius: var(--radius); margin: 18px 0; background: var(--surface); }
+.share-question .field, .response-card .field { margin: 12px 0; }
+.guest-management h3 { margin-top: 20px; }
+.guest-management .guest-fields > button { margin: 10px 8px 10px 0; }
+.guest-preview { margin: 20px 0; }
+.invite-state { padding-block: 16px; }
+.response-answer { padding: 14px 0; border-top: 1px solid var(--border); font-size: 14px; overflow-wrap: anywhere; }
+.response-answer p { white-space: pre-wrap; }
+@media (max-width: 480px) { .guest-question, .share-question, .response-card { padding: 14px; } .guest-page .app-header { display: flex; gap: 12px; } .guest-page .badge { max-width: 55%; } }
+.guest-page .dot-field { opacity: .12; }

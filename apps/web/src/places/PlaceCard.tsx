@@ -1,0 +1,11 @@
+import type { AssessedPlace } from '@fuzl/planning';
+export default function PlaceCard({ place }: { place: AssessedPlace }) {
+  const c = place.candidate, p = c.price, h = c.hours;
+  return <article className={`place-card fit-${place.status}`}><div className="fact-heading"><h4>{c.name}</h4><span className="badge">{place.status === 'fits' ? 'Fits checked constraints' : place.status === 'does-not-fit' ? 'Doesn’t fit' : 'Needs checking'}</span></div>
+    <p>{c.address ?? 'Address unknown'}</p>{c.source === 'geoapify' && <p className="note">Provider-reported location; confirm the venue’s current address before traveling.</p>}<p>{place.reason}</p>
+    <dl><dt>Price</dt><dd>{p.amount === null ? 'Price unknown' : `${p.amount} ${p.currency ?? '(currency unknown)'}`} · {p.basis} · {p.coverage === 'admission-only' ? 'Admission only; other expenses unknown' : p.coverage === 'total' ? 'Supplied total cost' : 'Total coverage unknown'}</dd><dt>Hours</dt><dd>{h.kind === 'unknown' ? 'Hours unknown' : `${h.kind === 'regular' ? 'Regular hours only' : h.date + ' · ' + (h.timeZone ?? 'zone unknown')}: ${h.closed ? 'Closed' : h.start && h.end ? h.start + '–' + h.end : h.text ?? 'Details unknown'}`}</dd><dt>Travel</dt><dd>{place.distanceKm === null ? 'Distance unknown' : `${place.distanceKm.toFixed(1)} km straight-line from area center`} · Travel time unknown</dd></dl>
+    <p className="note">{c.source === 'demo' ? 'Synthetic demo fixture' : c.source === 'organizer' ? 'Organizer-entered details; not provider-verified' : 'Geoapify / OpenStreetMap data'} · {new Date(c.retrievedAt).toLocaleString()}</p>
+    <p><strong>Next: {place.nextStep}</strong></p><a className="place-next" href={c.sourceUrl} target="_blank" rel="noreferrer">{c.source === 'geoapify' ? 'Open source map' : 'Open supplied source'} ↗</a><p className="note">{c.source === 'geoapify' ? 'Map pin only; it does not verify an address, price, hours or official website.' : 'Source link supplied with these details.'}</p>
+    <details><summary>Checks and ordering</summary><ul>{place.checks.map((check, i) => <li key={i}><strong>{check.kind} · {check.status}</strong>: {check.detail}</li>)}</ul><p className="note">{place.ranking.join(' · ')}. Firm exclusions are applied before preferences; no match percentage is calculated.</p></details>
+  </article>;
+}

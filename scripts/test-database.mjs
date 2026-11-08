@@ -25,7 +25,7 @@ try {
   const environment = { ...process.env, DATABASE_URL: url, DIRECT_URL: url, FUZL_TEST_DATABASE_URL: url, FUZL_DISPOSABLE_DATABASE: 'owned-by-test-runner' };
   await run('npm', ['run', 'db:migrate'], environment);
   await run('npm', ['run', 'db:migrate'], environment); // Applying the migration twice must preserve data/schema.
-  await run('node', ['--import', 'tsx', '--test', 'apps/api/src/accounts/database.integration.test.ts', 'apps/api/src/guests/database.integration.test.ts'], environment);
+  await run('node', ['--import', 'tsx', '--test', 'apps/api/src/accounts/database.integration.test.ts', 'apps/api/src/guests/database.integration.test.ts', 'apps/api/src/places/database.integration.test.ts'], environment);
 } catch (error) { console.error(error instanceof Error ? error.message : 'Disposable database verification failed.'); process.exitCode = 1; }
 finally {
   if (started) await run('pg_ctl', ['-D', data, '-m', 'fast', '-w', 'stop'], process.env, true);

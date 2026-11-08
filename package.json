@@ -21,7 +21,7 @@
     "dev:api": "npm run build --workspace @fuzl/planning && npm run dev --workspace @fuzl/api",
     "typecheck": "npm run build --workspace @fuzl/planning && npm run typecheck --workspaces",
     "lint": "eslint . --max-warnings 0",
-    "test": "npm run build --workspace @fuzl/planning && tsx --tsconfig apps/web/tsconfig.json --test apps/web/src/lib/*.test.ts apps/web/src/accounts/*.test.ts apps/web/src/accounts/*.test.tsx apps/web/src/screenshots/*.test.ts apps/web/src/screenshots/*.test.tsx apps/web/src/planning/*.test.ts apps/web/src/planning/*.test.tsx apps/web/src/guests/*.test.ts apps/web/src/guests/*.test.tsx apps/api/src/extraction/*.test.ts apps/api/src/accounts/*.test.ts apps/api/src/guests/*.test.ts",
+    "test": "npm run build --workspace @fuzl/planning && tsx --tsconfig apps/web/tsconfig.json --test apps/web/src/lib/*.test.ts apps/web/src/accounts/*.test.ts apps/web/src/accounts/*.test.tsx apps/web/src/screenshots/*.test.ts apps/web/src/screenshots/*.test.tsx apps/web/src/planning/*.test.ts apps/web/src/planning/*.test.tsx apps/web/src/guests/*.test.ts apps/web/src/guests/*.test.tsx apps/web/src/places/*.test.tsx apps/api/src/extraction/*.test.ts apps/api/src/accounts/*.test.ts apps/api/src/guests/*.test.ts apps/api/src/places/*.test.ts",
     "eval:screenshots": "node scripts/evaluate-screenshots.mjs",
     "fixtures:screenshots": "node scripts/make-screenshot-fixtures.mjs",
     "eval:live": "npm run build --workspace @fuzl/planning && npm run eval:live --workspace @fuzl/api --",

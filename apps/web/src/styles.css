@@ -420,3 +420,20 @@ button.primary[aria-busy=true] { background: var(--accent-wash); color: var(--in
 .response-answer p { white-space: pre-wrap; }
 @media (max-width: 480px) { .guest-question, .share-question, .response-card { padding: 14px; } .guest-page .app-header { display: flex; gap: 12px; } .guest-page .badge { max-width: 55%; } }
 .guest-page .dot-field { opacity: .12; }
+
+/* Venue suggestions share the existing warm review surfaces. */
+.place-finder { margin-block: 24px; min-width: 0; }
+.place-finder > div > h3 { margin-top: 22px; }
+.places-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-block: 20px; }
+.place-card { margin: 18px 0; padding: 22px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
+.place-card.fit-fits { border-color: var(--accent); }
+.place-card.fit-does-not-fit { border-style: dashed; }
+.place-card h4 { margin: 0; }
+.place-card p, .place-card dd { line-height: 1.7; }
+.place-card dl { margin-block: 18px; }
+.place-card dt { color: var(--muted); font-size: 12px; margin-top: 12px; }
+.place-card dd { margin-left: 0; }
+.place-next { display: inline-block; min-height: 44px; padding-block: 10px; font-weight: 600; }
+.place-finder details { margin-block: 16px; }
+.places-attribution { font-size: 13px; line-height: 1.8; }
+@media (max-width: 540px) { .place-card { padding: 16px; } .place-card .fact-heading { align-items: flex-start; flex-direction: column; } }

@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { randomUUID, randomBytes } from 'node:crypto';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../generated/prisma/client.js';
+import { OrganizerStore } from '../accounts/store.js';
+import { GuestStore } from '../guests/store.js';
+import { PlaceStore } from './store.js';
+import { createApp } from '../app.js';
+import { demoPlaceSummary, demoPlaceQuery } from '@fuzl/planning';
+import type { PlaceResults, PlaceSearch } from '@fuzl/planning';
+const enabled = process.env.FUZL_DISPOSABLE_DATABASE === 'owned-by-test-runner' && !!process.env.FUZL_TEST_DATABASE_URL;
+test('Section 7A owned venue search with real private answers on disposable PostgreSQL', { skip: !enabled }, async t => {
+  const url = process.env.FUZL_TEST_DATABASE_URL!; assert.equal(new URL(url).hostname, '127.0.0.1');
+  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }, { schema: 'fuzl' }), log: [] });
+  t.after(() => db.$disconnect());
+  const owner = randomUUID(), other = randomUUID(), organizer = new OrganizerStore(db), guests = new GuestStore(db);
+  const group = await organizer.createGroup(owner, { name: 'Places synthetic owner', aliases: [] });
+  const saved = await organizer.createSession(owner, group.id, { title: 'Places synthetic session', summaryVersion: 1, origin: 'manual', provenance: [], summary: demoPlaceSummary() });
+  const budgetQuestion = randomUUID();
+  const invite = await guests.createInvite(owner, saved.id, { approved: true, title: 'Synthetic private spending', questions: [{ id: budgetQuestion, text: 'Private spending limit?', type: 'budget', required: false }], replace: false, days: 1, sessionRevision: 1 });
+  await guests.submit(invite.token, { submissionId: randomUUID(), editToken: randomBytes(32).toString('base64url'), payload: { alias: 'PRIVATE respondent name', answers: [{ questionId: budgetQuestion, kind: 'budget', state: 'known', amount: 0.17, currency: 'USD', visibility: 'private' }] } });
+  const store = new PlaceStore(db);
+  const server = createApp({ accounts: { verify: async token => token === 'synthetic-owner-bearer' ? owner : other, places: { store: () => store } } }).listen(0, '127.0.0.1');
+  await new Promise<void>(r => server.once('listening', r)); t.after(() => new Promise<void>(r => server.close(() => r())));
+  const endpoint = `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}/api/private/sessions/${saved.id}/places/search`;
+  const payload: PlaceSearch = { mode: 'demo', summary: saved.payload.summary, query: demoPlaceQuery, sessionRevision: 1, manual: [] };
+  const call = (body = payload, token = 'synthetic-owner-bearer') => fetch(endpoint, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  await t.test('owner search evaluates private feasibility without returning exact private data', async () => {
+    const result = await call(); assert.equal(result.status, 200);
+    const data = await result.json() as PlaceResults;
+    assert.equal(data.mode, 'demo'); assert.equal(data.verified.length, 1);
+    assert.ok(data.verified[0].checks.some(c => c.kind === 'private-budget'));
+    assert.ok(!JSON.stringify(data).includes('0.17') && !JSON.stringify(data).includes('PRIVATE respondent name'));
+    const withPrice = structuredClone(payload);
+    withPrice.manual = [{ name: 'Synthetic one dollar', sourceUrl: 'https://example.com/one-dollar', address: null, category: 'park', lat: 40.0017, lon: -83.0197, price: { amount: 1, currency: 'USD', basis: 'per-person', coverage: 'total' }, hours: { kind: 'unknown', text: null, date: null, start: null, end: null, timeZone: null, closed: false } }];
+    const changed = await (await call(withPrice)).json() as PlaceResults;
+    assert.ok(changed.excluded.find(r => r.candidate.name === 'Synthetic one dollar')?.checks.some(c => c.kind === 'private-budget' && c.status === 'does-not-fit'));
+  });
+  await t.test('cross-owner IDs, missing bearer, stale summary and deleting a session deny access', async () => {
+    assert.equal((await call(payload, 'synthetic-other-bearer')).status, 404);
+    assert.equal((await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })).status, 401);
+    assert.equal((await call({ ...payload, sessionRevision: 99 })).status, 409);
+    await organizer.deleteGroup(owner, group.id);
+    assert.equal((await call()).status, 404);
+    assert.equal(await db.guestPrivateAnswer.count({ where: { response: { invite: { sessionId: saved.id } } } }), 0);
+  });
+});

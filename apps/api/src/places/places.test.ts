@@ -5,7 +5,7 @@ import type { PlaceCandidate, PlaceQuery, PlaceSearch, PlaceResults } from '@fuz
 import { GeoapifyProvider } from './provider.js';
 import { ExtractionError } from '../extraction/errors.js';
 const now = '2026-11-07T12:00:00.000Z';
-const fixture = () => demoPlaces(demoPlaceQuery, now);
+const fixture = () => { const data = demoPlaces(demoPlaceQuery, now); assert.ok('area' in data); return data; };
 const evaluate = (candidate?: PlaceCandidate, summary = demoPlaceSummary(), query: PlaceQuery = demoPlaceQuery) => { const f = fixture(); return evaluatePlaces(candidate ? [candidate] : f.candidates, f.area, query, summary); };
 test('deterministic shortlist separates verified fit, unknown details and firm exclusion before ranking', () => {
   const result = evaluate();
@@ -16,7 +16,7 @@ test('deterministic shortlist separates verified fit, unknown details and firm e
   const duplicate = fixture();
   assert.equal(evaluatePlaces([...duplicate.candidates, duplicate.candidates[0]], duplicate.area, demoPlaceQuery, demoPlaceSummary()).verified.length, 1);
   assert.equal(evaluate(undefined, demoPlaceSummary(), { ...demoPlaceQuery, date: null }).verified.length, 0);
-  assert.equal(placeQuerySchema.safeParse({ ...demoPlaceQuery, area: 'Friday' }).success, false);
+  assert.equal(placeQuerySchema.safeParse({ ...demoPlaceQuery, area: '1234-foo' }).success, false);
   assert.equal(placeQuerySchema.safeParse({ ...demoPlaceQuery, date: '2026-02-30' }).success, false);
   assert.equal(placeQuerySchema.safeParse({ ...demoPlaceQuery, timeZone: 'Invented/Zone' }).success, false);
 });
@@ -72,10 +72,11 @@ test('Geoapify adapter uses the chosen outside-Columbus area and only location/f
   assert.equal(urls[0].searchParams.get('city'), 'Cleveland');
   assert.equal(urls[0].searchParams.has('text'), false);
   assert.deepEqual([...urls[1].searchParams.keys()].sort(), ['apiKey', 'bias', 'categories', 'filter', 'limit']);
-  assert.equal(urls[1].searchParams.get('filter'), 'circle:-81.7,41.5,4000');
+  assert.equal(urls[1].searchParams.get('filter'), 'circle:-81.7,41.5,4000|countrycode:us');
+  assert.ok('area' in result);
   assert.equal(result.candidates[0].price.amount, null); assert.equal(result.candidates[0].hours.kind, 'unknown');
   assert.ok(!JSON.stringify(result).includes('synthetic-key'));
-  assert.equal(demoPlaces({ ...demoPlaceQuery, area: '44114' }, now).area.label, 'Demo Cleveland area');
+  const cleveland = demoPlaces({ ...demoPlaceQuery, area: '44114' }, now); assert.ok('area' in cleveland); assert.equal(cleveland.area.label, 'Demo Cleveland area');
 });
 test('provider handles missing/malformed results, ambiguous matches, HTTP quota/access, network and deadlines without leaking errors or retrying', async () => {
   const query = { area: '43210', category: 'park' as const, radiusKm: 5 };

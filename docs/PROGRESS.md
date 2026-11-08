@@ -1,6 +1,32 @@
 # Fuzl progress
 
-Updated November 7, 2026. Active authorization: **Section 7A — place search and deterministic evaluation**. Later Section 7 work and Sections 8–12 remain future context. The supplied specification is preserved unchanged. Section 5 remains incompletely verified.
+Updated November 7, 2026. Active authorization: **Section 7B — US location resolution and venue evidence**. Section 7C and Sections 8–12 remain future context. The supplied specification is preserved unchanged. Section 5 remains incompletely verified.
+
+## Section 7B — local area/evidence extension
+
+- Applied **fuzl-access-review**, **fuzl-ui-review** and **milestone-check**. Read the current request, specification, PLACES, live Columbus record and actual ownership/UI/provider code. Before changing anything, applied the prepared Section 6/7A patches to an isolated index and compared the reconstructed tree with the working tree: exact match **49ca3b1673df9031f1e906048659eab042f9b0be**. Recorded that baseline and patch hashes. Original patches are preserved; Section 7B is a separate delta. No commit/push.
+- Reused one Geoapify adapter and the current evaluator/cards. Added string-preserving ZIPs, normalized city/state matching, suburb/district support and explicit bounded area choices. No typing-triggered search or automatic radius relaxation. Provider circle/US filter permits cross-city/state venues and exposes their supplied locality. Invalid/missing location, provider failure, empty/sparse coverage and firm exclusions stay distinct.
+- Added source/check-date claims and explicit selections, with **Address needs checking** for unresolved/disagreeing values. Original addresses/sources remain inspectable. Confirming a different address uses only its own geometry/zone; price/hours evidence is address-bound. Missing dependencies remain unresolved. Official links require exact-venue attestation, HTTPS and an identity-match note; labels say organizer matched, not independent website verification.
+- Added an owner/session/revision-scoped, bounded, ephemeral public-venue cache and authenticated `/places/evaluate`. Rechecking evidence calls no provider and revalidates current private context, source claims and boundary. It never returns individual private amounts/names or internal hashes. Public candidates and scope metadata are cached; raw planning inputs, individual budgets and organizer-entered evidence are not. No database schema/dependency/configuration-secret change.
+- Preserved zero/unknown/currency/basis, reviewed/firm versus uncertain facts, original guest sources, acceptance/sign-out/save-revision protections and stale input/edit handling. Venue-local clock conversion rejects DST ambiguity and unsupported overnight coverage. Cost, hours, radius, travel duration and booking are separate; a constraint fit is not a booking. No travel/booking provider was added.
+- Added fixtures for Boston/02108, Brookline/02445, sparse Marfa/79843, ambiguous Springfield MA/IL, Philadelphia/Camden across a state line, and a dated Columbus address-discrepancy replay. React fixture checks exercise explicit clarification, sparse changes without requests, both address sources, corrected-location dependencies and official/source-date retention through recommendations.
+
+| Section 7B check | Actual result |
+| --- | --- |
+| `npm test` | **187 passed, 3 intentional DB-suite skips** (190 reported tests); existing checks plus seven location/evidence/zone/cache cases and two React fixture cases |
+| `npm run test:db` | **20 passed**; owned disposable cluster stopped/removed. Existing Section 5/6 plus real private search/recheck, correction source/date retention, wrong owner/snapshot/boundary and changed private limits |
+| Types/lint/build | Passed shared/web/API; zero lint warnings |
+| Runtime | Compiled health 200 and unauthorized `/places/evaluate` 401/no-store; owned temporary listener stopped. Development workspace, guest route, places preview/module and proxy health all 200. This is HTTP evidence, not browser rendering |
+| Private configuration / review delta | No configured private credential matches in source candidates, frontend assets or ordered review patches. Actual `.env` stays ignored, untracked and 0600. Original 01/02 patches are unchanged; separate `03-section7b.patch` reconstructs the current tree on top of their frozen baseline. Real index and branch unchanged; nothing staged |
+| Browser | **Unverified**: browser discovery remains `[]`. Actual phone/desktop layout, focus, keyboard and source navigation need the checklist in PLACES_7B. DOM tests are not visual/browser acceptance |
+| Live/hosted | No Section 7B provider request, AI call, email, hosted migration or real account claim. The previous two-request Columbus search is historical. Hosted Section 5/6 acceptance and guest migration remain pending by choice |
+| Scope | Local/reviewable, no commit/push/deploy/billing change; no events, reviews, trends or later feature |
+
+The database tests initially exposed obsolete assumptions about directly using an unconfirmed manual price and about claim array order. Tests now select the sourced claim by ID and explicitly bind a checked price to its confirmed address before testing private feasibility. This preserves the stricter location/evidence rules; no validation was weakened. The zone test also checks that leaving the input zone blank cannot bypass a firm planning window.
+
+Source-editor draft replacement is explicit: declining a search/input replacement preserves unsubmitted fields; recording one place also guards another place’s pending fields. A fixture test verifies cancellation. All remaining checks pass. No Section 7B live/provider or hosted action occurred.
+
+Code flow, storage/identity boundaries, limitations and short second-metro/sparse/correction demo: [PLACES_7B.md](PLACES_7B.md).
 
 ## Section 7A — local places implementation and verification
 
@@ -377,4 +403,4 @@ Drafts clear on reload. Health is a snapshot of reachability, with no automatic 
 
 Foundation implementation and available automated/HTTP checks are complete; manual browser acceptance remains pending. A focused local foundation commit records this work. No remote was created, pushed, published, or deployed.
 
-This historical stopping boundary was advanced by Jace’s later instructions. The active boundary is now **after Section 7A**, as authorized by the latest attached request.
+This historical stopping boundary was advanced by Jace’s later instructions. The active boundary is now **after Section 7B**, as authorized by the latest attached request.

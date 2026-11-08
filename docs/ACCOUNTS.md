@@ -1,6 +1,6 @@
 # Section 5 — organizer accounts and saved sessions
 
-Implemented November 6, 2026. This is the Section 5 architecture and historical verification record. Section 6 now adds account-free guest answers in [GUESTS.md](GUESTS.md); its new migration has been tested only on a disposable database and has not been applied to the configured hosted project. Section 7A now adds organizer-only place search in [PLACES.md](PLACES.md), with no new schema; stop after Section 7A. No deployment, paid resources, voting, recommendations or group memory.
+Implemented November 6, 2026. This is the Section 5 architecture and historical verification record. Section 6 now adds account-free guest answers in [GUESTS.md](GUESTS.md); its new migration has been tested only on a disposable database and has not been applied to the configured hosted project. Sections 7A/7B add organizer-only place search in [PLACES.md](PLACES.md), with no new schema; stop after Section 7B. No deployment, paid resources, voting, recommendations or group memory.
 
 ## Provider and development limits
 
@@ -131,4 +131,4 @@ Browser discovery remains empty. Additional manual checks, after setup:
 3. Sign out or switch from controlled account A to B while private reads/saves are pending. A's groups, loaded summary, source excerpts, thumbnails and late responses must not appear for B. B must not see A's records. Repeat a fresh sign-in/reopen for A. Keep the default SMTP restrictions in mind; do not enable billing to test it.
 4. Delete a session, then a group containing sessions; decline confirmation once first. Reopening removed items must fail. Confirm unrelated groups/other accounts remain. Verify only required excerpts were stored, no raw images/transcript, and that browser persistence contains only designated auth/guest credentials, not typed planning or guest-answer drafts. Do not paste tokens or inspect unrelated storage.
 
-Section 5 is a checkpoint, not a fully verified milestone. Section 6 guest work is described in GUESTS; the hosted account checks above remain unverified. Section 7A place search is now documented in PLACES; later features remain out of scope.
+Section 5 is a checkpoint, not a fully verified milestone. Section 6 guest work is described in GUESTS; the hosted account checks above remain unverified. Section 7A/7B place search and owner-bound ephemeral rechecks are documented in PLACES/PLACES_7B. The cache contains public venue data and authorization/revision bindings, not summaries or private limits. Later features remain out of scope.

@@ -1,5 +1,7 @@
 # Section 7A — one live Columbus verification
 
+This is the historical Section 7A result. [Section 7B](PLACES_7B.md) now uses its address discrepancies as fixtures; no new live search was made.
+
 Verified November 7, 2026. **Provider connection/extraction passed; catalog accuracy and actual outing feasibility remain partial/unverified.** This is not a booking, a confirmed plan or hosted-account acceptance.
 
 ## Setup and scope

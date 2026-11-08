@@ -6,6 +6,7 @@ import { demoPlaces, demoPlaceQuery, demoPlaceSummary, evaluatePlaces } from '@f
 import type { PlaceResults, SavedSession } from '@fuzl/planning';
 GlobalRegistrator.register({ url: 'http://127.0.0.1:5173/?design=places', settings: { enableJavaScriptEvaluation: false, disableJavaScriptFileLoading: true, enableCSSFileLoading: false, enableImageFileLoading: false } });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+window.confirm = () => true;
 const { act } = await import('react');
 const { createRoot } = await import('react-dom/client');
 const { default: PlaceFinder } = await import('./PlaceFinder');
@@ -18,7 +19,7 @@ async function enter(node: HTMLInputElement | HTMLSelectElement, value: string) 
 async function click(node: HTMLElement) { await act(async () => { node.click(); await settle(); }); }
 async function mount(t: TestContext, node: React.ReactNode) { const parent = document.createElement('div'); document.body.append(parent); const root = createRoot(parent); t.after(async () => { await act(async () => root.unmount()); parent.remove(); }); await act(async () => { root.render(node); await settle(); }); return root; }
 const saved: SavedSession = { id: '11111111-1111-4111-8111-111111111111', groupId: '22222222-2222-4222-8222-222222222222', title: 'Synthetic saved plan', revision: 1, createdAt: '2026-11-07T12:00:00.000Z', updatedAt: '2026-11-07T12:00:00.000Z', payload: { summaryVersion: 1, title: 'Synthetic saved plan', summary: demoPlaceSummary(), origin: 'manual', provenance: [] } };
-function result(): PlaceResults { const fixture = demoPlaces(demoPlaceQuery, saved.updatedAt); return { mode: 'demo', retrievedAt: saved.updatedAt, ...evaluatePlaces(fixture.candidates, fixture.area, demoPlaceQuery, demoPlaceSummary()) }; }
+function result(): PlaceResults { const fixture = demoPlaces(demoPlaceQuery, saved.updatedAt); assert.ok('area' in fixture); return { mode: 'demo', retrievedAt: saved.updatedAt, ...evaluatePlaces(fixture.candidates, fixture.area, demoPlaceQuery, demoPlaceSummary()) }; }
 test('demo preview shows explicit synthetic fit/unknown/exclusion cards without auth/provider requests; changing area hides stale results', async t => {
   t.mock.method(globalThis, 'fetch', async () => { throw Error('No network allowed in preview'); });
   const root = await mount(t, <PlaceFinder previewOnly summary={demoPlaceSummary()} initialQuery={demoPlaceQuery} getEditRevision={() => 0} />);
@@ -75,4 +76,57 @@ test('manual candidate validates links and zero/unknown values, labels organizer
   assert.ok(document.body.textContent?.includes('Manual zero admission'));
   assert.ok(document.body.textContent?.includes('0 (currency unknown)'));
   assert.ok(document.body.textContent?.includes('Admission only; other expenses unknown'));
+});
+test('fixture UI resolves leading-zero second-metro/suburb inputs and sparse/ambiguous areas without network or relaxing firm limits', async t => {
+  let calls = 0; t.mock.method(globalThis, 'fetch', async () => { calls++; throw Error('No network for fixtures'); });
+  const summary = demoPlaceSummary(), original = structuredClone(summary);
+  await mount(t, <PlaceFinder previewOnly summary={summary} initialQuery={{ ...demoPlaceQuery, area: '02108' }} getEditRevision={() => 0} />);
+  assert.equal(control('Search area').value, '02108');
+  await click(button('Show demo results')); assert.ok(document.body.textContent?.includes('Resolved area: Demo Boston'));
+  assert.ok(document.body.textContent?.includes('Venue location: Cambridge, MA'));
+  await enter(control('Search area'), '02445'); await click(button('Show demo results')); assert.ok(document.body.textContent?.includes('Resolved area: Demo Brookline'));
+  await enter(control('Search area'), '79843'); await click(button('Show demo results')); assert.ok(document.body.textContent?.includes('Sparse coverage'));
+  await click(button('Increase radius by 5 km (search when ready)')); assert.equal(control('Search radius').value, '10');
+  assert.equal(document.querySelectorAll('.place-card').length, 0); assert.equal(calls, 0);
+  await click(button('Show demo results')); assert.equal(document.querySelectorAll('.place-card').length, 2);
+  await enter(control('Category'), 'park'); await click(button('Show demo results')); assert.ok(document.body.textContent?.includes('No venue listings returned for these filters.'));
+  await enter(control('Category'), 'any');
+  await enter(control('Search area'), 'Springfield'); await click(button('Show demo results')); assert.ok(document.body.textContent?.includes('Which area did you mean?'));
+  assert.equal(document.querySelectorAll('.place-card').length, 0);
+  await enter(control('Resolved area choices'), 'springfield, il'); await click(button('Search selected area'));
+  assert.ok(document.body.textContent?.includes('Resolved area: Demo Springfield, IL'));
+  assert.equal(calls, 0); assert.deepEqual(summary, original);
+});
+test('recorded Columbus conflicts, explicit address confirmation and matched official links retain evidence through normal recommendations', async t => {
+  t.mock.method(globalThis, 'fetch', async () => { throw Error('No network for recorded fixtures'); });
+  await mount(t, <PlaceFinder previewOnly summary={demoPlaceSummary()} initialQuery={{ ...demoPlaceQuery, area: '43210', category: 'museum' }} getEditRevision={() => 0} />);
+  await click(button('Show demo results'));
+  assert.ok(document.body.textContent?.includes('Address needs checking'));
+  assert.ok(document.body.textContent?.includes('281 West Lane Avenue'));
+  assert.ok(document.body.textContent?.includes('230 North Oval Mall'));
+  const university = () => [...document.querySelectorAll('.place-card')].find(c => c.querySelector('h4')?.textContent === 'University Museum')!;
+  const entry = (text: string) => { const node = [...university().querySelectorAll('label')].find(l => l.textContent?.includes(text))?.querySelector<HTMLInputElement | HTMLSelectElement>('input,select'); assert.ok(node, text); return node; };
+  const confirm = [...university().querySelectorAll<HTMLButtonElement>('button')].filter(b => b.textContent === 'Confirm this address')[1];
+  assert.ok(confirm);
+  await click(confirm);
+  await waitFor(() => university().textContent!.includes('Selected for checks'));
+  assert.ok(university().textContent!.includes('Distance unknown'));
+  assert.ok(university().textContent!.includes('281 West Lane Avenue'), 'original provider source retained');
+  await enter(entry('Detail to record'), 'official-link');
+  await enter(entry('How this page matches'), 'University Museum in University Hall, exact name and location checked.');
+  const officialUrl = 'https://alumnimagazine.osu.edu/story/our-collective-keepsakes';
+  await enter(entry('Official venue HTTPS URL'), officialUrl);
+  await click(entry('I checked this source') as HTMLInputElement);
+  t.mock.method(window, 'confirm', () => false);
+  await enter(control('Search area'), 'Cleveland, OH');
+  assert.equal(control('Search area').value, '43210', 'declining replacement preserves unsubmitted source fields');
+  assert.equal(entry('Official venue HTTPS URL').value, officialUrl);
+  const record = [...university().querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent === 'Record verified detail')!; await click(record);
+  await waitFor(() => !!document.querySelector(`a[href="${officialUrl}"]`) && document.body.textContent!.includes('Official venue page — organizer matched'));
+  await enter(control('Search area'), 'Cleveland, OH'); await click(button('Show demo results'));
+  await enter(control('Search area'), '43210'); await click(button('Show demo results'));
+  assert.ok(document.body.textContent?.includes('Official venue page — organizer matched'));
+  assert.ok(document.body.textContent?.includes('230 North Oval Mall'));
+  assert.ok(document.body.textContent?.includes('Selected for checks'));
+  assert.ok(document.body.textContent?.includes('Booking availability'));
 });

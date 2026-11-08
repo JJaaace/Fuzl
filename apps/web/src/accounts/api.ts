@@ -1,12 +1,12 @@
 import { sessionInputSchema } from '@fuzl/planning';
 import type { SavedSession } from '@fuzl/planning';
-export class SavedWorkError extends Error { constructor(message: string, public status: number) { super(message); } }
+export class SavedWorkError extends Error { constructor(message: string, public status: number, public code?: string) { super(message); } }
 export async function privateRequest<T>(token: string, path: string, signal: AbortSignal, method = 'GET', body?: unknown): Promise<T> {
   const response = await fetch(`/api/private${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]), credentials: 'omit', cache: 'no-store' });
   if (response.status === 204) return undefined as T;
   const value = await response.json().catch(() => { throw new SavedWorkError('Saved storage returned an unreadable response. Your edits were kept.', response.status); });
-  if (!response.ok) throw new SavedWorkError(value?.error?.message ?? 'Saved work could not be accessed. Your edits were kept.', response.status);
+  if (!response.ok) throw new SavedWorkError(value?.error?.message ?? 'Saved work could not be accessed. Your edits were kept.', response.status, value?.error?.code);
   return value as T;
 }
 export function validateLoadedSession(session: SavedSession): SavedSession {

@@ -7,7 +7,7 @@ import { OrganizerStore } from '../accounts/store.js';
 import { GuestStore } from '../guests/store.js';
 import { PlaceStore } from './store.js';
 import { createApp } from '../app.js';
-import { demoPlaceSummary, demoPlaceQuery } from '@fuzl/planning';
+import { demoPlaceSummary, demoPlaceQuery, listingKey, emptySelection } from '@fuzl/planning';
 import type { PlaceResults, PlaceSearch } from '@fuzl/planning';
 const enabled = process.env.FUZL_DISPOSABLE_DATABASE === 'owned-by-test-runner' && !!process.env.FUZL_TEST_DATABASE_URL;
 test('Section 7A owned venue search with real private answers on disposable PostgreSQL', { skip: !enabled }, async t => {
@@ -35,7 +35,33 @@ test('Section 7A owned venue search with real private answers on disposable Post
     const withPrice = structuredClone(payload);
     withPrice.manual = [{ name: 'Synthetic one dollar', sourceUrl: 'https://example.com/one-dollar', address: null, category: 'park', lat: 40.0017, lon: -83.0197, price: { amount: 1, currency: 'USD', basis: 'per-person', coverage: 'total' }, hours: { kind: 'unknown', text: null, date: null, start: null, end: null, timeZone: null, closed: false } }];
     const changed = await (await call(withPrice)).json() as PlaceResults;
-    assert.ok(changed.excluded.find(r => r.candidate.name === 'Synthetic one dollar')?.checks.some(c => c.kind === 'private-budget' && c.status === 'does-not-fit'));
+    assert.ok(changed.promising.find(r => r.candidate.name === 'Synthetic one dollar')?.checks.some(c => c.kind === 'private-budget' && c.status === 'needs-checking'), 'a manual price without a confirmed address remains unresolved');
+    const walk = data.verified[0].candidate;
+    const priced = await fetch(endpoint.replace('/search', '/evaluate'), { method: 'POST', headers: { Authorization: 'Bearer synthetic-owner-bearer', 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, searchId: data.searchId, corrections: [{ candidateId: walk.id, candidateSource: walk.source, listingKey: listingKey(walk), selected: { ...emptySelection(), price: 'checked-price' }, claims: [{ id: 'checked-price', field: 'price', addressId: 'listing-address', value: { amount: 1, currency: 'USD', basis: 'per-person', coverage: 'total' }, source: { kind: 'official-page', url: 'https://example.com/price', checkedOn: '2026-11-07', verifiedForVenue: true } }] }] }) });
+    assert.equal(priced.status, 200);
+    const checked = await priced.json() as PlaceResults;
+    assert.ok(checked.excluded.find(r => r.candidate.id === walk.id)?.checks.some(c => c.kind === 'private-budget' && c.status === 'does-not-fit'));
+    assert.ok(!JSON.stringify(checked).includes('0.17'));
+
+  });
+  await t.test('evidence recheck uses an owner/session-scoped snapshot, preserves sources and refuses stale private limits', async () => {
+    const data = await (await call()).json() as PlaceResults;
+    assert.ok(data.searchId);
+    const c = data.verified[0].candidate;
+    const correction = { candidateId: c.id, candidateSource: c.source, listingKey: listingKey(c), claims: [{ id: 'checked-address', field: 'address', value: { address: 'Synthetic confirmed address', city: 'Columbus', state: 'OH', lat: null, lon: null, timeZone: null }, source: { kind: 'official-page', url: 'https://example.com/venue', checkedOn: '2026-11-07', verifiedForVenue: true } }], selected: { ...emptySelection(), address: 'checked-address' }, confirmedOn: '2026-11-07' };
+    const body = { ...payload, searchId: data.searchId, corrections: [correction] };
+    const recheck = (value = body, token = 'synthetic-owner-bearer') => fetch(endpoint.replace('/search', '/evaluate'), { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
+    const response = await recheck(); assert.equal(response.status, 200);
+    const evaluated = await response.json() as PlaceResults;
+    const card = evaluated.promising.find(r => r.candidate.id === c.id)!;
+    assert.equal(card.effectiveAddress, 'Synthetic confirmed address'); assert.equal(card.distanceKm, null);
+    assert.equal(card.candidate.evidence!.claims.find(c => c.id === 'checked-address')!.source.checkedOn, '2026-11-07');
+    assert.ok(!JSON.stringify(evaluated).includes('0.17') && !JSON.stringify(evaluated).includes('PRIVATE respondent'));
+    assert.equal((await recheck(body, 'synthetic-other-bearer')).status, 404);
+    assert.equal((await recheck({ ...body, searchId: randomUUID() })).status, 410);
+    assert.equal((await recheck({ ...body, query: { ...body.query, area: '02108' } })).status, 409);
+    await db.guestPrivateAnswer.updateMany({ where: { response: { invite: { sessionId: saved.id } } }, data: { amount: .19 } });
+    assert.equal((await recheck()).status, 409);
   });
   await t.test('cross-owner IDs, missing bearer, stale summary and deleting a session deny access', async () => {
     assert.equal((await call(payload, 'synthetic-other-bearer')).status, 404);

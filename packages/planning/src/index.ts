@@ -6,3 +6,5 @@ export * from './guests.js';
 export * from './places.js';
 export * from './place-evaluation.js';
 export * from './place-fixtures.js';
+export * from './place-location.js';
+export * from './place-evidence.js';

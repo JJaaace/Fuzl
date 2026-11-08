@@ -27,7 +27,7 @@ export class GeoapifyProvider implements VenueProvider {
       return JSON.parse(Buffer.concat(chunks).toString('utf8'));
     } catch (error) { if (error instanceof ExtractionError) throw error; if (signal.aborted) throw new ExtractionError(504, 'places_timeout', 'Venue search timed out. Retry deliberately.'); throw upstream(); }
   }
-  async search(query: Pick<PlaceQuery, 'area' | 'radiusKm' | 'category' | 'resolutionId'>, signal: AbortSignal): Promise<PlaceDiscovery> {
+  async resolve(query: Pick<PlaceQuery, 'area' | 'resolutionId'>, signal: AbortSignal): Promise<{ area: import('@fuzl/planning').PlaceArea } | { choices: AreaChoice[] }> {
     const requested = parseUsArea(query.area);
     if (!requested) throw new ExtractionError(400, 'area_invalid', 'Enter a US city with a valid state, or a five-digit ZIP. Leading zeros are required.');
     const geo = new URL('https://api.geoapify.com/v1/geocode/search');
@@ -52,7 +52,17 @@ export class GeoapifyProvider implements VenueProvider {
     if (!query.resolutionId && (!requested.zip && !requested.state || choices.length > 1 || !exact)) return { choices };
     const location = query.resolutionId ? rows.get(query.resolutionId) : single;
     if (!location) throw new ExtractionError(422, 'area_choice_changed', 'That area choice is no longer available. Search again and choose a current area.');
-    const area = choices.find(c => c.id === (query.resolutionId ?? choices[0].id))!;
+    const selected = choices.find(c => c.id === (query.resolutionId ?? choices[0].id))!;
+    // Choice IDs belong only to clarification. Results use the strict public
+    // area contract, so do not leak an extra id into Places/Events responses.
+    const area = { label: selected.label, lat: selected.lat, lon: selected.lon, city: selected.city, state: selected.state, postcode: selected.postcode, timeZone: selected.timeZone };
+    return { area };
+  }
+  async search(query: Pick<PlaceQuery, 'area' | 'radiusKm' | 'category' | 'resolutionId'>, signal: AbortSignal): Promise<PlaceDiscovery> {
+    const resolved = await this.resolve(query, signal);
+    if ('choices' in resolved) return resolved;
+    const { area } = resolved;
+    const location = area;
     const url = new URL('https://api.geoapify.com/v2/places');
     url.searchParams.set('apiKey', this.key); url.searchParams.set('categories', categories[query.category]); url.searchParams.set('limit', '20'); url.searchParams.set('filter', `circle:${location.lon},${location.lat},${query.radiusKm * 1000}|countrycode:us`); url.searchParams.set('bias', `proximity:${location.lon},${location.lat}`);
     const data = z.object({ features: z.array(z.object({ properties: z.unknown() })).max(20) }).safeParse(await this.json(url, signal));

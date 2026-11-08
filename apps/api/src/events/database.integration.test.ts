@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { randomUUID, randomBytes } from 'node:crypto';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../generated/prisma/client.js';
+import { OrganizerStore } from '../accounts/store.js';
+import { GuestStore } from '../guests/store.js';
+import { PlaceStore } from '../places/store.js';
+import { createApp } from '../app.js';
+import { demoPlaceSummary } from '@fuzl/planning';
+import type { EventResults, EventSearch } from '@fuzl/planning';
+const enabled = process.env.FUZL_DISPOSABLE_DATABASE === 'owned-by-test-runner' && !!process.env.FUZL_TEST_DATABASE_URL;
+test('Section 7C owned event search with retained private answers on disposable PostgreSQL', { skip: !enabled }, async t => {
+  const url = process.env.FUZL_TEST_DATABASE_URL!; assert.equal(new URL(url).hostname, '127.0.0.1');
+  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }, { schema: 'fuzl' }), log: [] });
+  t.after(() => db.$disconnect());
+  const owner = randomUUID(), other = randomUUID(), organizer = new OrganizerStore(db), guests = new GuestStore(db);
+  const group = await organizer.createGroup(owner, { name: 'Events synthetic owner', aliases: [] });
+  const saved = await organizer.createSession(owner, group.id, { title: 'Events synthetic session', summaryVersion: 1, origin: 'manual', provenance: [], summary: demoPlaceSummary() });
+  const questionId = randomUUID();
+  const invite = await guests.createInvite(owner, saved.id, { approved: true, title: 'Synthetic private budget', questions: [{ id: questionId, text: 'Private limit?', type: 'budget', required: false }], replace: false, days: 1, sessionRevision: 1 });
+  await guests.submit(invite.token, { submissionId: randomUUID(), editToken: randomBytes(32).toString('base64url'), payload: { alias: 'PRIVATE event respondent', answers: [{ questionId, kind: 'budget', state: 'known', amount: 7.31, currency: 'USD', visibility: 'private' }] } });
+  const store = new PlaceStore(db);
+  const server = createApp({ accounts: { verify: async token => token === 'synthetic-owner-bearer' ? owner : other, events: { store: () => store } } }).listen(0, '127.0.0.1');
+  await new Promise<void>(r => server.once('listening', r)); t.after(() => new Promise<void>(r => server.close(() => r())));
+  const endpoint = `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}/api/private/sessions/${saved.id}/events/search`;
+  const payload: EventSearch = { mode: 'demo', summary: saved.payload.summary, query: { area: '02108', radiusKm: 5, from: '2026-11-14', to: '2026-11-14' }, sessionRevision: 1 };
+  const call = (body = payload, token = 'synthetic-owner-bearer') => fetch(endpoint, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  await t.test('only general private feasibility returns; saved summary and guest sources stay unchanged', async () => {
+    const response = await call(); assert.equal(response.status, 200); const data = await response.json() as EventResults;
+    assert.equal(data.verified.length, 0); assert.ok(data.excluded.find(r => r.event.id === 'fitting')?.checks.some(c => c.kind === 'private-budget' && c.status === 'does-not-fit'));
+    const text = JSON.stringify(data); for (const secret of ['7.31', 'PRIVATE event respondent', 'privateSpending', invite.token]) assert.ok(!text.includes(secret));
+    assert.deepEqual((await organizer.getSession(owner, saved.id)).payload.summary, saved.payload.summary);
+  });
+  await t.test('cross-owner, missing bearer, stale revision and deleted-session IDs denied', async () => {
+    assert.equal((await call(payload, 'synthetic-other-bearer')).status, 404);
+    assert.equal((await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })).status, 401);
+    assert.equal((await call({ ...payload, sessionRevision: 99 })).status, 409);
+    await organizer.deleteGroup(owner, group.id); assert.equal((await call()).status, 404);
+  });
+});

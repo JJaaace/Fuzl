@@ -4,20 +4,20 @@ import type { PlanningFact, PlanningSummary } from './model.js';
 import type { AssessedPlace, FitCheck, PlaceArea, PlaceCandidate, PlaceQuery, PlaceResults } from './places.js';
 // Only the server supplies these. They never appear in a result DTO.
 export interface PrivateSpending { amount: number | null; currency: string | null; state: string }
-export function straightLineKm(area: PlaceArea, candidate: PlaceCandidate): number | null {
+export function straightLineKm(area: PlaceArea, candidate: Pick<PlaceCandidate, 'lat' | 'lon'>): number | null {
   if (candidate.lat === null || candidate.lon === null) return null;
   const rad = (n: number) => n * Math.PI / 180;
   const x = Math.sin(rad(candidate.lat - area.lat) / 2) ** 2 + Math.cos(rad(area.lat)) * Math.cos(rad(candidate.lat)) * Math.sin(rad(candidate.lon - area.lon) / 2) ** 2;
   return 6371 * 2 * Math.asin(Math.sqrt(Math.min(1, x)));
 }
-const current = (f: PlanningFact) => f.extraction?.scope !== 'historical';
-const reviewed = (f: PlanningFact) => !f.extraction || f.extraction.reviewed;
-const settled = (f: PlanningFact) => reviewed(f) && f.status === 'confirmed';
-function attributed(fact: PlanningFact, summary: PlanningSummary) {
+export const current = (f: PlanningFact) => f.extraction?.scope !== 'historical';
+export const reviewed = (f: PlanningFact) => !f.extraction || f.extraction.reviewed;
+export const settled = (f: PlanningFact) => reviewed(f) && f.status === 'confirmed';
+export function attributed(fact: PlanningFact, summary: PlanningSummary) {
   const subject = fact.subject;
   return subject.kind === 'group' || (subject.kind === 'participant' && summary.participants.some(p => p.id === subject.participantId)) || (subject.kind === 'speaker' && summary.speakers.some(s => s.id === subject.speakerId && s.participantId !== null));
 }
-function budgetCheck(candidate: PlaceCandidate, limit: { amount: number | null; currency: string | null }, kind: 'budget' | 'private-budget', firm: boolean): FitCheck {
+export function budgetCheck(candidate: Pick<PlaceCandidate, 'price'>, limit: { amount: number | null; currency: string | null }, kind: 'budget' | 'private-budget', firm: boolean): FitCheck {
   const p = candidate.price;
   let status: FitCheck['status'] = 'needs-checking';
   if (limit.amount !== null && limit.currency !== null && p.amount !== null && p.currency === limit.currency && p.basis === 'per-person' && p.coverage === 'total') status = p.amount <= limit.amount ? 'fits' : firm ? 'does-not-fit' : 'needs-checking';

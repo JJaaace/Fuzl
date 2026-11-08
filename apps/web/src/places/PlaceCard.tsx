@@ -1,3 +1,4 @@
+import DiscoveryChecks from './DiscoveryChecks';
 import { placeEvidence } from '@fuzl/planning';
 import type { PlaceCorrection } from '@fuzl/planning';
 import PlaceEvidenceEditor from './PlaceEvidenceEditor';
@@ -11,6 +12,6 @@ export default function PlaceCard({ place, busy = false, onReview }: { place: As
     <p><strong>Next: {place.nextStep}</strong></p><a className="place-next" href={c.sourceUrl} target="_blank" rel="noreferrer">{c.source === 'geoapify' ? 'Open original provider map' : 'Open supplied source'} ↗</a><p className="note">{c.source === 'geoapify' ? 'Map pin only; it does not verify an address, price, hours or official website.' : 'Source link supplied with these details.'}</p>
     {details.official && <p><a href={details.official.value} target="_blank" rel="noreferrer">Official venue page — organizer matched</a><span className="note"> · Checked {details.official.source.checkedOn} · {details.official.matchNote}</span></p>}
     {onReview && <PlaceEvidenceEditor candidate={c} disabled={busy} onReview={onReview} />}
-    <details><summary>Checks and ordering</summary><ul>{place.checks.map((check, i) => <li key={i}><strong>{check.kind} · {check.status}</strong>: {check.detail}{check.blocking === false && ' (Information only; no corresponding firm constraint.)'}</li>)}</ul><p className="note">{place.ranking.join(' · ')}. Firm exclusions are applied before preferences; no match percentage is calculated.</p></details>
+    <DiscoveryChecks checks={place.checks} ranking={place.ranking} />
   </article>;
 }

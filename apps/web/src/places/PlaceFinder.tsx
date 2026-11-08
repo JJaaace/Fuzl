@@ -1,3 +1,4 @@
+import EventFinder from '../events/EventFinder';
 import { useEffect, useRef, useState } from 'react';
 import { demoPlaces, evaluatePlaces, factValue, placeCategories, placeQuerySchema, placeResponseSchema, manualPlaces, correctedPlace } from '@fuzl/planning';
 import type { PlaceQuery, PlaceResults, PlanningSummary, SavedSession, PlaceSearch, PlaceCorrection, PlaceResponse, PlaceDiscovery } from '@fuzl/planning';
@@ -8,6 +9,7 @@ export interface FinderProps { token?: string; loaded?: SavedSession; summary: P
 const initial: PlaceQuery = { area: '', radiusKm: 5, category: 'any', date: null, start: null, end: null, timeZone: null };
 export default function PlaceFinder({ token, loaded, summary, getEditRevision, initialQuery = initial, previewOnly = false }: FinderProps) {
   const [open, setOpen] = useState(previewOnly);
+  const [discovery, setDiscovery] = useState<'places' | 'events'>('places');
   const [query, setQuery] = useState<PlaceQuery>(initialQuery);
   const [manual, setManual] = useState<PlaceSearch['manual']>([]);
   const [corrections, setCorrections] = useState<PlaceCorrection[]>([]);
@@ -19,7 +21,7 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
   const [outdated, setOutdated] = useState(false);
   const pending = useRef<AbortController | null>(null);
   const sequence = useRef(0), sending = useRef(false);
-  const fingerprintFor = (q: PlaceQuery, m = manual, c = corrections) => JSON.stringify([q, m, c, summary, loaded?.revision]);
+  const fingerprintFor = (q: PlaceQuery, m = manual, c = corrections) => JSON.stringify([q, m, c, summary, loaded?.id, loaded?.revision]);
   const fingerprint = fingerprintFor(query);
   const boundary = (q: PlaceQuery) => JSON.stringify([q.area, q.resolutionId ?? null, q.radiusKm, q.category]);
   const latest = useRef(fingerprint);
@@ -65,7 +67,7 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
       if (!controller.signal.aborted && serial === sequence.current) setError(failure instanceof SavedWorkError && failure.code === 'area_not_found' ? `Location not found: ${failure.message}` : failure instanceof Error && !(failure instanceof SyntaxError) && failure.name !== 'ZodError' ? failure.message : 'The search response could not be verified. Your summary was kept; retry deliberately.');
     } finally { if (serial === sequence.current) { sending.current = false; setBusy(false); } }
   }
-  function change(next: PlaceQuery) { if (!allowDraftReplacement()) return; const updated = next.area !== query.area ? { ...next, resolutionId: undefined } : next; latest.current = fingerprintFor(updated); setQuery(updated); }
+  function change(next: PlaceQuery) { if (!allowDraftReplacement()) return false; const updated = next.area !== query.area ? { ...next, resolutionId: undefined } : next; latest.current = fingerprintFor(updated); setQuery(updated); return true; }
   function review(correction: PlaceCorrection) {
     const key = `${correction.candidateSource}:${correction.candidateId}`;
     if (sending.current || !allowDraftReplacement(key)) return false;
@@ -78,9 +80,11 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
   const visible = result && !stale ? result.data : null;
   return <section className="place-finder review-section">
     {!previewOnly && <button aria-expanded={open} onClick={() => setOpen(v => !v)}>Find places</button>}
-    <div hidden={!open}><h3>Find a place for this plan</h3><p className="note">Use your applied planning facts and guest answers. Unreviewed AI claims stay unreviewed. These are suggestions, never a booking or confirmed plan. Search results and manual candidates are temporary; Save session does not save this shortlist.</p>
+    <div hidden={!open}><h3>Discover options for this plan</h3><p className="note">Use your applied planning facts and guest answers. Unreviewed AI claims stay unreviewed. These are suggestions, never a booking or confirmed plan. Search results and manual candidates are temporary; Save session does not save this shortlist.</p>
       <details><summary>Planning facts used for checking</summary><ul>{summary.facts.filter(f => f.extraction?.scope !== 'historical').map(f => <li key={f.id}>{factValue(f)} · {f.strength} · {f.status}{f.extraction && !f.extraction.reviewed && <strong> · AI claim — unreviewed</strong>}{f.guest && ' · Applied guest answer'}</li>)}</ul><p className="note">Only confirmed, reviewed, attributed firm facts can verify or exclude. Tentative, conflicting, unknown-firmness or unreviewed information stays unresolved. Flexible preferences affect ordering. Free-text requirements may need manual checking.</p></details>
-      <div className="form-grid"><label className="field"><span>Search area (US City, State or ZIP)</span><input maxLength={100} placeholder="Columbus, OH or 43210" value={query.area} onChange={e => change({ ...query, area: e.target.value })}/></label><label className="field"><span>Search radius in km</span><input type="number" min="1" max="30" step="1" value={query.radiusKm} onChange={e => change({ ...query, radiusKm: Number(e.target.value) })}/></label><label className="field"><span>Category</span><select value={query.category} onChange={e => change({ ...query, category: e.target.value as PlaceQuery['category'] })}>{placeCategories.map(c => <option key={c} value={c}>{c === 'any' ? 'All supported activities' : c}</option>)}</select></label></div>
+      <div className="places-actions" role="group" aria-label="Discovery type"><button aria-pressed={discovery === 'places'} onClick={() => { sequence.current++; pending.current?.abort(); sending.current = false; setBusy(false); setDiscovery('places'); }}>Places</button><button aria-pressed={discovery === 'events'} onClick={() => { sequence.current++; pending.current?.abort(); sending.current = false; setBusy(false); setDiscovery('events'); }}>Events</button></div>
+      <div className="form-grid"><label className="field"><span>Search area (US City, State or ZIP)</span><input maxLength={100} placeholder="Columbus, OH or 43210" value={query.area} onChange={e => change({ ...query, area: e.target.value })}/></label><label className="field"><span>Search radius in km</span><input type="number" min="1" max="30" step="1" value={query.radiusKm} onChange={e => change({ ...query, radiusKm: Number(e.target.value) })}/></label><label className="field" hidden={discovery !== 'places'}><span>Category</span><select value={query.category} onChange={e => change({ ...query, category: e.target.value as PlaceQuery['category'] })}>{placeCategories.map(c => <option key={c} value={c}>{c === 'any' ? 'All supported activities' : c}</option>)}</select></label></div>
+      <div hidden={discovery !== 'places'}>
       <details><summary>Outing timing (optional; unknown stays unchecked)</summary><p className="note">Use a specific date, start/end and IANA time zone; a blank zone uses the matched venue’s reliable local zone when available. Ambiguous DST clocks stay unresolved. “Friday” remains unresolved until you correct the planning fact. These controls do not rewrite the summary. Radius measures a boundary around the area center, not travel time from anyone’s home.</p><div className="form-grid">{(['date', 'start', 'end', 'timeZone'] as const).map(k => <label className="field" key={k}><span>{k === 'timeZone' ? 'Time zone (e.g. America/New_York)' : k === 'date' ? 'Outing date' : k === 'start' ? 'Start time' : 'End time'}</span><input type={k === 'date' ? 'date' : k === 'timeZone' ? 'text' : 'time'} maxLength={80} value={query[k] ?? ''} onChange={e => change({ ...query, [k]: e.target.value || null })}/></label>)}</div></details>
       <ManualPlace onAdd={candidate => { if (!allowDraftReplacement()) return false; const next = [...manual, { ...candidate, manualId: crypto.randomUUID() }]; latest.current = fingerprintFor(query, next); setManual(next); return true; }} disabled={manual.length >= 3} />
       {!!manual.length && <ul>{manual.map((m, i) => <li key={i}>{m.name} · Organizer-entered details <button className="quiet" onClick={() => { if (!allowDraftReplacement()) return; const next = manual.filter((_, index) => index !== i); latest.current = fingerprintFor(query, next); setManual(next); }}>Remove {m.name}</button></li>)}</ul>}
@@ -96,6 +100,8 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
         {!!visible.excluded.length && <details><summary>Doesn’t fit ({visible.excluded.length})</summary>{visible.excluded.map(card)}</details>}
         <ul className="note">{visible.notices.map(n => <li key={n}>{n}</li>)}</ul>{visible.mode === 'live' && <p className="places-attribution">Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors (ODbL)</a></p>}
       </>}
+      </div>
+      <EventFinder active={open && discovery === 'events'} query={query} onQuery={change} summary={summary} token={token} loaded={loaded} previewOnly={previewOnly} getEditRevision={getEditRevision} />
     </div>
   </section>;
 }

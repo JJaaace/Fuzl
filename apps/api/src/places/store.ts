@@ -5,10 +5,10 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import { validateGuestOrigins } from '../guests/store.js';
 import { ExtractionError } from '../extraction/errors.js';
 export interface SearchContext { privateSpending: PrivateSpending[]; version: string }
-export interface PlaceContextStore { context(subject: string, sessionId: string, request: PlaceSearch): Promise<SearchContext> }
+export interface PlaceContextStore { context(subject: string, sessionId: string, request: Pick<PlaceSearch, 'summary' | 'sessionRevision'>): Promise<SearchContext> }
 export class PlaceStore implements PlaceContextStore {
   constructor(private db: PrismaClient) {}
-  async context(subject: string, sessionId: string, request: PlaceSearch): Promise<SearchContext> {
+  async context(subject: string, sessionId: string, request: Pick<PlaceSearch, 'summary' | 'sessionRevision'>): Promise<SearchContext> {
     return this.db.$transaction(async tx => {
       const session = await tx.planningSession.findFirst({ where: { id: sessionId, group: { owner: { authSubject: subject } } } });
       if (!session) throw new ExtractionError(404, 'not_found', 'This saved session is unavailable for this account.');

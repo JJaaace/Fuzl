@@ -424,6 +424,7 @@ button.primary[aria-busy=true] { background: var(--accent-wash); color: var(--in
 /* Venue suggestions share the existing warm review surfaces. */
 .place-finder { margin-block: 24px; min-width: 0; }
 .place-finder > div > h3 { margin-top: 22px; }
+.places-actions button[aria-pressed=true] { background: var(--accent-wash); color: var(--accent); border-color: var(--accent); }
 .places-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-block: 20px; }
 .place-card { margin: 18px 0; padding: 22px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
 .place-card.fit-fits { border-color: var(--accent); }

@@ -1,6 +1,6 @@
 # Section 10.1 — Make this work
 
-The 8B/9 checkpoint was committed and normally pushed as **9edc96e — Add shared plans, outing feedback and approved group memory** before starting this work. Section 10.1 remains a separate local diff. No provider call, hosted database change, email, billing change or deployment ran for this milestone. Section 10.2 onward, reviews and trends are not included.
+The 8B/9 checkpoint was committed and normally pushed as **9edc96e — Add shared plans, outing feedback and approved group memory** before starting this work. Section 10.1 was subsequently committed and normally pushed as **6616d6b — Add bounded flexible-constraint adjustments with explicit review**. Section 10.2 is a separate local saved-ideas extension; see [SAVED_IDEAS.md](SAVED_IDEAS.md). No provider call, hosted database change, email, billing change or deployment ran for this milestone. This document covers 10.1 only; saved ideas are documented separately. Reviews and trends are not included.
 
 ## Exact synthetic demo
 
@@ -54,4 +54,4 @@ There is **no new environment setting, dependency or Section 10.1 database migra
 
 Browser selection failed and discovery returned `[]`. Run the exact demo at desktop and 320–360px/Safari, checking long source URLs, the missing-evidence form, checkbox/focus/Enter behavior, changed/expired preview recovery and clear “Still needs checking” labels. Real browser/mobile/assistive-technology checks remain unverified; successful DOM tests or HTTP 200 are not rendered acceptance.
 
-Stop after 10.1. The earlier 8B/9 work is preserved in the pushed checkpoint; this helper remains local for review.
+The helper’s implementation stopped after 10.1 and is preserved in pushed checkpoint `6616d6b`. The separately authorized saved-ideas extension is documented in SAVED_IDEAS; earlier hosted/browser gaps above remain pending.

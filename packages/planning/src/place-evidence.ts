@@ -6,11 +6,12 @@ export const emptySelection = () => ({ address: null, price: null, hours: null, 
 export const placeKey = (c: Pick<PlaceCandidate, 'id' | 'source'>) => `${c.source}:${c.id}`;
 export const listingKey = (c: PlaceCandidate) => JSON.stringify([c.id, c.source, c.name, c.address, c.lat, c.lon, c.city ?? null, c.state ?? null, c.timeZone ?? null, c.sourceUrl, c.price, c.hours]);
 export function initialEvidence(c: PlaceCandidate): Evidence {
+  if (!c.sourceUrl) return { claims: [], selected: emptySelection(), listingChanged: false, confirmedOn: null };
   const source = { kind: c.source === 'geoapify' ? 'provider-listing' as const : 'organizer' as const, url: c.sourceUrl, checkedOn: c.retrievedAt.slice(0, 10), verifiedForVenue: c.source === 'demo' };
   const claims: PlaceClaim[] = [];
-  if (c.address) claims.push({ id: 'listing-address', field: 'address', value: { address: c.address, city: c.city ?? null, state: c.state ?? null, lat: c.lat, lon: c.lon, timeZone: c.timeZone ?? c.hours.timeZone }, source });
-  if (c.price.amount !== null) claims.push({ id: 'listing-price', field: 'price', value: c.price, addressId: 'listing-address', source });
-  if (c.hours.kind !== 'unknown') claims.push({ id: 'listing-hours', field: 'hours', value: c.hours, addressId: 'listing-address', source });
+  if (c.address && c.sourceUrl) claims.push({ id: 'listing-address', field: 'address', value: { address: c.address, city: c.city ?? null, state: c.state ?? null, lat: c.lat, lon: c.lon, timeZone: c.timeZone ?? c.hours.timeZone }, source });
+  if (c.price.amount !== null && c.sourceUrl) claims.push({ id: 'listing-price', field: 'price', value: c.price, addressId: 'listing-address', source });
+  if (c.hours.kind !== 'unknown' && c.sourceUrl) claims.push({ id: 'listing-hours', field: 'hours', value: c.hours, addressId: 'listing-address', source });
   return { claims, selected: emptySelection(), listingChanged: false, confirmedOn: null };
 }
 export function correctedPlace(c: PlaceCandidate, corrections: PlaceCorrection[]): PlaceCandidate {

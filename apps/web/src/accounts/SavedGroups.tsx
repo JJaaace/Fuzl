@@ -1,3 +1,4 @@
+import SavedIdeas from '../ideas/SavedIdeas';
 import PastOutings from '../outings/PastOutings';
 import { useEffect, useRef, useState } from 'react';
 import type { SavedGroup, SavedSession, SessionListItem } from '@fuzl/planning';
@@ -63,11 +64,11 @@ function GroupLibrary({ token, active, onOpen, onWorkspace }: { token: string; a
     return () => controller.abort();
   }, [token, selectedId, version, active]);
   function select(group: SavedGroup) {
-    if (editing && !window.confirm('Discard these unsaved group edits and open another group?')) return;
+    if ((editing || document.querySelector('.saved-ideas[data-plan-dirty="true"]')) && !window.confirm('Discard these unsaved group edits and open another group?')) return;
     setSelected(group); setSessions([]); setEditing(false); setVersion((value) => value + 1);
   }
   return <section className="saved-library"><p className="eyebrow">Your corner of Fuzl</p><h1>Your saved groups</h1><p>Pick a group to reopen a session, or make room for a new plan.</p><details className="library-details"><summary>How private groups work</summary><p>Groups belong only to your organizer account. Participant aliases are names, not authenticated members. Budgets and availability remain session-specific.</p></details>
-    <div className="library-layout"><aside><button className="primary" disabled={busy} onClick={() => { if (editing && !window.confirm('Discard these unsaved group edits and create another group?')) return; setSelected(null); setEditing(true); setName(''); setAliases(''); }}>Create group</button>
+    <div className="library-layout"><aside><button className="primary" disabled={busy} onClick={() => { if ((editing || document.querySelector('.saved-ideas[data-plan-dirty="true"]')) && !window.confirm('Discard these unsaved group edits and create another group?')) return; setSelected(null); setEditing(true); setName(''); setAliases(''); }}>Create group</button>
       <ul>{groups.map((group) => <li key={group.id}><button disabled={busy} onClick={() => void select(group)} aria-pressed={selected?.id === group.id}>{group.name} ({group.sessionCount})</button></li>)}</ul></aside>
       <div>{editing ? <form onSubmit={(event) => { event.preventDefault(); void act(async (active) => {
         const input = { name, aliases: aliases.split('\n').map((item) => item.trim()).filter(Boolean) };
@@ -77,11 +78,12 @@ function GroupLibrary({ token, active, onOpen, onWorkspace }: { token: string; a
         <label className="field"><span>Participant aliases (one per line, up to 20)</span><textarea value={aliases} onChange={(event) => setAliases(event.target.value)} /></label>
         <div className="actions"><button className="primary" disabled={busy}>{busy ? 'Saving group…' : 'Save group'}</button><button type="button" disabled={busy} onClick={() => setEditing(false)}>Cancel</button></div></form> : selected ? <>
         <h2>{selected.name}</h2><p className="note">Updated {new Date(selected.updatedAt).toLocaleString()} · Aliases: {selected.aliases.map((alias) => alias.name).join(', ') || 'None yet'}</p>
-        <div className="actions"><button disabled={busy} onClick={() => { setName(selected.name); setAliases(selected.aliases.map((alias) => alias.name).join('\n')); setEditing(true); }}>Edit group and aliases</button>
-          <button className="danger quiet" disabled={busy} onClick={() => { if (!window.confirm(`Delete “${selected.name}” and ALL its saved sessions, aliases and source excerpts? This cannot be undone in Fuzl.`)) return; void act(async (active) => {
+        <div className="actions"><button disabled={busy} onClick={() => { if (document.querySelector('.saved-ideas[data-plan-dirty="true"]') && !window.confirm('Discard unsaved idea fields before editing the group?')) return; setName(selected.name); setAliases(selected.aliases.map((alias) => alias.name).join('\n')); setEditing(true); }}>Edit group and aliases</button>
+          <button className="danger quiet" disabled={busy} onClick={() => { if (!window.confirm(`Delete “${selected.name}” and ALL its saved sessions, ideas, outings, aliases and source excerpts? This cannot be undone in Fuzl.`)) return; void act(async (active) => {
             await privateRequest(token, `/groups/${selected.id}`, active.signal, 'DELETE'); if (active.signal.aborted) return; setSelected(null); setSessions([]); setVersion((value) => value + 1);
           }); }}>Delete group</button></div>
         <button onClick={onWorkspace}>Go to workspace to save a session</button>
+        <SavedIdeas key={selected.id + "-ideas"} token={token} groupId={selected.id}/>
         <PastOutings key={selected.id} token={token} groupId={selected.id}/>
         <ul className="session-list">{sessions.map((item) => <li key={item.id}><strong>{item.title}</strong><p className="note">Updated {new Date(item.updatedAt).toLocaleString()}</p>
           <div className="actions"><button disabled={busy} onClick={() => void act(async (active) => {

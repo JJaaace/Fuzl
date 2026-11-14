@@ -1,3 +1,4 @@
+import type { IdeaStore } from '../ideas/store.js';
 import { workHash } from '../adjustments/cache.js';
 import type { AdjustmentCache } from '../adjustments/cache.js';
 import { PlaceSearchCache, searchBoundaryKey } from './cache.js';
@@ -10,7 +11,7 @@ import { GeoapifyProvider } from './provider.js';
 import type { VenueProvider } from './provider.js';
 import { PlaceStore } from './store.js';
 import type { PlaceContextStore } from './store.js';
-export interface PlacesOptions { adjustments?: AdjustmentCache; store?: () => PlaceContextStore; provider?: VenueProvider; now?: () => number }
+export interface PlacesOptions { ideas?: () => IdeaStore; adjustments?: AdjustmentCache; store?: () => PlaceContextStore; provider?: VenueProvider; now?: () => number }
 export function placeRouter(options: PlacesOptions = {}) {
   const router = Router({ mergeParams: true });
   let active = false, attempts = 0;
@@ -30,11 +31,12 @@ export function placeRouter(options: PlacesOptions = {}) {
     try {
       const subject = res.locals.organizer as string;
       const context = await store.context(subject, id.data, input);
+      const saved = input.savedIdeas?.length ? await options.ideas!().resolve(subject, id.data, input.savedIdeas, 'places') : { places: [], events: [] };
       const now = (options.now ?? Date.now)();
       let found;
       if (recheck) {
         const snapshot = cache.get((input as import('@fuzl/planning').PlaceSearch & { searchId: string }).searchId, subject, id.data);
-        if (snapshot.revision !== input.sessionRevision || snapshot.contextVersion !== context.version || snapshot.queryKey !== searchBoundaryKey(input.query) || snapshot.mode !== input.mode) throw new ExtractionError(409, 'places_snapshot_changed', 'The search boundary, saved revision or private answers changed. Your details were kept; review and run a fresh search.');
+        if (snapshot.revision !== input.sessionRevision || (snapshot.baselineVersion !== undefined ? snapshot.baselineVersion !== (context.baselineVersion ?? context.version) : snapshot.contextVersion !== context.version) || snapshot.queryKey !== searchBoundaryKey(input.query) || snapshot.mode !== input.mode) throw new ExtractionError(409, 'places_snapshot_changed', 'The search boundary, saved revision or private answers changed. Your details were kept; review and run a fresh search.');
         found = { area: snapshot.area, candidates: snapshot.candidates };
       } else if (input.mode === 'demo') {
         try { found = demoPlaces(input.query, new Date(now).toISOString()); }
@@ -56,11 +58,12 @@ export function placeRouter(options: PlacesOptions = {}) {
       if ('choices' in found) {
         res.json(placeClarificationSchema.parse({ kind: 'clarification', mode: input.mode, choices: found.choices, message: 'Choose a resolved area or add a state/ZIP. These are up to five plausible matches, not an exhaustive list; no venue search ran yet.' })); return;
       }
-      const searchId = recheck ? (input as import('@fuzl/planning').PlaceSearch & { searchId: string }).searchId : cache.put({ subject, sessionId: id.data, revision: input.sessionRevision, contextVersion: latest.version, queryKey: searchBoundaryKey(input.query), area: found.area, candidates: found.candidates, mode: input.mode });
+      const searchId = recheck ? (input as import('@fuzl/planning').PlaceSearch & { searchId: string }).searchId : cache.put({ subject, sessionId: id.data, revision: input.sessionRevision, contextVersion: latest.version, baselineVersion: latest.baselineVersion, queryKey: searchBoundaryKey(input.query), area: found.area, candidates: found.candidates, mode: input.mode });
       const manual = manualPlaces(input.manual, retrievedAt);
-      const all = [...found.candidates, ...manual].map(candidate => candidateSchema.parse(correctedPlace(candidate, input.corrections ?? [])));
-      const result = placeResultsSchema.parse({ mode: input.mode, searchId, coverage: found.candidates.length === 0 ? 'empty' : found.candidates.length < 3 ? 'sparse' : 'available', retrievedAt, ...evaluatePlaces(all, found.area, input.query, input.summary, latest.privateSpending, latest.memories) });
-      const workId = options.adjustments?.put({ mode: input.mode, subject, sessionId: id.data, revision: input.sessionRevision, contextVersion: latest.version, summaryKey: workHash(input.summary), context: { kind: 'places', area: found.area, query: input.query, candidates: all } });
+      const all = [...found.candidates, ...manual, ...saved.places].map(candidate => candidateSchema.parse(correctedPlace(candidate, input.corrections ?? [])));
+      const added = evaluatePlaces(all.filter(c => !!c.savedIdea), found.area, input.query, input.summary, latest.privateSpending, latest.memories);
+      const result = placeResultsSchema.parse({ ...(saved.places.length ? { savedIdeaResults: [...added.verified, ...added.promising, ...added.excluded] } : {}), mode: input.mode, searchId, coverage: found.candidates.length === 0 ? 'empty' : found.candidates.length < 3 ? 'sparse' : 'available', retrievedAt, ...evaluatePlaces(all, found.area, input.query, input.summary, latest.privateSpending, latest.memories) });
+      const workId = options.adjustments?.put({ baselineVersion: latest.baselineVersion, mode: input.mode, subject, sessionId: id.data, revision: input.sessionRevision, contextVersion: latest.version, summaryKey: workHash(input.summary), context: { kind: 'places', area: found.area, query: input.query, candidates: all } });
       res.json({ ...result, ...(workId ? { workId } : {}) });
     } catch (error) {
       if (controller.signal.aborted) return;

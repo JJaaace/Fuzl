@@ -1,3 +1,4 @@
+import type { IdeaStore } from '../ideas/store.js';
 import { workHash } from '../adjustments/cache.js';
 import type { AdjustmentCache } from '../adjustments/cache.js';
 import { Router } from 'express';
@@ -10,7 +11,7 @@ import { GeoapifyProvider } from '../places/provider.js';
 import { ExtractionError } from '../extraction/errors.js';
 import { TicketmasterProvider } from './provider.js';
 import type { AreaResolver, EventProvider } from './provider.js';
-export interface EventsOptions { adjustments?: AdjustmentCache; store?: () => PlaceContextStore; resolver?: AreaResolver; provider?: EventProvider; now?: () => number }
+export interface EventsOptions { ideas?: () => IdeaStore; adjustments?: AdjustmentCache; store?: () => PlaceContextStore; resolver?: AreaResolver; provider?: EventProvider; now?: () => number }
 export function eventRouter(options: EventsOptions = {}) {
   const router = Router({ mergeParams: true });
   let active = false, attempts = 0; const recent: number[] = [];
@@ -25,11 +26,12 @@ export function eventRouter(options: EventsOptions = {}) {
     try {
       const store = (options.store ?? (() => new PlaceStore(database())))();
       const context = await store.context(subject, id.data, input), now = (options.now ?? Date.now)();
+      const saved = input.savedIdeas?.length ? await options.ideas!().resolve(subject, id.data, input.savedIdeas, 'events') : { places: [], events: [] };
       let found;
       if (recheck) {
         const cached = options.adjustments?.get((input as typeof input & { workId: string }).workId, subject, id.data);
-        if (!cached || cached.context.kind !== 'events' || cached.mode !== input.mode || cached.revision !== input.sessionRevision || cached.contextVersion !== context.version || workHash(cached.context.query) !== workHash(input.query)) throw new ExtractionError(409, 'events_snapshot_changed', 'The event search or its context changed. Recheck a current saved revision; no provider request ran.');
-        found = { area: cached.context.area, events: cached.context.candidates };
+        if (!cached || cached.context.kind !== 'events' || cached.mode !== input.mode || cached.revision !== input.sessionRevision || (cached.baselineVersion !== undefined ? cached.baselineVersion !== (context.baselineVersion ?? context.version) : cached.contextVersion !== context.version) || workHash(cached.context.query) !== workHash(input.query)) throw new ExtractionError(409, 'events_snapshot_changed', 'The event search or its context changed. Recheck a current saved revision; no provider request ran.');
+        found = { area: cached.context.area, events: cached.context.candidates.filter(e => !e.savedIdea) };
       } else if (input.mode === 'demo') {
         try { found = demoEvents(input.query, new Date(now).toISOString()); }
         catch { throw new ExtractionError(422, 'demo_event_area', 'No event fixture for this area. Try Boston, MA / 02108, Columbus, OH / 43210, Marfa, TX / 79843 or Springfield.'); }
@@ -52,8 +54,9 @@ export function eventRouter(options: EventsOptions = {}) {
       const latest = await store.context(subject, id.data, input);
       if (latest.version !== context.version) throw new ExtractionError(409, 'events_context_changed', 'Saved planning or private answers changed during the search. Review and search again; no stale event shortlist was accepted.');
       if ('choices' in found) { res.json(eventResponseSchema.parse({ kind: 'clarification', mode: input.mode, choices: found.choices, message: 'Choose the intended resolved area. No event provider request has run yet.' })); return; }
-      const workId = options.adjustments?.put({ mode: input.mode, subject, sessionId: id.data, revision: input.sessionRevision, contextVersion: latest.version, summaryKey: workHash(input.summary), context: { kind: 'events', area: found.area, query: input.query, candidates: found.events } });
-      res.json(eventResponseSchema.parse({ ...(workId ? { workId } : {}), mode: input.mode, area: found.area, query: input.query, retrievedAt: new Date((options.now ?? Date.now)()).toISOString(), ...evaluateEvents(found.events, found.area, input.query, input.summary, latest.privateSpending, latest.memories) }));
+      const workId = options.adjustments?.put({ baselineVersion: latest.baselineVersion, mode: input.mode, subject, sessionId: id.data, revision: input.sessionRevision, contextVersion: latest.version, summaryKey: workHash(input.summary), context: { kind: 'events', area: found.area, query: input.query, candidates: [...found.events, ...saved.events] } });
+      const added = evaluateEvents(saved.events, found.area, input.query, input.summary, latest.privateSpending, latest.memories);
+      res.json(eventResponseSchema.parse({ ...(saved.events.length ? { savedIdeaResults: [...added.verified, ...added.promising, ...added.excluded] } : {}), ...(workId ? { workId } : {}), mode: input.mode, area: found.area, query: input.query, retrievedAt: new Date((options.now ?? Date.now)()).toISOString(), ...evaluateEvents([...found.events, ...saved.events], found.area, input.query, input.summary, latest.privateSpending, latest.memories) }));
     } catch (error) {
       if (controller.signal.aborted) return;
       if (error instanceof ExtractionError) throw error;

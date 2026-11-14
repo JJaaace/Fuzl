@@ -13,8 +13,8 @@ export function evaluateEvents(events: ScheduledEvent[], area: PlaceArea, query:
   const seen = new Set<string>(), urls = new Set<string>(), ranked: AssessedEvent[] = [];
   for (const raw of events) {
     const event = retainedVisitChecks(raw, summary);
-    if (seen.has(event.id) || urls.has(event.sourceUrl)) continue;
-    seen.add(event.id); urls.add(event.sourceUrl);
+    if (seen.has(event.id) || (event.sourceUrl !== null && urls.has(event.sourceUrl))) continue;
+    seen.add(event.id); if (event.sourceUrl !== null) urls.add(event.sourceUrl);
     const s = event.schedule, checks: EventCheck[] = [], distanceKm = straightLineKm(area, event.venue);
     const check = (kind: EventCheck['kind'], status: EventCheck['status'], detail: string, blocking = true) => checks.push({ kind, status, detail, blocking });
     const knownStatus = ['onsale', 'offsale', 'scheduled'].includes(event.providerStatus ?? '');

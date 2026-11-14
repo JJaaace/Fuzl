@@ -1,3 +1,5 @@
+import SaveLater from '../ideas/SaveLater';
+import type { CardIdeaSelection } from '../ideas/SaveLater';
 import OrganizerPlan from '../plans/OrganizerPlan';
 import { useCallback, useRef, useState } from 'react';
 import { ballotOptionSchema } from '@fuzl/planning';
@@ -8,6 +10,7 @@ import { ShortlistContext } from './context';
 import OrganizerBallot from './OrganizerBallot';
 import type { BallotPanelProps } from './OrganizerBallot';
 export default function SessionDiscovery(props: FinderProps & Pick<BallotPanelProps, 'demoRequest' | 'demoDashboard'> & { demoPlanRequest?: (path: string, method: string, body?: unknown) => Promise<unknown>; demoPlanBallots?: () => Promise<unknown>; demoOutingRequest?: import('../outings/OrganizerOuting').OutingRequest }) {
+  const [saveLater, setSaveLater] = useState<CardIdeaSelection | null>(null), [ideasVersion, setIdeasVersion] = useState(0);
   const [content, setContent] = useState<ShortlistContent>({ title: 'Which option would you prefer?', options: [] }), [message, setMessage] = useState('');
   const changes = useRef(0), current = useRef(content);
   const onContent = useCallback((next: ShortlistContent) => { changes.current++; current.current = next; setContent(next); }, []);
@@ -19,5 +22,5 @@ export default function SessionDiscovery(props: FinderProps & Pick<BallotPanelPr
     if (current.current.options.some(o => o.kind === option.kind && o.name === option.name && JSON.stringify(o.links) === JSON.stringify(option.links))) { setMessage('That option is already shortlisted. Edit the selected snapshot below.'); return; }
     onContent({ ...current.current, options: [...current.current.options, option] }); setMessage('Added to the temporary shortlist. Review public details below, then Save shortlist.');
   }
-  return <ShortlistContext value={add}><PlaceFinder {...props}/><p role="status" aria-live="polite">{message}</p><OrganizerBallot token={props.token} loaded={props.loaded} content={content} onContent={onContent} onMessage={setMessage} changeRevision={changeRevision} demoRequest={props.demoRequest} demoDashboard={props.demoDashboard}/>{(!props.previewOnly || props.demoPlanRequest) && <OrganizerPlan token={props.token} loaded={props.loaded} demoRequest={props.demoPlanRequest} demoBallots={props.demoPlanBallots} demoOutingRequest={props.demoOutingRequest}/>}</ShortlistContext>;
+  return <ShortlistContext value={add}><PlaceFinder {...props} ideasVersion={ideasVersion} onSaveIdea={props.token && props.loaded ? item => { if (saveLater && !window.confirm('Replace unsaved Save for later fields?')) return; setSaveLater(item); } : undefined}/>{saveLater && props.token && props.loaded && <SaveLater key={saveLater.snapshotId + saveLater.candidateKey} selection={saveLater} token={props.token} loaded={props.loaded} onClose={() => setSaveLater(null)} onDone={() => { setSaveLater(null); setIdeasVersion(v => v + 1); setMessage('Idea saved for this group. It is not a visit or approved memory.'); }}/>}<p role="status" aria-live="polite">{message}</p><OrganizerBallot token={props.token} loaded={props.loaded} content={content} onContent={onContent} onMessage={setMessage} changeRevision={changeRevision} demoRequest={props.demoRequest} demoDashboard={props.demoDashboard}/>{(!props.previewOnly || props.demoPlanRequest) && <OrganizerPlan token={props.token} loaded={props.loaded} demoRequest={props.demoPlanRequest} demoBallots={props.demoPlanBallots} demoOutingRequest={props.demoOutingRequest}/>}</ShortlistContext>;
 }

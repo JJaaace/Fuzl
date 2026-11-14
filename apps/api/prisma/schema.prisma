@@ -27,6 +27,7 @@ model Group {
   aliases ParticipantAlias[]
   sessions PlanningSession[]
   outings Outing[]
+  ideas SavedIdea[]
   @@index([ownerId])
   @@schema("fuzl")
   @@map("fuzl_groups")
@@ -265,4 +266,25 @@ model OutingFeedback {
   @@unique([outingId, editDigest])
   @@schema("fuzl")
   @@map("fuzl_outing_feedback")
+}
+
+model SavedIdea {
+  id String @id @default(uuid()) @db.Uuid
+  groupId String @db.Uuid
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  content Json
+  origin Json
+  archived Boolean @default(false)
+  edited Boolean @default(false)
+  revision Int @default(1)
+  creationId String @db.Uuid
+  creationHash String @db.VarChar(64)
+  lastRequestId String @db.Uuid
+  lastRequestHash String @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([groupId, creationId])
+  @@index([groupId])
+  @@schema("fuzl")
+  @@map("fuzl_saved_ideas")
 }

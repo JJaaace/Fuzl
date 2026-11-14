@@ -1,18 +1,21 @@
+import IdeaPicker from '../ideas/IdeaPicker';
+import type { CardIdeaSelection } from '../ideas/SaveLater';
 import MakeThisWork from '../adjustments/MakeThisWork';
 import type { ApplyAdjustment } from '../adjustments/MakeThisWork';
 import EventFinder from '../events/EventFinder';
 import { useEffect, useRef, useState } from 'react';
-import { demoPlaces, evaluatePlaces, factValue, placeCategories, placeQuerySchema, placeResponseSchema, manualPlaces, correctedPlace } from '@fuzl/planning';
-import type { PlaceQuery, PlaceResults, PlanningSummary, SavedSession, PlaceSearch, PlaceCorrection, PlaceResponse, PlaceDiscovery } from '@fuzl/planning';
+import { demoPlaces, evaluatePlaces, factValue, placeCategories, placeQuerySchema, placeResponseSchema, manualPlaces, correctedPlace, workKey } from '@fuzl/planning';
+import type { PlaceQuery, PlaceResults, PlanningSummary, SavedSession, PlaceSearch, PlaceCorrection, PlaceResponse, PlaceDiscovery, IdeaReference } from '@fuzl/planning';
 import { privateRequest, SavedWorkError } from '../accounts/api';
 import PlaceCard from './PlaceCard';
 import ManualPlace from './ManualPlace';
-export interface FinderProps { token?: string; loaded?: SavedSession; summary: PlanningSummary; getEditRevision: () => number; initialQuery?: PlaceQuery; previewOnly?: boolean; onApplyAdjustment?: ApplyAdjustment }
+export interface FinderProps { token?: string; loaded?: SavedSession; summary: PlanningSummary; getEditRevision: () => number; initialQuery?: PlaceQuery; previewOnly?: boolean; onApplyAdjustment?: ApplyAdjustment; ideasVersion?: number; onSaveIdea?: (v: CardIdeaSelection) => void }
 const initial: PlaceQuery = { area: '', radiusKm: 5, category: 'any', date: null, start: null, end: null, timeZone: null };
-export default function PlaceFinder({ token, loaded, summary, getEditRevision, initialQuery = initial, previewOnly = false, onApplyAdjustment }: FinderProps) {
+export default function PlaceFinder({ token, loaded, summary, getEditRevision, initialQuery = initial, previewOnly = false, onApplyAdjustment, ideasVersion, onSaveIdea }: FinderProps) {
   const [open, setOpen] = useState(previewOnly);
   const [discovery, setDiscovery] = useState<'places' | 'events'>('places');
   const [query, setQuery] = useState<PlaceQuery>(initialQuery);
+  const [savedIdeas, setSavedIdeas] = useState<IdeaReference[]>([]);
   const [manual, setManual] = useState<PlaceSearch['manual']>([]);
   const [corrections, setCorrections] = useState<PlaceCorrection[]>([]);
   const [clarification, setClarification] = useState<{ data: Extract<PlaceResponse, { kind: 'clarification' }>; fingerprint: string } | null>(null);
@@ -23,7 +26,7 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
   const [outdated, setOutdated] = useState(false);
   const pending = useRef<AbortController | null>(null);
   const sequence = useRef(0), sending = useRef(false);
-  const fingerprintFor = (q: PlaceQuery, m = manual, c = corrections) => JSON.stringify([q, m, c, summary, loaded?.id, loaded?.revision]);
+  const fingerprintFor = (q: PlaceQuery, m = manual, c = corrections, saved = savedIdeas) => JSON.stringify([q, m, c, saved, summary, loaded?.id, loaded?.revision]);
   const fingerprint = fingerprintFor(query);
   const boundary = (q: PlaceQuery) => JSON.stringify([q.area, q.resolutionId ?? null, q.radiusKm, q.category]);
   const latest = useRef(fingerprint);
@@ -58,7 +61,7 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
         }
       } else {
         if (recheck && !result?.data.searchId) throw Error('Run a search before rechecking recorded details.');
-        const payload = { mode, sessionRevision: loaded!.revision, summary, query: activeQuery, manual, corrections: nextCorrections, ...(recheck ? { searchId: result!.data.searchId } : {}) };
+        const payload = { mode, sessionRevision: loaded!.revision, summary, query: activeQuery, manual, savedIdeas, corrections: nextCorrections, ...(recheck ? { searchId: result!.data.searchId } : {}) };
         data = placeResponseSchema.parse(await privateRequest(token!, `/sessions/${loaded!.id}/places/${recheck ? 'evaluate' : 'search'}`, controller.signal, 'POST', payload));
       }
       if (controller.signal.aborted || serial !== sequence.current) return;
@@ -77,7 +80,7 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
     if (next.length > 23) { setError('The temporary detail limit is reached. Clear recorded details before adding another place.'); return false; }
     latest.current = fingerprintFor(query, manual, next); setCorrections(next); void search(result?.data.mode ?? 'demo', undefined, true, next, key); return true;
   }
-  const card = (r: PlaceResults['promising'][number]) => <PlaceCard key={r.candidate.id} place={r} busy={busy} onReview={review} />;
+  const card = (r: PlaceResults['promising'][number]) => <PlaceCard key={r.candidate.id} place={r} busy={busy} onReview={review} onSaveLater={onSaveIdea && result?.data.workId ? () => onSaveIdea({ snapshotId: result.data.workId!, candidateKey: workKey(r.candidate), kind: 'place', hint: r.candidate.name, provider: r.candidate.savedIdea?.origin ?? r.candidate.source }) : undefined} />;
   const stale = outdated || !!result && result.fingerprint !== fingerprint;
   const visible = result && !stale ? result.data : null;
   return <section className="place-finder review-section">
@@ -88,8 +91,9 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
       <div className="form-grid"><label className="field"><span>Search area (US City, State or ZIP)</span><input maxLength={100} placeholder="Columbus, OH or 43210" value={query.area} onChange={e => change({ ...query, area: e.target.value })}/></label><label className="field"><span>Search radius in km</span><input type="number" min="1" max="30" step="1" value={query.radiusKm} onChange={e => change({ ...query, radiusKm: Number(e.target.value) })}/></label><label className="field" hidden={discovery !== 'places'}><span>Category</span><select value={query.category} onChange={e => change({ ...query, category: e.target.value as PlaceQuery['category'] })}>{placeCategories.map(c => <option key={c} value={c}>{c === 'any' ? 'All supported activities' : c}</option>)}</select></label></div>
       <div hidden={discovery !== 'places'}>
       <details><summary>Outing timing (optional; unknown stays unchecked)</summary><p className="note">Use a specific date, start/end and IANA time zone; a blank zone uses the matched venue’s reliable local zone when available. Ambiguous DST clocks stay unresolved. “Friday” remains unresolved until you correct the planning fact. These controls do not rewrite the summary. Radius measures a boundary around the area center, not travel time from anyone’s home.</p><div className="form-grid">{(['date', 'start', 'end', 'timeZone'] as const).map(k => <label className="field" key={k}><span>{k === 'timeZone' ? 'Time zone (e.g. America/New_York)' : k === 'date' ? 'Outing date' : k === 'start' ? 'Start time' : 'End time'}</span><input type={k === 'date' ? 'date' : k === 'timeZone' ? 'text' : 'time'} maxLength={80} value={query[k] ?? ''} onChange={e => change({ ...query, [k]: e.target.value || null })}/></label>)}</div></details>
-      <ManualPlace onAdd={candidate => { if (!allowDraftReplacement()) return false; const next = [...manual, { ...candidate, manualId: crypto.randomUUID() }]; latest.current = fingerprintFor(query, next); setManual(next); return true; }} disabled={manual.length >= 3} />
+      <ManualPlace onAdd={candidate => { if (!allowDraftReplacement()) return false; const next = [...manual, { ...candidate, manualId: crypto.randomUUID() }]; latest.current = fingerprintFor(query, next); setManual(next); return true; }} disabled={manual.length + savedIdeas.length >= 3} />
       {!!manual.length && <ul>{manual.map((m, i) => <li key={i}>{m.name} · Organizer-entered details <button className="quiet" onClick={() => { if (!allowDraftReplacement()) return; const next = manual.filter((_, index) => index !== i); latest.current = fingerprintFor(query, next); setManual(next); }}>Remove {m.name}</button></li>)}</ul>}
+      {token && loaded && <IdeaPicker token={token} groupId={loaded.groupId} kind="places" selected={savedIdeas} refreshKey={ideasVersion} slots={Math.max(0, 3 - manual.length)} busy={busy} canEvaluate={!!result?.data.searchId && result.boundary === boundary(query)} onChange={refs => { if (!allowDraftReplacement()) return; latest.current = fingerprintFor(query, manual, corrections, refs); setSavedIdeas(refs); }} onEvaluate={() => { if (result) void search(result.data.mode, undefined, true); }}/>}
       <p className="provider-disclosure">Demo results use synthetic fixtures and make no provider request. Recording/rechecking details does not call a provider. Live search sends only the area, explicit area choice, radius and category to Geoapify. Names, chats, images, dates and individual budgets stay out of its requests. Live search requires backend Free-plan configuration.</p>
       <div className="places-actions">{result && <button disabled={busy || result.boundary !== boundary(query)} onClick={() => void search(result.data.mode, undefined, true)}>Recheck current places (no provider call)</button>}<button disabled={busy} onClick={() => void search('demo')}>Show demo results</button>{!previewOnly && <button className="primary" disabled={busy} onClick={() => void search('live')}>Search real places</button>}{busy && <button onClick={() => { sequence.current++; pending.current?.abort(); sending.current = false; setBusy(false); setError('Search cancelled. Your planning summary was kept.'); }}>Cancel search</button>}</div>
       {busy && <p role="status">Looking for places…</p>}{error && <p role="alert" className="validation-error">{error}</p>}{stale && <p role="status" className="notice">Previous results are out of date and hidden. Review your changes, then search again.</p>}
@@ -100,10 +104,11 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
         {!!visible.promising.length && <><h4>Promising — needs checking</h4>{visible.promising.map(card)}</>}
         {!visible.verified.length && !visible.promising.length && <p>No useful options returned for these filters. Review the exclusions or try another area/category without changing firm limits.</p>}
         {!!visible.excluded.length && <details><summary>Doesn’t fit ({visible.excluded.length})</summary>{visible.excluded.map(card)}</details>}
+        {!!visible.savedIdeaResults?.filter(r => ![...visible.verified, ...visible.promising, ...visible.excluded].some(v => v.candidate.id === r.candidate.id)).length && <section><h4>Other added saved ideas · review their checks</h4>{visible.savedIdeaResults.filter(r => ![...visible.verified, ...visible.promising, ...visible.excluded].some(v => v.candidate.id === r.candidate.id)).map(card)}</section>}
         <ul className="note">{visible.notices.map(n => <li key={n}>{n}</li>)}</ul>{visible.mode === 'live' && <p className="places-attribution">Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors (ODbL)</a></p>}
       </>}
       </div>
-      <EventFinder active={open && discovery === 'events'} query={query} onQuery={change} summary={summary} token={token} loaded={loaded} previewOnly={previewOnly} getEditRevision={getEditRevision} onApplyAdjustment={onApplyAdjustment} />
+      <EventFinder active={open && discovery === 'events'} query={query} onQuery={change} summary={summary} token={token} loaded={loaded} previewOnly={previewOnly} getEditRevision={getEditRevision} onApplyAdjustment={onApplyAdjustment} ideasVersion={ideasVersion} onSaveIdea={onSaveIdea} />
     </div>
   </section>;
 }

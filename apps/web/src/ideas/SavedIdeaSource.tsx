@@ -1,0 +1,3 @@
+export default function SavedIdeaSource({ origin, checkedOn }: { origin: string; checkedOn: string | null }) {
+  return <p className="note saved-idea-source">Saved idea · {origin === 'manual' ? 'Organizer-entered details' : origin === 'demo' ? 'Synthetic sample reference' : origin === 'ticketmaster' ? 'Ticketmaster reference · current details entered by organizer' : 'Geoapify reference · current details may be edited by organizer'} · Details last checked: {checkedOn ?? 'Unknown'}. Recheck for this outing.{origin === 'geoapify' && <> Data: <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Geoapify</a> / © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>.</>}</p>;
+}

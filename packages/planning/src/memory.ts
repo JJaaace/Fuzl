@@ -5,7 +5,8 @@ export type MemoryInfluence = z.infer<typeof memoryInfluenceSchema>;
 // Exact public listing match only. No name/alias inference or person-level profile.
 // The most recent approved observation wins; evidence is never accumulated into
 // an ever-growing score or treated as a permanent preference.
-export function memoryInfluence(url: string, memories: GroupMemory[] = []): MemoryInfluence | undefined {
+export function memoryInfluence(url: string | null, memories: GroupMemory[] = []): MemoryInfluence | undefined {
+  if (url === null) return undefined;
   const m = memories.filter(m => m.sourceUrl === url).sort((a, b) => b.date.localeCompare(a.date))[0];
   if (!m) return undefined;
   const label = m.sentiment === 'positive' ? 'Positive permitted feedback from self-reported attendees' : m.sentiment === 'mixed' ? 'permitted feedback was mixed' : m.sentiment === 'negative' ? 'permitted feedback did not favor repeating' : 'no repeat rating approved';

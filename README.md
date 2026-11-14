@@ -4,7 +4,7 @@ Turn your group chat into a plan.
 
 Fuzl helps one organizer turn selected conversation context into an editable plan. **Sections 7A/7B add place search, US-area clarification and sourced feasibility checks for owned saved sessions**, alongside Section 6 account-free guest answers, organizer sign-in, private groups and explicit saving/reopening. The first Section 7C pass adds scheduled event discovery and fit checks through the same workspace. The temporary text/screenshot workspace remains usable without an account. Friends do not need accounts.
 
-Supabase supplies managed email magic-link Auth and PostgreSQL; Prisma migrations and server ownership checks protect saved work. Sections 8A/8B add shortlist voting, explicit plan agreement, shared plan pages and credential-scoped RSVPs. Section 9 adds actual outings, optional explicit-attendee feedback and approved group-level memory. Reservations, verified personal identity/attendance, messaging integrations and native features remain unimplemented. The original [specification](FUZL_CODEX_SPEC.md) is unchanged. Current authorization is Section 10.1: bounded, explicit single-constraint adjustments for existing candidates with no verified fit. Reviews, trends, deployment and later work remain deferred.
+Supabase supplies managed email magic-link Auth and PostgreSQL; Prisma migrations and server ownership checks protect saved work. Sections 8A/8B add shortlist voting, explicit plan agreement, shared plan pages and credential-scoped RSVPs. Section 9 adds actual outings, optional explicit-attendee feedback and approved group-level memory. Reservations, verified personal identity/attendance, messaging integrations and native features remain unimplemented. The original [specification](FUZL_CODEX_SPEC.md) is unchanged. Current authorization is Section 10.2: group-scoped saved ideas reused through existing candidate checks and shortlist controls. Reviews, trends, deployment and later work remain deferred.
 
 ## Current design review
 
@@ -18,13 +18,23 @@ The provisional **Spark** mascot has an ivory body, a wide filled espresso cresc
 
 The opening composition includes a persistent canvas field: 760 desktop dots (240 on phones), a shared diagonal ripple that lifts nearby dots together, slight brightening and a weaker crossing wave. It stays visible around screenshot input and dims behind the summary. Rendering pauses offscreen, on hidden tabs and in Saved groups; reduced motion draws a static field. To see it locally, watch the opening workspace for 5–15 seconds, switch input modes, then load an example. No AI request is needed.
 
+## Saved ideas (Section 10.2)
+
+**Saved groups → group → Saved ideas** stores a name, optional link and private note, with edit/archive/remove controls. **Save for later** on owned Places/Events cards preserves a source reference. Ticketmaster bookmarks require an organizer-entered label and intended date/details instead of permanently copying API event content. Ongoing venues and dated events are distinct; past/unclear-date events leave active choices.
+
+In another saved session for that group, use **From your saved ideas → Add idea to candidates → Evaluate saved ideas (no provider call)** after resolving the area through the existing search. The same firm/private-budget checks apply; old cost, hours, tickets and travel estimates are unknown. Review the card, then use **Add to shortlist** and the existing exact public preview. Private notes stay in the library and never become guest details or provider inputs.
+
+**Exact synthetic demo:** http://127.0.0.1:5173/?design=ideas → enter **Synthetic night market** → **Save idea → Open second session for this group → Add idea to candidates → Evaluate saved ideas (no provider call) → Add to shortlist → Save shortlist → Preview ballot**. No account, database or provider call; reload resets it. Try Group B, archive/edit/remove, and the expired-event fixture. [SAVED_IDEAS.md](docs/SAVED_IDEAS.md) gives complete steps, storage/privacy rules and pending real checks.
+
+Section 10.1 is pushed as `6616d6b`. Section 10.2 is a separate local diff. Its new **`202611140003_saved_ideas`** migration passed only on disposable PostgreSQL; it and earlier Section 6/8A/8B/9 hosted migrations remain pending. No new key/settings. Actual rendered browser/mobile and hosted account/guest verification remain unverified.
+
 ## Make this work (Section 10.1)
 
 When a saved session’s discovery shortlist has no checked fit, **Make this work** previews one explicitly flexible group-window shift (up to 60 minutes) or a travel-limit increase (up to 10 minutes), using the same candidates and fit checks. Sourced travel duration is required; radius is insufficient. Firm constraints and unknown values stay in force. Private feasibility sessions withhold comparisons to avoid leaking individual thresholds.
 
 Preview original/new values, affected options and remaining checks, then explicitly apply. This records an organizer decision in the working summary; **Save session** persists it. Published plans and RSVPs stay unchanged. Existing Places and new Events rechecks reuse the same list without a provider call.
 
-**Synthetic demo:** http://127.0.0.1:5173/?design=adjustments → **Make this work → approve → Apply this adjustment**. Switch cases for time, sourced travel, radius-only, firm travel and a fixed event. Exact clicks, bounds, data handling and pending hosted/browser checks: [MAKE_THIS_WORK.md](docs/MAKE_THIS_WORK.md). No new key, dependency or SQL migration. Sections 8B/9 were pushed as `9edc96e`; Section 10.1 remains local.
+**Synthetic demo:** http://127.0.0.1:5173/?design=adjustments → **Make this work → approve → Apply this adjustment**. Switch cases for time, sourced travel, radius-only, firm travel and a fixed event. Exact clicks, bounds, data handling and pending hosted/browser checks: [MAKE_THIS_WORK.md](docs/MAKE_THIS_WORK.md). No new key, dependency or SQL migration. Sections 8B/9 were pushed as `9edc96e`; Section 10.1 was pushed as `6616d6b`; Section 10.2 remains local for review.
 
 ## Actual outings & approved memory (Section 9)
 
@@ -32,7 +42,7 @@ Reopen a saved session’s confirmed plan and use **Mark completed · record the
 
 People reporting attendance can optionally answer repeat/value questions and a note at the existing plan link, update their own feedback, and choose whether it may inform group memory. The organizer separately saves private notes/proposals and explicitly approves, edits or removes a short group takeaway. Feedback/actual-detail changes suspend use pending review. Same-group searches may apply a small exact-listing preference boost; past enjoyment never overrides firm constraints or current uncertainty.
 
-**No-account synthetic demo:** http://127.0.0.1:5173/?design=outings. Follow [OUTINGS.md](docs/OUTINGS.md) for exact steps through plan → actual completion → feedback → approval → next shortlist. This is an in-memory UI simulator with no API/provider call or working shared link. Real persistence is tested separately on disposable PostgreSQL. Section 8B and 9 are included in pushed checkpoint `9edc96e`. Section 10.1 remains local. Browser/hosted verification and the Section 6/8A/8B/9 hosted migrations remain pending; no new key/settings are needed.
+**No-account synthetic demo:** http://127.0.0.1:5173/?design=outings. Follow [OUTINGS.md](docs/OUTINGS.md) for exact steps through plan → actual completion → feedback → approval → next shortlist. This is an in-memory UI simulator with no API/provider call or working shared link. Real persistence is tested separately on disposable PostgreSQL. Section 8B and 9 are included in pushed checkpoint `9edc96e`. Section 10.1 was pushed as `6616d6b`; Section 10.2 remains local for review. Browser/hosted verification and the Section 6/8A/8B/9 hosted migrations remain pending; no new key/settings are needed.
 
 ## Shared plans & RSVPs (Section 8B)
 
@@ -48,7 +58,7 @@ From an owned saved session, use **Add to shortlist** on Places/Events or **Add 
 
 **Exact local demo:** `npm run dev` → [ballot simulator](http://127.0.0.1:5173/?design=ballots) → **Show demo results → Add to shortlist** on the walk → **Events → November 14, 2026 → Show demo events → Add to shortlist** → **Save shortlist → Preview ballot → approve → Publish ballot → Guest ballot demo**. Vote, change the vote, then **Organizer demo → Refresh tallies**. This is explicitly synthetic and uses no account, API, database or provider; the real routes are tested separately on disposable PostgreSQL. [Ballot architecture, exact revision/close demo and pending browser/hosted checks](docs/BALLOTS.md).
 
-The Section 8A checkpoint was pushed as `4b8b844`. Its migration was tested only on a disposable local database. Hosted rollout, real guest/account workflow and rendered phone/browser verification remain pending. Its prior local-only statements describe preparation before that checkpoint; Section 8B and 9 are now included in pushed checkpoint `9edc96e`; Section 10.1 remains local. No provider calls, email or deployment.
+The Section 8A checkpoint was pushed as `4b8b844`. Its migration was tested only on a disposable local database. Hosted rollout, real guest/account workflow and rendered phone/browser verification remain pending. Its prior local-only statements describe preparation before that checkpoint; Section 8B and 9 are now included in pushed checkpoint `9edc96e`; Section 10.1 was pushed as `6616d6b`; Section 10.2 remains local for review. No provider calls, email or deployment.
 
 ## Find events (Section 7C, first pass)
 

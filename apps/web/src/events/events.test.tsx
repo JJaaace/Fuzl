@@ -68,7 +68,7 @@ test('event fixtures retain ambiguous city choices, leading-zero ZIP and tentati
 });
 test('late event responses cannot replace new area/dates, changed planning, edit-back or another discovery mode; missing setup is recoverable', async t => {
   let release: ((r: Response) => void) | undefined, calls = 0;
-  t.mock.method(globalThis, 'fetch', async (_url: unknown, options?: RequestInit) => { calls++; const body = JSON.parse(String(options?.body)); assert.ok(!JSON.stringify(body).includes('privateSpending')); if (body.mode === 'live') return Response.json({ error: { message: 'Live events need backend configuration.' } }, { status: 503 }); return new Promise<Response>(r => { release = r; }); });
+  t.mock.method(globalThis, 'fetch', async (_url: unknown, options?: RequestInit) => { if (String(_url).endsWith('/ideas/candidates')) { assert.equal(options?.method, 'GET'); return Response.json([]); } assert.ok(String(_url).endsWith('/events/search')); calls++; const body = JSON.parse(String(options?.body)); assert.ok(!JSON.stringify(body).includes('privateSpending')); if (body.mode === 'live') return Response.json({ error: { message: 'Live events need backend configuration.' } }, { status: 503 }); return new Promise<Response>(r => { release = r; }); });
   let edits = 0;
   const root = await mount(t, <PlaceFinder loaded={saved} token="synthetic-token" summary={saved.payload.summary} initialQuery={{ ...demoPlaceQuery, area: '02108' }} getEditRevision={() => edits} />);
   await click(button('Find places')); await click(button('Events')); await enter(control('Event search from'), '2026-11-14');

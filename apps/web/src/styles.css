@@ -467,3 +467,10 @@ button.primary[aria-busy=true] { background: var(--accent-wash); color: var(--in
 .make-work fieldset { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-small); padding: 1rem; margin: 1rem 0; }
 .make-work input, .make-work select { max-width: 100%; }
 .make-work, .recorded-visit, .organizer-decisions { overflow-wrap: anywhere; }
+
+/* Saved ideas reuse the library and discovery controls without widening them. */
+.saved-ideas, .save-later, .from-ideas { min-width: 0; overflow-wrap: anywhere; }
+.idea-form > button, .save-later > button { margin: 8px 8px 8px 0; }
+.saved-idea-source { color: var(--muted); font-size: 13px; line-height: 1.7; }
+.from-ideas li { padding-block: 12px; border-bottom: 1px solid var(--border); }
+.from-ideas li > button { margin: 8px; }

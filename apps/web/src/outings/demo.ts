@@ -1,4 +1,4 @@
-import { demoPlaces, demoPlaceQuery, demoPlaceSummary, evaluatePlaces, feedbackCreateSchema, feedbackEditSchema, feedbackSentiment, outingOwnerSchema, ownFeedbackSchema, publicOutingSchema, recordOutingSchema, outingEditSchema, memoryEditSchema } from '@fuzl/planning';
+import { ballotSourceUrl, demoPlaces, demoPlaceQuery, demoPlaceSummary, evaluatePlaces, feedbackCreateSchema, feedbackEditSchema, feedbackSentiment, outingOwnerSchema, ownFeedbackSchema, publicOutingSchema, recordOutingSchema, outingEditSchema, memoryEditSchema } from '@fuzl/planning';
 import type { GroupMemory, OwnerOuting, OwnerPlan, OwnFeedback, PlaceResults } from '@fuzl/planning';
 import type { OutingRequest } from './OrganizerOuting';
 import type { BallotGuestRequest } from '../ballots/GuestBallot';
@@ -30,7 +30,7 @@ export function outingDemo(plans: { owner: OutingRequest; guest: BallotGuestRequ
     const v = feedbackEditSchema.parse(raw); if (!old || v.payload.outingRevision !== actualVersion || old.revision !== v.revision && old.lastRequestId !== v.requestId) throw Error('Feedback changed. Reload.'); if (old.lastRequestId === v.requestId) return dto(old); const f = { ...old, actualVersion, answers: v.payload.answers, revision: old.revision + 1, lastRequestId: v.requestId, updatedAt: new Date().toISOString() }; feedback.set(auth, f); row.feedbackVersion++; row.revision++; row.memoryActive = false; return dto(f);
   };
   function next(): PlaceResults {
-    const memories: GroupMemory[] = row?.memoryActive && row.approvedTakeaway ? [{ sourceUrl: row.sameListing ? row.original.option.links[0]?.url ?? null : null, date: row.actual.date!, takeaway: row.approvedTakeaway, sentiment: feedbackSentiment([...feedback.values()].filter(f => f.actualVersion === actualVersion).map(f => f.answers)) }] : [];
+    const memories: GroupMemory[] = row?.memoryActive && row.approvedTakeaway ? [{ sourceUrl: row.sameListing ? ballotSourceUrl(row.original.option) : null, date: row.actual.date!, takeaway: row.approvedTakeaway, sentiment: feedbackSentiment([...feedback.values()].filter(f => f.actualVersion === actualVersion).map(f => f.answers)) }] : [];
     const f = demoPlaces(demoPlaceQuery, new Date().toISOString()); if (!('area' in f)) throw Error('Invalid demo area.');
     return { mode: 'demo', retrievedAt: new Date().toISOString(), ...evaluatePlaces(f.candidates, f.area, demoPlaceQuery, demoPlaceSummary(), [], memories) };
   }

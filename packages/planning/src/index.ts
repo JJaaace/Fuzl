@@ -19,3 +19,5 @@ export * from './visit-evidence.js';
 export * from './organizer-decisions.js';
 export * from './adjustments.js';
 export * from './adjustment-fixtures.js';
+export * from './idea-reference.js';
+export * from './ideas.js';

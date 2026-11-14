@@ -6,7 +6,7 @@ import { localDateSchema, clockSchema, zoneSchema } from './places.js';
 import { localInstant } from './place-location.js';
 export const planStatuses = ['proposed', 'confirmed', 'completed', 'cancelled'] as const;
 export const rsvpChoices = ['going', 'maybe', 'cant'] as const;
-export const planDetailsSchema = z.strictObject({ activity: z.string().trim().min(1).max(300), date: localDateSchema.nullable(), time: clockSchema.nullable(), timeZone: zoneSchema.nullable(), meetingPoint: z.string().trim().min(1).max(800).nullable(), cost: ballotOptionSchema.shape.cost, links: z.array(ballotLinkSchema).max(3), instructions: z.string().trim().max(1500), unresolved: z.array(z.string().trim().min(1).max(300)).max(16), booking: z.enum(['unknown', 'needs-booking', 'organizer-reported-booked']) });
+export const planDetailsSchema = z.strictObject({ activity: z.string().trim().min(1).max(300), date: localDateSchema.nullable(), time: clockSchema.nullable(), timeZone: zoneSchema.nullable(), meetingPoint: z.string().trim().min(1).max(800).nullable(), cost: ballotOptionSchema.shape.cost, links: z.array(ballotLinkSchema).max(4), instructions: z.string().trim().max(1500), unresolved: z.array(z.string().trim().min(1).max(300)).max(16), booking: z.enum(['unknown', 'needs-booking', 'organizer-reported-booked']) });
 export type PlanDetails = z.infer<typeof planDetailsSchema>;
 export function publishablePlan(d: PlanDetails) { return !!d.date && !!d.time && !!d.timeZone && !!d.meetingPoint?.trim() && localInstant(d.date, d.time, d.timeZone) !== null; }
 export const publishedDetailsSchema = planDetailsSchema.refine(publishablePlan, 'Choose a clear date, local time, time zone and meeting point; ambiguous/nonexistent daylight-saving clocks need correction.');

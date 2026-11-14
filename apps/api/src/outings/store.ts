@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { actualOutingSchema, memoryOpinionSchema, feedbackSentiment, outingOwnerSchema, ownFeedbackSchema, planDraftSchema, publicOutingSchema, localInstant } from '@fuzl/planning';
+import { actualOutingSchema, memoryOpinionSchema, ballotSourceUrl, feedbackSentiment, outingOwnerSchema, ownFeedbackSchema, planDraftSchema, publicOutingSchema, localInstant } from '@fuzl/planning';
 import type { GroupMemory, recordOutingSchema, outingEditSchema, memoryEditSchema, feedbackCreateSchema, feedbackEditSchema } from '@fuzl/planning';
 import type { z } from 'zod';
 import type { Outing, OutingFeedback, Prisma, PrismaClient } from '../generated/prisma/client.js';
@@ -115,6 +115,6 @@ export class OutingStore {
 // answers or conversations leave this server-side calculation.
 export async function groupMemories(tx: Prisma.TransactionClient, groupId: string): Promise<{ memories: GroupMemory[]; fingerprint: unknown }> {
   const rows = await tx.outing.findMany({ where: { groupId, plan: { status: 'completed' }, approvedTakeaway: { not: null } }, select: { id: true, revision: true, actualVersion: true, actual: true, sameListing: true, original: true, approvedTakeaway: true, feedbackVersion: true, approvedFeedbackVersion: true, feedback: { select: { memoryOpinion: true, actualVersion: true }, take: 200 } }, orderBy: { createdAt: 'desc' }, take: 100 });
-  const memories = rows.filter(r => r.approvedFeedbackVersion === r.feedbackVersion).map(r => ({ sourceUrl: r.sameListing ? planDraftSchema.parse(r.original).option.links[0]?.url ?? null : null, takeaway: r.approvedTakeaway!, date: actualOutingSchema.parse(r.actual).date!, sentiment: feedbackSentiment(r.feedback.filter(f => f.actualVersion === r.actualVersion).map(f => memoryOpinionSchema.parse(f.memoryOpinion))) }));
+  const memories = rows.filter(r => r.approvedFeedbackVersion === r.feedbackVersion).map(r => ({ sourceUrl: r.sameListing ? ballotSourceUrl(planDraftSchema.parse(r.original).option) : null, takeaway: r.approvedTakeaway!, date: actualOutingSchema.parse(r.actual).date!, sentiment: feedbackSentiment(r.feedback.filter(f => f.actualVersion === r.actualVersion).map(f => memoryOpinionSchema.parse(f.memoryOpinion))) }));
   return { memories, fingerprint: rows.map(r => [r.id, r.revision, r.feedbackVersion, r.approvedFeedbackVersion]) };
 }

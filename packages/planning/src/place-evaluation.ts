@@ -40,8 +40,8 @@ export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, qu
     const listing = retainedVisitChecks(raw, summary);
     const details = placeEvidence(listing), candidate = details.effective;
     const key = `${listing.source}:${listing.id}`;
-    if (seenIds.has(key) || seenUrls.has(candidate.sourceUrl)) continue;
-    seenIds.add(key); seenUrls.add(candidate.sourceUrl);
+    if (seenIds.has(key) || (candidate.sourceUrl !== null && seenUrls.has(candidate.sourceUrl))) continue;
+    seenIds.add(key); if (candidate.sourceUrl !== null) seenUrls.add(candidate.sourceUrl);
     const checks: FitCheck[] = [];
     const distanceKm = details.addressConflict && details.addressNeedsChecking || details.evidence.listingChanged ? null : straightLineKm(area, candidate);
     checks.push({ kind: 'address', status: details.addressNeedsChecking ? 'needs-checking' : 'fits', detail: details.evidence.listingChanged ? 'The listing changed. Review your recorded sources and confirm the address again.' : details.addressNeedsChecking ? 'Address needs checking. Confirm the venue address from a matched source; conflicting values remain visible.' : 'Using the organizer-confirmed address or known demo location. A different address never inherits the old coordinates.' });

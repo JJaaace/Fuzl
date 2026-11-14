@@ -4,7 +4,7 @@ import { actualOutingSchema, feedbackAnswersSchema, feedbackSentiment, memoryInf
 import type { GroupMemory } from '@fuzl/planning';
 import { createApp } from '../app.js';
 const stamp = '2026-11-14T12:00:00.000Z';
-const memory = (sourceUrl: string): GroupMemory => ({ sourceUrl, date: '2026-11-07', takeaway: 'Attendees liked the walk; parking was difficult.', sentiment: 'positive' });
+const memory = (sourceUrl: string | null): GroupMemory => ({ sourceUrl, date: '2026-11-07', takeaway: 'Attendees liked the walk; parking was difficult.', sentiment: 'positive' });
 test('actual outings require explicit clear facts; attendance and optional feedback are independent from votes and RSVP intent', () => {
   const actual = { activity: 'Synthetic walk', date: '2026-11-07', time: '15:00', timeZone: 'America/New_York', meetingPoint: 'North gate' };
   assert.ok(actualOutingSchema.safeParse(actual).success);

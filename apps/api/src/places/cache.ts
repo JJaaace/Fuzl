@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { PlaceCandidate, PlaceArea, PlaceSearch } from '@fuzl/planning';
 import { ExtractionError } from '../extraction/errors.js';
-interface Snapshot { subject: string; sessionId: string; revision: number; contextVersion: string; queryKey: string; candidates: PlaceCandidate[]; area: PlaceArea; mode: 'demo' | 'live'; created: number }
+interface Snapshot { baselineVersion?: string; subject: string; sessionId: string; revision: number; contextVersion: string; queryKey: string; candidates: PlaceCandidate[]; area: PlaceArea; mode: 'demo' | 'live'; created: number }
 export const searchBoundaryKey = (query: PlaceSearch['query']) => JSON.stringify([query.area.trim(), query.resolutionId ?? null, query.radiusKm, query.category]);
 // Public venue baselines only. No conversations, summary, budgets or aliases.
 export class PlaceSearchCache {

@@ -3,7 +3,7 @@ import type { WorkCandidates, WorkSuggestion } from '@fuzl/planning';
 import { ExtractionError } from '../extraction/errors.js';
 function canonical(v: unknown): unknown { return Array.isArray(v) ? v.map(canonical) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, canonical(x)])) : v; }
 export const workHash = (v: unknown) => createHash('sha256').update(JSON.stringify(canonical(v))).digest('hex');
-interface Snapshot { mode: 'demo' | 'live'; subject: string; sessionId: string; revision: number; contextVersion: string; summaryKey: string; context: WorkCandidates; created: number }
+interface Snapshot { baselineVersion?: string; mode: 'demo' | 'live'; subject: string; sessionId: string; revision: number; contextVersion: string; summaryKey: string; context: WorkCandidates; created: number }
 interface Preview { subject: string; sessionId: string; snapshotId: string; requestKey: string; suggestions: WorkSuggestion[]; created: number; decisions: Map<string, { id: string; recordedAt: string }> }
 const stale = () => new ExtractionError(410, 'adjustment_expired', 'This search or adjustment preview expired, was replaced, or belongs to another session/account. Your edits were kept; recheck the current options.');
 export class AdjustmentCache {

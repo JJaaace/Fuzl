@@ -1,6 +1,6 @@
 # Section 10.2 — Saved ideas
 
-Section 10.1 was checkpointed and normally pushed as `6616d6be9ef5931409c9a810052a33985fc3bfd7` before this work. Saved ideas are a separate local change on that checkpoint. No provider request, hosted migration, sign-in email, billing change or deployment was made for 10.2.
+Section 10.1 was checkpointed and normally pushed as `6616d6be9ef5931409c9a810052a33985fc3bfd7` before this work. Saved ideas were subsequently committed and normally pushed as **01ec983 — Add group saved ideas and checked reuse in future plans**. The separate local 10.3 preference extension is documented in [DISCOVERY_PREFERENCES.md](DISCOVERY_PREFERENCES.md). No provider request, hosted migration, sign-in email, billing change or deployment was made for 10.2.
 
 ## Exact no-account demo
 
@@ -75,4 +75,4 @@ Manual checks still needed:
 3. With a second controlled group/account, verify foreign IDs do not read/write/resolve ideas. Verify account switch/sign-out clears private work and protects unsaved fields. Real hosted two-account isolation remains pending despite passing disposable SQL authorization tests.
 4. Carry forward existing hosted guest, voting, shared plan/RSVP/reconfirmation, outing/feedback/memory and privacy checks. Saving/importing an idea must not alter a published snapshot or RSVP; a published material change still requires the existing plan revision workflow. Intended reachable HTTPS origins/restricted redirects and real mobile guest checks remain pending before sharing with friends.
 
-Stop after Section 10.2. Automated link extraction, notifications, deployment and later features are not included. Saved ideas remain local for review.
+The saved-ideas implementation stopped after 10.2 and is preserved in pushed checkpoint `01ec983`. The separately authorized 10.3 preference extension adds no migration. Automated link extraction, notifications and deployment remain deferred; hosted/browser checks above remain pending.

@@ -117,9 +117,9 @@ function Workspace() {
       </header>
       {accountError && <p className="notice" role="status">{accountError}</p>}
       <main id="groups-main" tabIndex={-1} hidden={view !== 'groups'} aria-label="Saved groups"><SavedGroups active={view === 'groups'} onOpen={openSaved} onWorkspace={() => setView('workspace')} /></main>
-      <main id="workspace-main" tabIndex={-1} hidden={view !== 'workspace'} onInputCapture={(event) => { if ((event.target as HTMLElement).closest('.make-work')) return; workspaceEdits.current.change(); setDirty(true); }} onClickCapture={(event) => {
+      <main id="workspace-main" tabIndex={-1} hidden={view !== 'workspace'} onInputCapture={(event) => { if ((event.target as HTMLElement).closest('.make-work, .discovery-preference')) return; workspaceEdits.current.change(); setDirty(true); }} onClickCapture={(event) => {
         const target = event.target as HTMLElement;
-        if (!target.closest('.make-work') && target.closest('.summary-panel, .draft-panel, .screenshot-panel, .analysis-panel')) { workspaceEdits.current.change(); setDirty(true); }
+        if (!target.closest('.make-work, .discovery-preference') && target.closest('.summary-panel, .draft-panel, .screenshot-panel, .analysis-panel')) { workspaceEdits.current.change(); setDirty(true); }
         const source = target.closest<HTMLAnchorElement>('a[href^="#screenshot-"]');
         if (source) {
           event.preventDefault(); transition({ type: 'mode', mode: 'screenshots' });

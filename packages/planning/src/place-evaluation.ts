@@ -1,3 +1,5 @@
+import { discoveryEvidence } from './discovery.js';
+import type { GroupVisitHistory } from './discovery.js';
 import { travelCheck, bookingCheck, retainedVisitChecks } from './visit-evidence.js';
 import { memoryInfluence } from './memory.js';
 import type { GroupMemory } from './memory.js';
@@ -31,7 +33,7 @@ export function budgetCheck(candidate: Pick<PlaceCandidate, 'price'>, limit: { a
         : 'Affordability needs checking: match total cost, per-person basis, currency and a settled limit. Admission alone or a price tier is insufficient.';
   return { kind, status, detail };
 }
-export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, query: PlaceQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = []): Omit<PlaceResults, 'mode' | 'retrievedAt'> {
+export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, query: PlaceQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = [], history?: GroupVisitHistory): Omit<PlaceResults, 'mode' | 'retrievedAt'> {
   const facts = summary.facts.filter(current);
   const budgets = facts.filter(f => f.kind === 'budget');
   const seenIds = new Set<string>(), seenUrls = new Set<string>();
@@ -94,9 +96,9 @@ export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, qu
     const nextStep = checks.some(c => c.kind === 'budget' && c.status !== 'fits') ? 'Check total per-person prices' : checks.some(c => c.kind === 'private-budget' && c.status !== 'fits') ? 'Review private spending feasibility' : checks.some(c => c.kind === 'timing' && c.status !== 'fits') ? 'Confirm date-specific hours' : checks.some(c => c.blocking !== false && c.status !== 'fits') ? 'Check remaining requirements' : 'Confirm seats, tickets or reservation availability';
     // Hard eligibility is sorted before these transparent preference tie-breakers.
     const memory = memoryInfluence(listing.sourceUrl, memories);
-    ranked.push({ result: { candidate: listing, ...(memory ? { memory } : {}), status, checks, reason, nextStep, distanceKm, ranking, effectiveAddress: candidate.address, localWindow: window ? `${window.date} ${window.start}–${window.end} ${window.timeZone}` : null }, score: (memory?.boost ?? 0) + matches * 10 + flexibleBudgetFits * 3 + known - (distanceKm ?? query.radiusKm) / 100 });
+    ranked.push({ result: { candidate: listing, discovery: discoveryEvidence(listing.sourceUrl, memory, history, !!listing.savedIdea), ...(memory ? { memory } : {}), status, checks, reason, nextStep, distanceKm, ranking, effectiveAddress: candidate.address, localWindow: window ? `${window.date} ${window.start}–${window.end} ${window.timeZone}` : null }, score: (memory?.boost ?? 0) + matches * 10 + flexibleBudgetFits * 3 + known - (distanceKm ?? query.radiusKm) / 100 });
   }
   ranked.sort((a, b) => (a.result.status === 'fits' ? 0 : a.result.status === 'needs-checking' ? 1 : 2) - (b.result.status === 'fits' ? 0 : b.result.status === 'needs-checking' ? 1 : 2) || b.score - a.score || a.result.candidate.id.localeCompare(b.result.candidate.id));
   const useful = ranked.filter(r => r.result.status !== 'does-not-fit').slice(0, 3).map(r => r.result);
-  return { area, verified: useful.filter(r => r.status === 'fits'), promising: useful.filter(r => r.status === 'needs-checking'), excluded: ranked.filter(r => r.result.status === 'does-not-fit').map(r => r.result), notices: ['Results cover only the returned candidates, not every place in the area.', 'Hours do not establish seats, tickets, group capacity or reservations. Suggestions are not confirmed plans.', ...(facts.some(f => !reviewed(f)) ? ['Unreviewed AI claims remain unreviewed and were not used as verified constraints or ranking preferences.'] : []), ...(summary.questions.some(q => !q.resolution) ? ['Open questions remain unresolved; check them before deciding.'] : [])] };
+  return { ranked: ranked.map(r => r.result), area, verified: useful.filter(r => r.status === 'fits'), promising: useful.filter(r => r.status === 'needs-checking'), excluded: ranked.filter(r => r.result.status === 'does-not-fit').map(r => r.result), notices: ['Results cover only the returned candidates, not every place in the area.', 'Hours do not establish seats, tickets, group capacity or reservations. Suggestions are not confirmed plans.', ...(facts.some(f => !reviewed(f)) ? ['Unreviewed AI claims remain unreviewed and were not used as verified constraints or ranking preferences.'] : []), ...(summary.questions.some(q => !q.resolution) ? ['Open questions remain unresolved; check them before deciding.'] : [])] };
 }

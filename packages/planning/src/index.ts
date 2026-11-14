@@ -21,3 +21,5 @@ export * from './adjustments.js';
 export * from './adjustment-fixtures.js';
 export * from './idea-reference.js';
 export * from './ideas.js';
+export * from './discovery.js';
+export * from './discovery-fixtures.js';

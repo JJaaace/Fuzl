@@ -337,3 +337,13 @@ test('adjustment review controls do not invalidate their own preview; real plann
   const before = edits; await click(action); await enter(field, 'Synthetic estimate'); assert.equal(edits, before);
   await enter(document.querySelector<HTMLTextAreaElement>('#draft')!, 'A real planning edit'); assert.ok(edits > before);
 });
+
+test('discovery preference controls do not invalidate in-flight planning work; source/planning edits still do', async t => {
+  let edits = 0; const original = WorkspaceEdits.prototype.change;
+  t.mock.method(WorkspaceEdits.prototype, 'change', function (this: WorkspaceEdits) { edits++; original.call(this); });
+  await mount(t); await sample();
+  const panel = document.createElement('section'); panel.className = 'discovery-preference';
+  const action = document.createElement('button'); action.textContent = 'Synthetic familiarity choice'; const field = document.createElement('input'); panel.append(action, field); document.querySelector('.summary-panel')!.append(panel); t.after(() => panel.remove());
+  const before = edits; await click(action); await enter(field, 'new'); assert.equal(edits, before);
+  await enter(document.querySelector<HTMLTextAreaElement>('#draft')!, 'A real planning edit'); assert.ok(edits > before);
+});

@@ -1,13 +1,13 @@
 import { ideaVersions } from '../ideas/store.js';
-import { groupMemories } from '../outings/store.js';
-import type { GroupMemory } from '@fuzl/planning';
+import { groupMemories, groupVisitHistory } from '../outings/store.js';
+import type { GroupMemory, GroupVisitHistory } from '@fuzl/planning';
 import { createHash } from 'node:crypto';
 import { sessionInputSchema } from '@fuzl/planning';
 import type { PlaceSearch, PrivateSpending } from '@fuzl/planning';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { validateGuestOrigins } from '../guests/store.js';
 import { ExtractionError } from '../extraction/errors.js';
-export interface SearchContext { privateSpending: PrivateSpending[]; memories?: GroupMemory[]; baselineVersion?: string; version: string }
+export interface SearchContext { visitHistory?: GroupVisitHistory; privateSpending: PrivateSpending[]; memories?: GroupMemory[]; baselineVersion?: string; version: string }
 export interface PlaceContextStore { context(subject: string, sessionId: string, request: Pick<PlaceSearch, 'summary' | 'sessionRevision'>): Promise<SearchContext> }
 export class PlaceStore implements PlaceContextStore {
   constructor(private db: PrismaClient) {}
@@ -23,7 +23,8 @@ export class PlaceStore implements PlaceContextStore {
       const rows = await tx.guestPrivateAnswer.findMany({ where: { response: { invite: { session: { id: sessionId, group: { owner: { authSubject: subject } } } } } }, select: { id: true, state: true, amount: true, currency: true, response: { select: { revision: true } } }, orderBy: { id: 'asc' } });
       const ideas = await ideaVersions(tx, session.groupId);
       const memory = await groupMemories(tx, session.groupId);
-      return { baselineVersion: createHash('sha256').update(JSON.stringify([session.revision, rows, memory.fingerprint])).digest('hex'), memories: memory.memories, privateSpending: rows.map(r => ({ state: r.state, amount: r.amount === null ? null : Number(r.amount), currency: r.currency })), version: createHash('sha256').update(JSON.stringify([session.revision, rows, memory.fingerprint, ideas])).digest('hex') };
+      const visits = await groupVisitHistory(tx, session.groupId);
+      return { baselineVersion: createHash('sha256').update(JSON.stringify([session.revision, rows, memory.fingerprint, visits.fingerprint])).digest('hex'), visitHistory: visits.history, memories: memory.memories, privateSpending: rows.map(r => ({ state: r.state, amount: r.amount === null ? null : Number(r.amount), currency: r.currency })), version: createHash('sha256').update(JSON.stringify([session.revision, rows, memory.fingerprint, visits.fingerprint, ideas])).digest('hex') };
     });
   }
 }

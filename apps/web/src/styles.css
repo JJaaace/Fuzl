@@ -474,3 +474,8 @@ button.primary[aria-busy=true] { background: var(--accent-wash); color: var(--in
 .saved-idea-source { color: var(--muted); font-size: 13px; line-height: 1.7; }
 .from-ideas li { padding-block: 12px; border-bottom: 1px solid var(--border); }
 .from-ideas li > button { margin: 8px; }
+
+.discovery-preference { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-block: 20px; }
+.discovery-preference .field { min-width: min(100%, 220px); }
+.discovery-preference .note { flex: 1 1 240px; margin: 0; }
+.discovery-reason { border-left: 2px solid var(--accent); padding-left: 10px; }

@@ -1,3 +1,6 @@
+import Preference from '../discovery/Preference';
+import { preferredPlaces } from '../discovery/ranking';
+import type { DiscoveryPreference } from '@fuzl/planning';
 import IdeaPicker from '../ideas/IdeaPicker';
 import type { CardIdeaSelection } from '../ideas/SaveLater';
 import MakeThisWork from '../adjustments/MakeThisWork';
@@ -9,9 +12,10 @@ import type { PlaceQuery, PlaceResults, PlanningSummary, SavedSession, PlaceSear
 import { privateRequest, SavedWorkError } from '../accounts/api';
 import PlaceCard from './PlaceCard';
 import ManualPlace from './ManualPlace';
-export interface FinderProps { token?: string; loaded?: SavedSession; summary: PlanningSummary; getEditRevision: () => number; initialQuery?: PlaceQuery; previewOnly?: boolean; onApplyAdjustment?: ApplyAdjustment; ideasVersion?: number; onSaveIdea?: (v: CardIdeaSelection) => void }
+export interface FinderProps { demoRanking?: Pick<ReturnType<typeof import('@fuzl/planning').discoveryFixture>, 'found' | 'history' | 'memories'>; token?: string; loaded?: SavedSession; summary: PlanningSummary; getEditRevision: () => number; initialQuery?: PlaceQuery; previewOnly?: boolean; onApplyAdjustment?: ApplyAdjustment; ideasVersion?: number; onSaveIdea?: (v: CardIdeaSelection) => void }
 const initial: PlaceQuery = { area: '', radiusKm: 5, category: 'any', date: null, start: null, end: null, timeZone: null };
-export default function PlaceFinder({ token, loaded, summary, getEditRevision, initialQuery = initial, previewOnly = false, onApplyAdjustment, ideasVersion, onSaveIdea }: FinderProps) {
+export default function PlaceFinder({ token, loaded, summary, getEditRevision, initialQuery = initial, previewOnly = false, onApplyAdjustment, ideasVersion, onSaveIdea, demoRanking }: FinderProps) {
+  const [preference, setPreference] = useState<DiscoveryPreference>('balanced');
   const [open, setOpen] = useState(previewOnly);
   const [discovery, setDiscovery] = useState<'places' | 'events'>('places');
   const [query, setQuery] = useState<PlaceQuery>(initialQuery);
@@ -51,13 +55,13 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
     try {
       let data: PlaceResponse;
       if (previewOnly) {
-        const found = recheck ? previewCache.current?.found : demoPlaces(activeQuery, new Date().toISOString());
+        const found = recheck ? previewCache.current?.found : demoRanking?.found ?? demoPlaces(activeQuery, new Date().toISOString());
         if (!found || recheck && previewCache.current?.boundary !== boundary(activeQuery)) throw Error('Search the current area before rechecking these places. Recorded details were kept.');
         if ('choices' in found) data = { kind: 'clarification', mode: 'demo', choices: found.choices, message: 'Choose a demo Springfield or add a state. No location was silently selected.' };
         else {
           previewCache.current = { found, boundary: boundary(activeQuery) };
           const candidates = [...found.candidates, ...manualPlaces(manual, new Date().toISOString())].map(c => correctedPlace(c, nextCorrections));
-          data = { mode: 'demo', coverage: found.candidates.length === 0 ? 'empty' : found.candidates.length < 3 ? 'sparse' : 'available', retrievedAt: new Date().toISOString(), ...evaluatePlaces(candidates, found.area, activeQuery, summary) };
+          data = { mode: 'demo', coverage: found.candidates.length === 0 ? 'empty' : found.candidates.length < 3 ? 'sparse' : 'available', retrievedAt: new Date().toISOString(), ...evaluatePlaces(candidates, found.area, activeQuery, summary, [], demoRanking?.memories, demoRanking?.history) };
         }
       } else {
         if (recheck && !result?.data.searchId) throw Error('Run a search before rechecking recorded details.');
@@ -82,7 +86,8 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
   }
   const card = (r: PlaceResults['promising'][number]) => <PlaceCard key={r.candidate.id} place={r} busy={busy} onReview={review} onSaveLater={onSaveIdea && result?.data.workId ? () => onSaveIdea({ snapshotId: result.data.workId!, candidateKey: workKey(r.candidate), kind: 'place', hint: r.candidate.name, provider: r.candidate.savedIdea?.origin ?? r.candidate.source }) : undefined} />;
   const stale = outdated || !!result && result.fingerprint !== fingerprint;
-  const visible = result && !stale ? result.data : null;
+  const preferred = result && !stale ? preferredPlaces(result.data, preference) : null;
+  const visible = preferred?.result ?? null;
   return <section className="place-finder review-section">
     {!previewOnly && <button aria-expanded={open} onClick={() => setOpen(v => !v)}>Find places</button>}
     <div hidden={!open}><h3>Discover options for this plan</h3><p className="note">Use your applied planning facts and guest answers. Unreviewed AI claims stay unreviewed. These are suggestions, never a booking or confirmed plan. Search results and manual candidates are temporary; Save session does not save this shortlist.</p>
@@ -98,8 +103,8 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
       <div className="places-actions">{result && <button disabled={busy || result.boundary !== boundary(query)} onClick={() => void search(result.data.mode, undefined, true)}>Recheck current places (no provider call)</button>}<button disabled={busy} onClick={() => void search('demo')}>Show demo results</button>{!previewOnly && <button className="primary" disabled={busy} onClick={() => void search('live')}>Search real places</button>}{busy && <button onClick={() => { sequence.current++; pending.current?.abort(); sending.current = false; setBusy(false); setError('Search cancelled. Your planning summary was kept.'); }}>Cancel search</button>}</div>
       {busy && <p role="status">Looking for places…</p>}{error && <p role="alert" className="validation-error">{error}</p>}{stale && <p role="status" className="notice">Previous results are out of date and hidden. Review your changes, then search again.</p>}
       {clarification && clarification.fingerprint === fingerprint && <section className="area-clarification" aria-label="Choose resolved area"><h4>Which area did you mean?</h4><p>{clarification.data.message}</p><label className="field"><span>Resolved area choices</span><select value={choice} onChange={e => setChoice(e.target.value)}><option value="">Choose an area</option>{clarification.data.choices.map(area => <option key={area.id} value={area.id}>{area.label} · {area.lat.toFixed(3)}, {area.lon.toFixed(3)} · {area.timeZone ?? 'zone unknown'}</option>)}</select></label><button disabled={busy || !choice} onClick={() => void search(clarification.data.mode, choice)}>Search selected area</button></section>}
-      <h3 ref={heading} tabIndex={-1}>{visible ? visible.mode === 'demo' ? 'Demo results' : 'Places to consider' : 'Your shortlist'}</h3>
-      {visible && <>{(visible.coverage === 'empty' || visible.coverage === 'sparse') && <section className="notice"><strong>{visible.coverage === 'empty' ? 'No venue listings returned for these filters.' : 'Sparse coverage: fewer than three venue listings returned.'}</strong><p>Try a different radius or category deliberately. Firm planning constraints stay unchanged.</p><button disabled={busy || query.radiusKm >= 30} onClick={() => change({ ...query, radiusKm: Math.min(30, query.radiusKm + 5) })}>Increase radius by 5 km (search when ready)</button><button disabled={busy || query.category === 'any'} onClick={() => change({ ...query, category: 'any' })}>Show all categories (search when ready)</button></section>}<p className="note">Resolved area: {visible.area.label} · Retrieved {new Date(visible.retrievedAt).toLocaleString()}{visible.mode === 'demo' && ' · Synthetic venues and details, not real recommendations'}</p>
+      <Preference value={preference} onChange={next => { if (allowDraftReplacement()) setPreference(next); }}/><h3 ref={heading} tabIndex={-1}>{visible ? visible.mode === 'demo' ? 'Demo results' : 'Places to consider' : 'Your shortlist'}</h3>
+      {visible && <><p className="note discovery-order" role="status">{preferred?.notice}</p>{(visible.coverage === 'empty' || visible.coverage === 'sparse') && <section className="notice"><strong>{visible.coverage === 'empty' ? 'No venue listings returned for these filters.' : 'Sparse coverage: fewer than three venue listings returned.'}</strong><p>Try a different radius or category deliberately. Firm planning constraints stay unchanged.</p><button disabled={busy || query.radiusKm >= 30} onClick={() => change({ ...query, radiusKm: Math.min(30, query.radiusKm + 5) })}>Increase radius by 5 km (search when ready)</button><button disabled={busy || query.category === 'any'} onClick={() => change({ ...query, category: 'any' })}>Show all categories (search when ready)</button></section>}<p className="note">Resolved area: {visible.area.label} · Retrieved {new Date(visible.retrievedAt).toLocaleString()}{visible.mode === 'demo' && ' · Synthetic venues and details, not real recommendations'}</p>
         <h4>Fits the verified constraints</h4>{!visible.verified.length && <p>No returned option is verified to fit all checked constraints. Your limits were kept.</p>}{visible.verified.map(card)}{!visible.verified.length && <MakeThisWork key={visible.workId ?? result?.fingerprint} snapshotId={visible.workId} token={token} loaded={loaded} summary={summary} getEditRevision={getEditRevision} active={open && discovery === 'places'} window={{ date: query.date, start: query.start, end: query.end, timeZone: query.timeZone }} onApply={onApplyAdjustment ? (reply, revision, expected) => { if (!onApplyAdjustment(reply, revision, expected)) return false; latest.current = ''; if (reply.query) setQuery(reply.query); setOutdated(true); return true; } : undefined}/>}
         {!!visible.promising.length && <><h4>Promising — needs checking</h4>{visible.promising.map(card)}</>}
         {!visible.verified.length && !visible.promising.length && <p>No useful options returned for these filters. Review the exclusions or try another area/category without changing firm limits.</p>}
@@ -108,7 +113,7 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
         <ul className="note">{visible.notices.map(n => <li key={n}>{n}</li>)}</ul>{visible.mode === 'live' && <p className="places-attribution">Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors (ODbL)</a></p>}
       </>}
       </div>
-      <EventFinder active={open && discovery === 'events'} query={query} onQuery={change} summary={summary} token={token} loaded={loaded} previewOnly={previewOnly} getEditRevision={getEditRevision} onApplyAdjustment={onApplyAdjustment} ideasVersion={ideasVersion} onSaveIdea={onSaveIdea} />
+      <EventFinder preference={preference} onPreference={next => { if (allowDraftReplacement()) setPreference(next); }} active={open && discovery === 'events'} query={query} onQuery={change} summary={summary} token={token} loaded={loaded} previewOnly={previewOnly} getEditRevision={getEditRevision} onApplyAdjustment={onApplyAdjustment} ideasVersion={ideasVersion} onSaveIdea={onSaveIdea} />
     </div>
   </section>;
 }

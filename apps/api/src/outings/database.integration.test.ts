@@ -9,7 +9,7 @@ import { PlanStore } from '../plans/store.js';
 import { OutingStore } from './store.js';
 import { PlaceStore } from '../places/store.js';
 import { createApp } from '../app.js';
-import { demoPlaces, demoPlaceQuery, demoPlaceSummary, evaluatePlaces, shortlistPlace, outingOwnerSchema, ownFeedbackSchema, publicOutingSchema } from '@fuzl/planning';
+import { demoPlaces, demoPlaceQuery, demoPlaceSummary, evaluatePlaces, rankDiscovery, shortlistPlace, outingOwnerSchema, ownFeedbackSchema, publicOutingSchema } from '@fuzl/planning';
 const enabled = process.env.FUZL_DISPOSABLE_DATABASE === 'owned-by-test-runner' && !!process.env.FUZL_TEST_DATABASE_URL;
 const id = () => randomUUID(), token = () => randomBytes(32).toString('base64url');
 test('Section 9 real disposable outing → own feedback → approved same-group memory → edit/remove', { skip: !enabled }, async t => {
@@ -50,6 +50,14 @@ test('Section 9 real disposable outing → own feedback → approved same-group 
     await outings.complete(owner, session.id, complete); assert.equal(await db.outing.count({ where: { planId: plan.id } }), 1); assert.equal((await outings.past(owner, group.id)).length, 1);
     assert.equal((await plans.page(shared)).status, 'completed'); assert.equal((await context()).memories?.length, 0);
   });
+  await t.test('10.3 actual visits without approved feedback are matched only in their own saved group; RSVP/vote records confer no favorite', async () => {
+    const own = await context(), other = await context(different.id);
+    assert.ok(own.visitHistory?.sourceUrls.includes(f.candidates[0].sourceUrl!));
+    assert.deepEqual(other.visitHistory, { sourceUrls: [], uncertain: false });
+    const checked = evaluatePlaces(f.candidates, f.area, demoPlaceQuery, summary, [], own.memories, own.visitHistory);
+    assert.equal(checked.ranked![0].discovery?.visit, 'recorded'); assert.equal(checked.ranked![0].discovery?.favorite, false);
+    assert.ok(rankDiscovery(checked.ranked!, 'familiar').notice.includes('Too little matched group history'));
+  });
   let submission!: { submissionId: string; editToken: string; payload: { outingRevision: number; answers: typeof answers } };
   await t.test('guest sees actual approved fields and own response only; duplicate sends, edits and same-name credentials are scoped', async () => {
     tick(); const pageResponse = await call('/plan/outing', shared), page = publicOutingSchema.parse(await pageResponse.json()); assert.equal(page.actual.meetingPoint, actual.meetingPoint); assert.ok(!JSON.stringify(page).includes('original'));
@@ -67,7 +75,7 @@ test('Section 9 real disposable outing → own feedback → approved same-group 
     await refresh(); await approve('One attendee would return. Parking was difficult.'); assert.equal(outing.memoryActive, true);
     const first = await context(), second = await context(different.id); assert.equal(first.memories?.length, 1); assert.equal(second.memories?.length, 0);
     const r = await call(`/private/sessions/${next.id}/places/search`, 'synthetic-owner-bearer', 'POST', { mode: 'demo', sessionRevision: 1, summary, query: demoPlaceQuery, manual: [] }); assert.equal(r.status, 200); const text = await r.text(); assert.ok(text.includes('Approved group takeaway')); for (const word of ['PRIVATE', 'Sam', 'editDigest']) assert.ok(!text.includes(word));
-    const judged = evaluatePlaces(f.candidates, f.area, demoPlaceQuery, summary, [], first.memories); assert.equal(judged.verified[0].memory?.boost, 2);
+    const judged = evaluatePlaces(f.candidates, f.area, demoPlaceQuery, summary, [], first.memories, first.visitHistory); assert.equal(judged.verified[0].memory?.boost, 2); assert.equal(judged.verified[0].discovery?.favorite, true);
     const costly = { ...f.candidates[0], price: { ...f.candidates[0].price, amount: 999 } }; assert.equal(evaluatePlaces([costly], f.area, demoPlaceQuery, summary, [], first.memories).excluded.length, 1);
     assert.equal(evaluatePlaces([f.candidates[0]], f.area, { ...demoPlaceQuery, start: '23:00', end: '23:30' }, summary, [], first.memories).verified.length, 0);
   });
@@ -87,6 +95,14 @@ test('Section 9 real disposable outing → own feedback → approved same-group 
     outing = (await outings.editActual(owner, session.id, correction))!; assert.equal(outing.original.details.meetingPoint, 'Original synthetic gate'); assert.deepEqual(outing.confirmedAttendees, ['Organizer explicitly confirms Pat']); assert.ok(outing.feedback.every(f => f.needsReview));
     await approve('We changed venues.'); assert.equal((await context()).memories![0].sourceUrl, null, 'no boost transferred to unvisited source'); assert.equal((await context()).memories![0].sentiment, 'unrated');
     assert.equal((await call('/plan/feedback', edit, 'PUT', { requestId: id(), revision: 2, payload: submission.payload }, shared)).status, 409, 'stale actual outing cannot be answered');
+  });
+  await t.test('10.3 corrected actual venues without an explicit match suspend novelty claims; future search returns only minimal history labels', async () => {
+    const current = await context(); assert.equal(current.visitHistory?.uncertain, true);
+    assert.ok(!current.visitHistory?.sourceUrls.includes(f.candidates[0].sourceUrl!));
+    const judged = evaluatePlaces(f.candidates, f.area, demoPlaceQuery, summary, [], current.memories, current.visitHistory);
+    assert.ok(judged.ranked!.every(row => row.discovery?.visit === 'unknown' && !row.discovery.favorite));
+    assert.equal(rankDiscovery(judged.ranked!, 'new').changed, false);
+    assert.ok(!JSON.stringify(judged).includes('PRIVATE')); assert.ok(!JSON.stringify(judged).includes('confirmedAttendees'));
   });
   await t.test('moving a saved session does not move an outing memory to another group', async () => {
     await organizer.updateSession(owner, session.id, otherGroup.id, 1, payload);

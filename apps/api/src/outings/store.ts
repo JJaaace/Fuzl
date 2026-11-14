@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { actualOutingSchema, memoryOpinionSchema, ballotSourceUrl, feedbackSentiment, outingOwnerSchema, ownFeedbackSchema, planDraftSchema, publicOutingSchema, localInstant } from '@fuzl/planning';
-import type { GroupMemory, recordOutingSchema, outingEditSchema, memoryEditSchema, feedbackCreateSchema, feedbackEditSchema } from '@fuzl/planning';
+import type { GroupVisitHistory, GroupMemory, recordOutingSchema, outingEditSchema, memoryEditSchema, feedbackCreateSchema, feedbackEditSchema } from '@fuzl/planning';
 import type { z } from 'zod';
 import type { Outing, OutingFeedback, Prisma, PrismaClient } from '../generated/prisma/client.js';
 import { ExtractionError } from '../extraction/errors.js';
@@ -117,4 +117,12 @@ export async function groupMemories(tx: Prisma.TransactionClient, groupId: strin
   const rows = await tx.outing.findMany({ where: { groupId, plan: { status: 'completed' }, approvedTakeaway: { not: null } }, select: { id: true, revision: true, actualVersion: true, actual: true, sameListing: true, original: true, approvedTakeaway: true, feedbackVersion: true, approvedFeedbackVersion: true, feedback: { select: { memoryOpinion: true, actualVersion: true }, take: 200 } }, orderBy: { createdAt: 'desc' }, take: 100 });
   const memories = rows.filter(r => r.approvedFeedbackVersion === r.feedbackVersion).map(r => ({ sourceUrl: r.sameListing ? ballotSourceUrl(planDraftSchema.parse(r.original).option) : null, takeaway: r.approvedTakeaway!, date: actualOutingSchema.parse(r.actual).date!, sentiment: feedbackSentiment(r.feedback.filter(f => f.actualVersion === r.actualVersion).map(f => memoryOpinionSchema.parse(f.memoryOpinion))) }));
   return { memories, fingerprint: rows.map(r => [r.id, r.revision, r.feedbackVersion, r.approvedFeedbackVersion]) };
+}
+
+// Minimal completed-outing matches. Unapproved feedback/notes are never read.
+// A changed actual venue without an explicit same-listing match stays unknown.
+export async function groupVisitHistory(tx: Prisma.TransactionClient, groupId: string): Promise<{ history: GroupVisitHistory; fingerprint: unknown }> {
+  const rows = await tx.outing.findMany({ where: { groupId, plan: { status: 'completed' } }, select: { id: true, revision: true, sameListing: true, original: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 101 });
+  const urls = rows.slice(0, 100).map(row => row.sameListing ? ballotSourceUrl(planDraftSchema.parse(row.original).option) : null);
+  return { history: { sourceUrls: [...new Set(urls.filter((url): url is string => url !== null))], uncertain: rows.length > 100 || urls.some(url => url === null) }, fingerprint: rows.map(row => [row.id, row.revision]) };
 }

@@ -1,3 +1,7 @@
+import { publicOutingRouter } from './outings/router.js';
+import type { OutingOptions } from './outings/router.js';
+import { publicPlanRouter } from './plans/router.js';
+import type { PlanOptions } from './plans/router.js';
 import { publicBallotRouter } from './ballots/router.js';
 import type { BallotOptions } from './ballots/router.js';
 import { publicGuestRouter } from './guests/router.js';
@@ -14,7 +18,7 @@ import { readScreenshots } from './extraction/transcribe.js';
 import { exceptionFailure } from './extraction/provider-diagnostics.js';
 
 type Extractor = (request: AnalysisRequest, signal: AbortSignal) => Promise<AnalysisResponse>;
-export function createApp(options: { ballots?: BallotOptions; guests?: GuestOptions; accounts?: Parameters<typeof accountRouter>[0]; transcribe?: (request: ScreenshotReadRequest, signal: AbortSignal) => Promise<TranscriptionResponse>; extract?: Extractor; checkConfiguration?: () => void; now?: () => number; timeoutMs?: number } = {}) {
+export function createApp(options: { outings?: OutingOptions; plans?: PlanOptions; ballots?: BallotOptions; guests?: GuestOptions; accounts?: Parameters<typeof accountRouter>[0]; transcribe?: (request: ScreenshotReadRequest, signal: AbortSignal) => Promise<TranscriptionResponse>; extract?: Extractor; checkConfiguration?: () => void; now?: () => number; timeoutMs?: number } = {}) {
   const app = express();
   app.disable('x-powered-by');
   const extract = options.extract ?? extractConversation;
@@ -117,9 +121,12 @@ export function createApp(options: { ballots?: BallotOptions; guests?: GuestOpti
       message: tooLarge ? 'The request exceeds its screenshot-upload or text limit. Use smaller screenshots or a shorter conversation.' : malformed ? 'The request could not be read. Check the input and try again.' : 'The API could not complete analysis. Your existing summary was kept. Retry later or use manual entry.',
     } });
   };
+  const publicOutings = publicOutingRouter(options.outings);
+  app.use('/api/plan', (req, res, next) => ['/outing', '/feedback', '/feedbacks'].includes(req.path) ? publicOutings(req, res, next) : next());
+  app.use('/api/plan', publicPlanRouter(options.plans));
   app.use('/api/ballot', publicBallotRouter(options.ballots));
   app.use('/api/guest', publicGuestRouter(options.guests));
-  app.use('/api', accountRouter({ ...options.accounts, guests: options.guests, ballots: options.ballots ?? options.accounts?.ballots }));
+  app.use('/api', accountRouter({ ...options.accounts, outings: options.outings ?? options.accounts?.outings, guests: options.guests, ballots: options.ballots ?? options.accounts?.ballots, plans: options.plans ?? options.accounts?.plans }));
   app.use(errors);
   return app;
 }

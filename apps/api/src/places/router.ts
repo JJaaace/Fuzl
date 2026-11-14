@@ -57,7 +57,7 @@ export function placeRouter(options: PlacesOptions = {}) {
       const searchId = recheck ? (input as import('@fuzl/planning').PlaceSearch & { searchId: string }).searchId : cache.put({ subject, sessionId: id.data, revision: input.sessionRevision, contextVersion: latest.version, queryKey: searchBoundaryKey(input.query), area: found.area, candidates: found.candidates, mode: input.mode });
       const manual = manualPlaces(input.manual, retrievedAt);
       const all = [...found.candidates, ...manual].map(candidate => candidateSchema.parse(correctedPlace(candidate, input.corrections ?? [])));
-      const result = placeResultsSchema.parse({ mode: input.mode, searchId, coverage: found.candidates.length === 0 ? 'empty' : found.candidates.length < 3 ? 'sparse' : 'available', retrievedAt, ...evaluatePlaces(all, found.area, input.query, input.summary, latest.privateSpending) });
+      const result = placeResultsSchema.parse({ mode: input.mode, searchId, coverage: found.candidates.length === 0 ? 'empty' : found.candidates.length < 3 ? 'sparse' : 'available', retrievedAt, ...evaluatePlaces(all, found.area, input.query, input.summary, latest.privateSpending, latest.memories) });
       res.json(result);
     } catch (error) {
       if (controller.signal.aborted) return;

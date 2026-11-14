@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { actualOutingSchema, feedbackAnswersSchema, feedbackSentiment, memoryInfluence, demoPlaceQuery, demoPlaces, demoPlaceSummary, evaluatePlaces, demoEvents, evaluateEvents, memoryEditSchema } from '@fuzl/planning';
+import type { GroupMemory } from '@fuzl/planning';
+import { createApp } from '../app.js';
+const stamp = '2026-11-14T12:00:00.000Z';
+const memory = (sourceUrl: string): GroupMemory => ({ sourceUrl, date: '2026-11-07', takeaway: 'Attendees liked the walk; parking was difficult.', sentiment: 'positive' });
+test('actual outings require explicit clear facts; attendance and optional feedback are independent from votes and RSVP intent', () => {
+  const actual = { activity: 'Synthetic walk', date: '2026-11-07', time: '15:00', timeZone: 'America/New_York', meetingPoint: 'North gate' };
+  assert.ok(actualOutingSchema.safeParse(actual).success);
+  for (const patch of [{ date: null }, { time: null }, { meetingPoint: '' }, { date: '2026-11-01', time: '01:30' }]) assert.equal(actualOutingSchema.safeParse({ ...actual, ...patch }).success, false);
+  const f = { alias: 'Sam', attended: false, again: null, worth: null, note: '', allowMemory: false };
+  assert.ok(feedbackAnswersSchema.safeParse(f).success);
+  for (const patch of [{ again: 'yes' }, { note: 'I voted yes' }, { allowMemory: true }, { choice: 'going' }]) assert.equal(feedbackAnswersSchema.safeParse({ ...f, ...patch }).success, false);
+  assert.ok(feedbackAnswersSchema.safeParse({ ...f, attended: true }).success, 'all questions may be skipped');
+  assert.equal(memoryEditSchema.safeParse({ requestId: crypto.randomUUID(), revision: 1, feedbackVersion: 0, privateNotes: '', proposedTakeaway: '', approvedTakeaway: null, action: 'approve', approved: true }).success, false);
+});
+test('only permitted explicit attendee ratings affect repeat preference; mixed and unanswered ratings stay honest', () => {
+  const yes = { attended: true, allowMemory: true, again: 'yes' as const };
+  assert.equal(feedbackSentiment([yes]), 'positive');
+  assert.equal(feedbackSentiment([yes, { ...yes, again: 'no' }]), 'mixed');
+  assert.equal(feedbackSentiment([yes, { ...yes, again: 'unsure' }]), 'mixed');
+  assert.equal(feedbackSentiment([{ ...yes, again: null }]), 'unrated');
+  assert.equal(feedbackSentiment([{ ...yes, allowMemory: false }]), 'unrated');
+  assert.equal(feedbackSentiment([{ ...yes, attended: false }]), 'unrated');
+  const positive = memory('https://example.com/specific');
+  assert.equal(memoryInfluence('https://example.com/other', [positive]), undefined);
+  assert.equal(memoryInfluence(positive.sourceUrl!, [{ ...positive, sentiment: 'mixed' }])?.boost, 0);
+  assert.equal(memoryInfluence(positive.sourceUrl!, [positive, { ...positive, sentiment: 'mixed', date: '2026-11-08' }])?.boost, 0, 'latest observation, not permanent preference');
+});
+test('approved memory changes same-place ranking but never eligibility, current budget, timing or provider evidence; events preserve exclusions', () => {
+  const f = demoPlaces(demoPlaceQuery, stamp); assert.ok('area' in f);
+  const original = f.candidates[0], a = { ...original, id: 'a', sourceUrl: 'https://example.com/a' }, b = { ...original, id: 'b', sourceUrl: 'https://example.com/b' };
+  const get = (memories: GroupMemory[] = []) => evaluatePlaces([a, b], f.area, demoPlaceQuery, demoPlaceSummary(), [], memories);
+  assert.equal(get().verified[0].candidate.id, 'a');
+  const ranked = get([memory(b.sourceUrl)]); assert.equal(ranked.verified[0].candidate.id, 'b'); assert.equal(ranked.verified[0].memory?.boost, 2); assert.deepEqual(ranked.verified[0].checks, get().verified[1].checks);
+  const expensive = { ...b, price: { ...b.price, amount: 999 } };
+  assert.equal(evaluatePlaces([expensive], f.area, demoPlaceQuery, demoPlaceSummary(), [], [memory(b.sourceUrl)]).excluded.length, 1);
+  assert.equal(evaluatePlaces([b], f.area, { ...demoPlaceQuery, start: '23:00', end: '23:30' }, demoPlaceSummary(), [], [memory(b.sourceUrl)]).verified.length, 0);
+  assert.equal(get([]).verified[0].memory, undefined, 'deletion/no current group memory removes influence');
+  const q = { area: 'Columbus, OH', radiusKm: 15, from: '2026-11-14', to: '2026-11-14' }, events = demoEvents(q, stamp); assert.ok('events' in events);
+  const e = events.events[0], known = memory(e.sourceUrl);
+  const cancelled = evaluateEvents([{ ...e, providerStatus: 'cancelled' }], events.area, q, demoPlaceSummary(), [], [known]); assert.equal(cancelled.excluded.length, 1);
+  const outside = evaluateEvents([{ ...e, schedule: { ...e.schedule, date: '2026-11-15' } }], events.area, q, demoPlaceSummary(), [], [known]); assert.equal(outside.verified.length + outside.promising.length, 0);
+});
+test('new public feedback boundaries reject missing credentials, unsafe origins/oversize inputs and sanitize storage failures without logs', async t => {
+  let logs = 0; t.mock.method(console, 'error', () => { logs++; });
+  const server = createApp({ outings: { store: () => { throw Error('PRIVATE credential connection string raw chat'); } } }).listen(0, '127.0.0.1'); await new Promise<void>(r => server.once('listening', r)); t.after(() => new Promise<void>(r => server.close(() => r())));
+  const base = `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}/api`, headers = { Authorization: `Bearer ${'a'.repeat(43)}`, 'Content-Type': 'application/json' };
+  assert.equal((await fetch(base + '/plan/outing')).status, 400);
+  const r = await fetch(base + '/plan/outing', { headers }); assert.equal(r.status, 503); assert.equal(r.headers.get('cache-control'), 'no-store, private'); assert.ok(!(await r.text()).includes('PRIVATE'));
+  assert.equal((await fetch(base + '/plan/feedback', { headers })).status, 400);
+  assert.equal((await fetch(base + '/plan/outing', { headers: { ...headers, Origin: 'https://other.example' } })).status, 403);
+  assert.equal((await fetch(base + '/plan/feedbacks', { method: 'POST', headers, body: JSON.stringify({ raw: 'x'.repeat(18000) }) })).status, 413);
+  assert.equal((await fetch(base + '/private/groups/00000000-0000-4000-8000-000000000001/outings')).status, 401); assert.equal(logs, 0);
+});

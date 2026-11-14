@@ -316,3 +316,13 @@ test('screenshot read opens compact review; hidden message editors retain correc
   await stage('Transcript'); await enter(text, 'Another correction.'); await stage('Conversation');
   assert.ok(draft.value.includes('Another correction.')); assert.equal(calls.filter((url) => url === '/api/transcribe').length, 1); assert.equal(calls.filter((url) => url === '/api/analyze').length, 0);
 });
+
+
+test('unsaved outing or takeaway fields participate in the workspace unload protection', async t => {
+  await mount(t);
+  const event = () => new Event('beforeunload', { cancelable: true });
+  const clean = event(); window.dispatchEvent(clean); assert.equal(clean.defaultPrevented, false);
+  const panel = document.createElement('section'); panel.className = 'outing-organizer'; panel.dataset.planDirty = 'true'; document.body.append(panel); t.after(() => panel.remove());
+  const pending = event(); window.dispatchEvent(pending); assert.equal(pending.defaultPrevented, true);
+  panel.dataset.planDirty = 'false'; const saved = event(); window.dispatchEvent(saved); assert.equal(saved.defaultPrevented, false);
+});

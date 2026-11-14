@@ -45,7 +45,7 @@ export function eventRouter(options: EventsOptions = {}) {
       const latest = await store.context(subject, id.data, input);
       if (latest.version !== context.version) throw new ExtractionError(409, 'events_context_changed', 'Saved planning or private answers changed during the search. Review and search again; no stale event shortlist was accepted.');
       if ('choices' in found) { res.json(eventResponseSchema.parse({ kind: 'clarification', mode: input.mode, choices: found.choices, message: 'Choose the intended resolved area. No event provider request has run yet.' })); return; }
-      res.json(eventResponseSchema.parse({ mode: input.mode, area: found.area, query: input.query, retrievedAt: new Date((options.now ?? Date.now)()).toISOString(), ...evaluateEvents(found.events, found.area, input.query, input.summary, latest.privateSpending) }));
+      res.json(eventResponseSchema.parse({ mode: input.mode, area: found.area, query: input.query, retrievedAt: new Date((options.now ?? Date.now)()).toISOString(), ...evaluateEvents(found.events, found.area, input.query, input.summary, latest.privateSpending, latest.memories) }));
     } catch (error) {
       if (controller.signal.aborted) return;
       if (error instanceof ExtractionError) throw error;

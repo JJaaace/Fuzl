@@ -1,0 +1,22 @@
+import { z } from 'zod';
+import { planDetailsSchema, planDraftSchema, planMutationBase, publishablePlan } from './plans.js';
+import { guestTokenSchema } from './guests.js';
+
+export const actualOutingSchema = planDetailsSchema.pick({ activity: true, date: true, time: true, timeZone: true, meetingPoint: true }).refine(d => publishablePlan({ ...d, cost: { amount: null, currency: null, kind: 'unknown', basis: 'unknown' }, links: [], instructions: '', unresolved: [], booking: 'unknown' }), 'Confirm the actual activity, date, local time, zone and meeting point.');
+export type ActualOuting = z.infer<typeof actualOutingSchema>;
+export const recordOutingSchema = z.strictObject({ ...planMutationBase, actual: actualOutingSchema, sameListing: z.boolean(), confirmedAttendees: z.array(z.string().trim().min(1).max(80)).max(200), approved: z.literal(true) });
+export const outingEditSchema = recordOutingSchema.omit({ approved: true });
+export const feedbackAnswersSchema = z.strictObject({ alias: z.string().trim().min(1).max(80), attended: z.boolean(), again: z.enum(['yes', 'no', 'unsure']).nullable(), worth: z.enum(['yes', 'no', 'unsure']).nullable(), note: z.string().trim().max(500), allowMemory: z.boolean() }).refine(f => f.attended || f.again === null && f.worth === null && !f.note && !f.allowMemory, 'Only people explicitly reporting attendance can give outing feedback.');
+export const memoryOpinionSchema = z.strictObject({ attended: feedbackAnswersSchema.shape.attended, allowMemory: feedbackAnswersSchema.shape.allowMemory, again: feedbackAnswersSchema.shape.again });
+export const feedbackPayloadSchema = z.strictObject({ outingRevision: z.number().int().positive(), answers: feedbackAnswersSchema });
+export const feedbackCreateSchema = z.strictObject({ submissionId: z.string().uuid(), editToken: guestTokenSchema, payload: feedbackPayloadSchema });
+export const feedbackEditSchema = z.strictObject({ requestId: z.string().uuid(), revision: z.number().int().positive(), payload: feedbackPayloadSchema });
+export const ownFeedbackSchema = z.strictObject({ answers: feedbackAnswersSchema, needsReview: z.boolean(), revision: z.number().int().positive(), updatedAt: z.string().datetime() });
+export type OwnFeedback = z.infer<typeof ownFeedbackSchema>;
+export const publicOutingSchema = z.strictObject({ id: z.string().uuid(), revision: z.number().int().positive(), actual: actualOutingSchema });
+export const memoryEditSchema = z.strictObject({ ...planMutationBase, feedbackVersion: z.number().int().min(0), privateNotes: z.string().trim().max(1000), proposedTakeaway: z.string().trim().max(300), approvedTakeaway: z.string().trim().min(1).max(300).nullable(), action: z.enum(['notes', 'approve', 'remove']), approved: z.literal(true) }).refine(v => v.action === 'approve' ? v.approvedTakeaway !== null : v.approvedTakeaway === null);
+export const outingOwnerSchema = z.strictObject({ id: z.string().uuid(), sessionId: z.string().uuid(), revision: z.number().int().positive(), actual: actualOutingSchema, original: planDraftSchema, originalVersion: z.number().int().positive(), sameListing: z.boolean(), confirmedAttendees: z.array(z.string()).max(200), feedbackVersion: z.number().int().min(0), feedback: z.array(ownFeedbackSchema.extend({ id: z.string().uuid() })).max(200), privateNotes: z.string(), proposedTakeaway: z.string(), approvedTakeaway: z.string().nullable(), memoryActive: z.boolean(), createdAt: z.string().datetime() });
+export type OwnerOuting = z.infer<typeof outingOwnerSchema>;
+export const pastOutingSchema = outingOwnerSchema.pick({ id: true, sessionId: true, actual: true, approvedTakeaway: true, memoryActive: true });
+export type PastOuting = z.infer<typeof pastOutingSchema>;
+export const pastOutingsSchema = z.array(pastOutingSchema).max(100);

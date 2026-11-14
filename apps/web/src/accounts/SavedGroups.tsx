@@ -1,3 +1,4 @@
+import PastOutings from '../outings/PastOutings';
 import { useEffect, useRef, useState } from 'react';
 import type { SavedGroup, SavedSession, SessionListItem } from '@fuzl/planning';
 import { useAccount } from './AccountProvider';
@@ -81,6 +82,7 @@ function GroupLibrary({ token, active, onOpen, onWorkspace }: { token: string; a
             await privateRequest(token, `/groups/${selected.id}`, active.signal, 'DELETE'); if (active.signal.aborted) return; setSelected(null); setSessions([]); setVersion((value) => value + 1);
           }); }}>Delete group</button></div>
         <button onClick={onWorkspace}>Go to workspace to save a session</button>
+        <PastOutings key={selected.id} token={token} groupId={selected.id}/>
         <ul className="session-list">{sessions.map((item) => <li key={item.id}><strong>{item.title}</strong><p className="note">Updated {new Date(item.updatedAt).toLocaleString()}</p>
           <div className="actions"><button disabled={busy} onClick={() => void act(async (active) => {
             const result = validateLoadedSession(await privateRequest<SavedSession>(token, `/sessions/${item.id}`, active.signal)); if (!active.signal.aborted) onOpen(result);

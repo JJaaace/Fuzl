@@ -454,3 +454,12 @@ button.primary[aria-busy=true] { background: var(--accent-wash); color: var(--in
 .ballot-choice input { width: 22px; height: 22px; flex-shrink: 0; }
 .ballot-guest fieldset { min-width: 0; }
 .ballot-guest .primary { min-height: 44px; }
+
+.plan-instructions { white-space: pre-wrap; overflow-wrap: anywhere; }
+.plan-organizer, .plan-guest, .plan-details { min-width: 0; overflow-wrap: anywhere; }
+.plan-guest .primary { min-height: 44px; }
+/* Outing details and optional feedback reuse the workspace form tokens. */
+.outing-organizer fieldset, .guest-feedback fieldset { min-width: 0; border: 1px solid var(--border); border-radius: 12px; margin: 1rem 0; padding: 1rem; }
+.outing-organizer legend, .guest-feedback legend { font-weight: 600; padding: 0 .35rem; }
+.outing-organizer textarea, .guest-feedback textarea { width: 100%; box-sizing: border-box; }
+.group-memory { overflow-wrap: anywhere; }

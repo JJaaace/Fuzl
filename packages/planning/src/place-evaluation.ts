@@ -1,3 +1,5 @@
+import { memoryInfluence } from './memory.js';
+import type { GroupMemory } from './memory.js';
 import { placeEvidence } from './place-evidence.js';
 import { venueWindow } from './place-location.js';
 import type { PlanningFact, PlanningSummary } from './model.js';
@@ -28,7 +30,7 @@ export function budgetCheck(candidate: Pick<PlaceCandidate, 'price'>, limit: { a
         : 'Affordability needs checking: match total cost, per-person basis, currency and a settled limit. Admission alone or a price tier is insufficient.';
   return { kind, status, detail };
 }
-export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, query: PlaceQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = []): Omit<PlaceResults, 'mode' | 'retrievedAt'> {
+export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, query: PlaceQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = []): Omit<PlaceResults, 'mode' | 'retrievedAt'> {
   const facts = summary.facts.filter(current);
   const budgets = facts.filter(f => f.kind === 'budget');
   const seenIds = new Set<string>(), seenUrls = new Set<string>();
@@ -89,7 +91,8 @@ export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, qu
     const reason = status === 'fits' ? 'The supplied details satisfy the checked constraints; this is a suggestion, not a reservation.' : status === 'does-not-fit' ? 'A firm constraint or search boundary excludes this option.' : matches ? 'Matches a reviewed activity preference; unresolved checks remain.' : 'A candidate in the chosen area; verify the unresolved details before deciding.';
     const nextStep = checks.some(c => c.kind === 'budget' && c.status !== 'fits') ? 'Check total per-person prices' : checks.some(c => c.kind === 'private-budget' && c.status !== 'fits') ? 'Review private spending feasibility' : checks.some(c => c.kind === 'timing' && c.status !== 'fits') ? 'Confirm date-specific hours' : checks.some(c => c.blocking !== false && c.status !== 'fits') ? 'Check remaining requirements' : 'Confirm seats, tickets or reservation availability';
     // Hard eligibility is sorted before these transparent preference tie-breakers.
-    ranked.push({ result: { candidate: listing, status, checks, reason, nextStep, distanceKm, ranking, effectiveAddress: candidate.address, localWindow: window ? `${window.date} ${window.start}–${window.end} ${window.timeZone}` : null }, score: matches * 10 + flexibleBudgetFits * 3 + known - (distanceKm ?? query.radiusKm) / 100 });
+    const memory = memoryInfluence(listing.sourceUrl, memories);
+    ranked.push({ result: { candidate: listing, ...(memory ? { memory } : {}), status, checks, reason, nextStep, distanceKm, ranking, effectiveAddress: candidate.address, localWindow: window ? `${window.date} ${window.start}–${window.end} ${window.timeZone}` : null }, score: (memory?.boost ?? 0) + matches * 10 + flexibleBudgetFits * 3 + known - (distanceKm ?? query.radiusKm) / 100 });
   }
   ranked.sort((a, b) => (a.result.status === 'fits' ? 0 : a.result.status === 'needs-checking' ? 1 : 2) - (b.result.status === 'fits' ? 0 : b.result.status === 'needs-checking' ? 1 : 2) || b.score - a.score || a.result.candidate.id.localeCompare(b.result.candidate.id));
   const useful = ranked.filter(r => r.result.status !== 'does-not-fit').slice(0, 3).map(r => r.result);

@@ -26,6 +26,7 @@ model Group {
   updatedAt DateTime @updatedAt
   aliases ParticipantAlias[]
   sessions PlanningSession[]
+  outings Outing[]
   @@index([ownerId])
   @@schema("fuzl")
   @@map("fuzl_groups")
@@ -49,6 +50,7 @@ model PlanningSession {
   invites GuestInvite[]
   shortlist BallotShortlist?
   ballots Ballot[]
+  plan SharedPlan?
   summaryVersion Int @default(1)
   summary Json
   provenance Json
@@ -152,4 +154,115 @@ model BallotVote {
   @@index([ballotId])
   @@schema("fuzl")
   @@map("fuzl_ballot_votes")
+}
+
+model SharedPlan {
+  id String @id @default(uuid()) @db.Uuid
+  sessionId String @unique @db.Uuid
+  session PlanningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  draft Json
+  status String @default("proposed") @db.VarChar(12)
+  revision Int @default(1)
+  publishedVersion Int @default(0)
+  materialVersion Int @default(0)
+  rsvpsClosed Boolean @default(false)
+  lastRequestId String @db.Uuid
+  lastRequestHash String @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  versions PlanVersion[]
+  links PlanLink[]
+  rsvps PlanRsvp[]
+  outing Outing?
+  @@schema("fuzl")
+  @@map("fuzl_shared_plans")
+}
+model PlanVersion {
+  id String @id @default(uuid()) @db.Uuid
+  planId String @db.Uuid
+  plan SharedPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  version Int
+  materialVersion Int
+  snapshot Json
+  status String @db.VarChar(12)
+  changeNotice String @db.VarChar(500)
+  createdAt DateTime @default(now())
+  @@unique([planId, version])
+  @@schema("fuzl")
+  @@map("fuzl_plan_versions")
+}
+model PlanLink {
+  id String @id @default(uuid()) @db.Uuid
+  planId String @db.Uuid
+  plan SharedPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  activePlanId String? @unique @db.Uuid
+  tokenDigest String @unique @db.VarChar(64)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([planId])
+  @@schema("fuzl")
+  @@map("fuzl_plan_links")
+}
+model PlanRsvp {
+  id String @id @default(uuid()) @db.Uuid
+  planId String @db.Uuid
+  plan SharedPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  submissionId String @db.Uuid
+  editDigest String @unique @db.VarChar(64)
+  alias String @db.VarChar(80)
+  choice String @db.VarChar(8)
+  answeredMaterialVersion Int
+  revision Int @default(1)
+  lastRequestId String? @db.Uuid
+  updatedAt DateTime @updatedAt
+  @@unique([planId, submissionId])
+  @@index([planId])
+  @@schema("fuzl")
+  @@map("fuzl_plan_rsvps")
+}
+
+model Outing {
+  id String @id @default(uuid()) @db.Uuid
+  planId String @unique @db.Uuid
+  plan SharedPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  groupId String @db.Uuid
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  original Json
+  originalVersion Int
+  actual Json
+  actualVersion Int @default(1)
+  sameListing Boolean @default(false)
+  confirmedAttendees Json
+  revision Int @default(1)
+  feedbackVersion Int @default(0)
+  privateNotes String @default("") @db.VarChar(1000)
+  proposedTakeaway String @default("") @db.VarChar(300)
+  approvedTakeaway String? @db.VarChar(300)
+  approvedFeedbackVersion Int?
+  lastRequestId String @db.Uuid
+  lastRequestHash String @db.VarChar(64)
+  createdAt DateTime @default(now())
+  feedback OutingFeedback[]
+  @@index([groupId])
+  @@schema("fuzl")
+  @@map("fuzl_outings")
+}
+model OutingFeedback {
+  id String @id @default(uuid()) @db.Uuid
+  outingId String @db.Uuid
+  outing Outing @relation(fields: [outingId], references: [id], onDelete: Cascade)
+  submissionId String @db.Uuid
+  editDigest String @db.VarChar(64)
+  answers Json
+  memoryOpinion Json
+  actualVersion Int @default(1)
+  revision Int @default(1)
+  lastRequestId String? @db.Uuid
+  lastRequestHash String? @db.VarChar(64)
+  updatedAt DateTime @updatedAt
+  @@unique([outingId, submissionId])
+  @@unique([outingId, editDigest])
+  @@schema("fuzl")
+  @@map("fuzl_outing_feedback")
 }

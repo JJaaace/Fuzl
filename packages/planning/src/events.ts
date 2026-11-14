@@ -1,3 +1,4 @@
+import { memoryInfluenceSchema } from './memory.js';
 import { z } from 'zod';
 import { savedSummarySchema, summaryReferencesValid } from './saved.js';
 import { areaSchema, clockSchema, localDateSchema, placeClarificationSchema, placeQuerySchema, sourceLinkSchema, zoneSchema } from './places.js';
@@ -21,7 +22,7 @@ export type ScheduledEvent = z.infer<typeof scheduledEventSchema>;
 // A source's onsale/offsale status never establishes remaining ticket inventory.
 export const eventCheckSchema = z.strictObject({ kind: z.enum(['budget', 'private-budget', 'timing', 'travel', 'constraint', 'address', 'radius', 'booking', 'event-status']), status: z.enum(['fits', 'needs-checking', 'does-not-fit']), detail: z.string().max(700), blocking: z.boolean().optional() });
 export type EventCheck = z.infer<typeof eventCheckSchema>;
-export const assessedEventSchema = z.strictObject({ event: scheduledEventSchema, status: z.enum(['fits', 'needs-checking', 'does-not-fit']), checks: z.array(eventCheckSchema).max(200), distanceKm: z.number().nullable(), reason: z.string(), nextStep: z.string() });
+export const assessedEventSchema = z.strictObject({ event: scheduledEventSchema, memory: memoryInfluenceSchema.optional(), status: z.enum(['fits', 'needs-checking', 'does-not-fit']), checks: z.array(eventCheckSchema).max(200), distanceKm: z.number().nullable(), reason: z.string(), nextStep: z.string() });
 export type AssessedEvent = z.infer<typeof assessedEventSchema>;
 export const eventResultsSchema = z.strictObject({ mode: z.enum(['demo', 'live']), area: areaSchema, query: eventQuerySchema, retrievedAt: z.string().datetime(), verified: z.array(assessedEventSchema).max(3), promising: z.array(assessedEventSchema).max(3), excluded: z.array(assessedEventSchema).max(20), notices: z.array(z.string()).max(12) }).refine(r => r.verified.length + r.promising.length <= 3);
 export type EventResults = z.infer<typeof eventResultsSchema>;

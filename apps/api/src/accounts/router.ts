@@ -1,3 +1,7 @@
+import { organizerOutingRouter, pastOutingRouter } from '../outings/router.js';
+import type { OutingOptions } from '../outings/router.js';
+import { organizerPlanRouter } from '../plans/router.js';
+import type { PlanOptions } from '../plans/router.js';
 import { organizerBallotRouter } from '../ballots/router.js';
 import type { BallotOptions } from '../ballots/router.js';
 import { eventRouter } from '../events/router.js';
@@ -14,7 +18,7 @@ import { publicAccountConfiguration, verifyOrganizer } from './auth.js';
 import type { VerifyOrganizer } from './auth.js';
 import { database } from './database.js';
 import { OrganizerStore } from './store.js';
-export function accountRouter(options: { ballots?: BallotOptions; events?: EventsOptions; places?: PlacesOptions; guests?: GuestOptions; verify?: VerifyOrganizer; store?: () => OrganizerStore } = {}) {
+export function accountRouter(options: { outings?: OutingOptions; plans?: PlanOptions; ballots?: BallotOptions; events?: EventsOptions; places?: PlacesOptions; guests?: GuestOptions; verify?: VerifyOrganizer; store?: () => OrganizerStore } = {}) {
   const router = Router();
   router.get('/account-config', (_request, response) => response.set('Cache-Control', 'no-store').json(publicAccountConfiguration()));
   const privateRoutes = Router();
@@ -64,6 +68,9 @@ export function accountRouter(options: { ballots?: BallotOptions; events?: Event
     response.json(await store.updateSession(subject, id(request.params.id), value.groupId, value.revision, value.payload));
   }));
   privateRoutes.delete('/sessions/:id', route(async (store, subject, request, response) => { await store.deleteSession(subject, id(request.params.id)); response.status(204).end(); }));
+  privateRoutes.use('/groups/:id/outings', pastOutingRouter(options.outings));
+  privateRoutes.use('/sessions/:sessionId/outings', organizerOutingRouter(options.outings));
+  privateRoutes.use('/sessions/:sessionId/plans', organizerPlanRouter(options.plans));
   privateRoutes.use('/sessions/:sessionId/ballots', organizerBallotRouter(options.ballots));
   privateRoutes.use('/sessions/:sessionId/events', eventRouter(options.events));
   privateRoutes.use('/sessions/:sessionId/places', placeRouter(options.places));

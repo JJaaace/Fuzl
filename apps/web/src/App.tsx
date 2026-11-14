@@ -58,7 +58,7 @@ function Workspace() {
 
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (dirty || planning.draft.trim() || screenshotIds.length || document.querySelector('.saved-library form, .ballot-organizer[data-ballot-dirty="true"]')) { event.preventDefault(); event.returnValue = ''; }
+      if (dirty || planning.draft.trim() || screenshotIds.length || document.querySelector('.saved-library form, .ballot-organizer[data-ballot-dirty="true"], [data-plan-dirty="true"]')) { event.preventDefault(); event.returnValue = ''; }
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
@@ -111,7 +111,7 @@ function Workspace() {
           <button className="nav-button" aria-current={view === 'groups' ? 'page' : undefined} onClick={() => setView('groups')}><Icon name="folder" /><span>Saved groups</span></button>
         </nav>
         {session ? <details className="account-menu"><summary><span className="avatar">{session.user.email?.[0]?.toUpperCase() ?? 'O'}</span><span>Account</span><Icon name="chevron" /></summary><div className="account-popover"><p className="note">Signed in as</p><p>{session.user.email ?? 'Organizer'}</p><button className="danger quiet" onClick={() => {
-          if ((planning.review || planning.draft || screenshotIds.length || dirty || document.querySelector('.saved-library form, .ballot-organizer[data-ballot-dirty="true"]')) && !window.confirm('Sign out and clear this workspace, including unsaved private edits and temporary screenshots? Saved sessions remain on the server.')) return;
+          if ((planning.review || planning.draft || screenshotIds.length || dirty || document.querySelector('.saved-library form, .ballot-organizer[data-ballot-dirty="true"], [data-plan-dirty="true"]')) && !window.confirm('Sign out and clear this workspace, including unsaved private edits and temporary screenshots? Saved sessions remain on the server.')) return;
           void logout();
         }}>Sign out</button></div></details> : <button className="sign-in-button" onClick={() => setView('groups')}>Sign in <Icon name="arrow" /></button>}
       </header>

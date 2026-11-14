@@ -1,5 +1,7 @@
 # Section 8A — shortlist and voting
 
+Historical 8A scope/verification below; it was subsequently pushed as `4b8b844`. Section 8B builds on these flows with a separate [shared plan and RSVP model](SHARED_PLANS.md). Its hosted rollout and browser acceptance remain pending.
+
 Built on pushed checkpoint `94ed028`. This milestone saves a shortlist, publishes an account-free ballot and collects one choice per guest credential. Votes express preferences only. There is no final-plan selection/confirmation, RSVP, attendance collection, booking, purchase or published final-plan page. Those remain for 8B. No live venue/event/AI request, email, billing change, push, deployment or hosted migration was made.
 
 ## Exact local demo

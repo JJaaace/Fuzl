@@ -1,3 +1,4 @@
+import { memoryInfluenceSchema } from './memory.js';
 import { z } from 'zod';
 import { parseUsArea } from './place-location.js';
 import { savedSummarySchema, summaryReferencesValid } from './saved.js';
@@ -52,7 +53,7 @@ export type PlaceDiscovery = { area: PlaceArea; candidates: PlaceCandidate[] } |
 export const fitStates = ['fits', 'needs-checking', 'does-not-fit'] as const;
 export const fitCheckSchema = z.strictObject({ kind: z.enum(['budget', 'private-budget', 'timing', 'travel', 'constraint', 'address', 'radius', 'booking']), status: z.enum(fitStates), detail: z.string().max(350), blocking: z.boolean().optional() });
 export type FitCheck = z.infer<typeof fitCheckSchema>;
-export const assessedPlaceSchema = z.strictObject({ candidate: candidateSchema, status: z.enum(fitStates), checks: z.array(fitCheckSchema).max(70), reason: z.string().max(350), nextStep: z.string().max(150), distanceKm: z.number().nonnegative().nullable(), ranking: z.array(z.string().max(150)).max(4), effectiveAddress: z.string().nullable().optional(), localWindow: z.string().max(200).nullable().optional() });
+export const assessedPlaceSchema = z.strictObject({ candidate: candidateSchema, memory: memoryInfluenceSchema.optional(), status: z.enum(fitStates), checks: z.array(fitCheckSchema).max(70), reason: z.string().max(350), nextStep: z.string().max(150), distanceKm: z.number().nonnegative().nullable(), ranking: z.array(z.string().max(150)).max(4), effectiveAddress: z.string().nullable().optional(), localWindow: z.string().max(200).nullable().optional() });
 export type AssessedPlace = z.infer<typeof assessedPlaceSchema>;
 export const placeResultsSchema = z.strictObject({ mode: z.enum(['demo', 'live']), searchId: z.string().uuid().nullable().optional(), coverage: z.enum(['empty', 'sparse', 'available']).optional(), area: areaSchema, retrievedAt: z.string().datetime(), verified: z.array(assessedPlaceSchema).max(3), promising: z.array(assessedPlaceSchema).max(3), excluded: z.array(assessedPlaceSchema).max(23), notices: z.array(z.string().max(350)).max(10) }).refine(v => v.verified.length + v.promising.length <= 3);
 export type PlaceResults = z.infer<typeof placeResultsSchema>;

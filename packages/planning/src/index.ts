@@ -12,3 +12,6 @@ export * from './events.js';
 export * from './event-evaluation.js';
 export * from './event-fixtures.js';
 export * from './ballots.js';
+export * from './plans.js';
+export * from './outings.js';
+export * from './memory.js';

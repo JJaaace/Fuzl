@@ -1,3 +1,5 @@
+import { participationChecks } from './participation.js';
+import type { ParticipationScope } from './participation-contract.js';
 import { z } from 'zod';
 import { savedSummarySchema, summaryReferencesValid } from './saved.js';
 import { placeEvidence } from './place-evidence.js';
@@ -46,9 +48,9 @@ function availability(summary: PlanningSummary, window: VisitWindow) {
 function withEvidence(c: WorkCandidates, evidence: WorkEvidence): WorkCandidates {
   return { ...c, candidates: c.candidates.map(v => ({ ...v, visit: { ...v.visit, ...evidence.find(e => e.key === workKey(v))?.evidence } })) } as WorkCandidates;
 }
-function assessments(c: WorkCandidates, summary: PlanningSummary, memories: GroupMemory[]) {
+function assessments(c: WorkCandidates, summary: PlanningSummary, memories: GroupMemory[], participation?: ParticipationScope) {
   return c.candidates.map(candidate => {
-    const result = c.kind === 'places' ? evaluatePlaces([candidate as PlaceCandidate], c.area, c.query, summary, [], memories) : evaluateEvents([candidate as ScheduledEvent], c.area, c.query, summary, [], memories);
+    const result = c.kind === 'places' ? evaluatePlaces([candidate as PlaceCandidate], c.area, c.query, summary, [], memories, undefined, participation) : evaluateEvents([candidate as ScheduledEvent], c.area, c.query, summary, [], memories, undefined, participation);
     const r = [...result.verified, ...result.promising, ...result.excluded][0];
     return { key: workKey(candidate), name: 'name' in candidate ? candidate.name : candidate.title, status: r.status, checks: r.checks as (FitCheck | EventCheck)[] };
   });
@@ -68,12 +70,12 @@ export function applyWorkChange(c: WorkCandidates, summary: PlanningSummary, s: 
   else throw Error('Adjustment target changed.');
   return { context: copy, summary: next };
 }
-export function makeWork(context: WorkCandidates, summary: PlanningSummary, evidence: WorkEvidence = [], memories: GroupMemory[] = [], privateChecks = false): WorkReport {
+export function makeWork(context: WorkCandidates, summary: PlanningSummary, evidence: WorkEvidence = [], memories: GroupMemory[] = [], privateChecks = false, participation?: ParticipationScope): WorkReport {
   if (privateChecks) return { state: 'private-checks', message: 'Adjustment comparisons are withheld while private feasibility checks apply. No option counts, personal thresholds or individual explanations are returned. Confirm details directly without exposing private limits.', suggestions: [], options: [] };
   const seen = new Set<string>(), seenKeys = new Set<string>();
   const c = withEvidence({ ...context, candidates: context.candidates.filter(v => { const key = workKey(v); if ((v.sourceUrl !== null && seen.has(v.sourceUrl)) || seenKeys.has(key)) return false; if (v.sourceUrl !== null) seen.add(v.sourceUrl); seenKeys.add(key); return true; }).slice(0, 23).map(v => retainedVisitChecks(v, summary)) } as WorkCandidates, evidence);
   const options = c.candidates.map(v => ({ key: workKey(v), name: 'name' in v ? v.name : v.title, destination: 'name' in v ? placeEvidence(v).effective.address : v.venue.address }));
-  const base = assessments(c, summary, memories);
+  const base = assessments(c, summary, memories, participation);
   if (base.some(r => r.status === 'fits')) return { state: 'already-fits', message: 'An existing option already fits the checked constraints with these supplied details. Recheck the current cards; no relaxation is needed. Booking is still a separate check.', suggestions: [], options };
   const window = workWindow(c, summary), facts = summary.facts.filter(f => current(f) && settled(f) && attributed(f, summary) && f.strength === 'flexible' && f.subject.kind === 'group' && !f.guest);
   const time = facts.filter(f => f.kind === 'schedule' && f.exactDate === window.date && f.startTime === window.start && f.endTime === window.end);
@@ -84,8 +86,9 @@ export function makeWork(context: WorkCandidates, summary: PlanningSummary, evid
   const suggestions: WorkSuggestion[] = [];
   for (const t of trials) {
     const changed = applyWorkChange(c, summary, { factId: t.fact.id, kind: t.kind, delta: t.delta }), nextWindow = workWindow(changed.context, changed.summary), available = availability(summary, nextWindow);
+    if (participation) { const scopeChecks = participationChecks(participation, nextWindow, changed.summary, changed.context.area.timeZone); available.allowed = available.allowed && !scopeChecks.some(c => c.status === 'does-not-fit'); available.covered = scopeChecks.every(c => c.status === 'fits'); }
     if (!available.allowed) continue; // Never offer a shift that excludes a supplied firm availability.
-    const checked = assessments(changed.context, changed.summary, memories);
+    const checked = assessments(changed.context, changed.summary, memories, participation);
     const affected = checked.flatMap(r => {
       if (r.status === 'does-not-fit') return [];
       const old = base.find(b => b.key === r.key)!;

@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
-import { answersFit, guestSourceText, guestAnswerSchema, guestQuestionSchema, guestTokenSchema } from '@fuzl/planning';
+import { answersFit, guestSourceText, guestAnswerSchema, guestQuestionSchema, guestTokenSchema, scopeGuestWindowSchema } from '@fuzl/planning';
 import type { GuestForm, GuestOrigin, GuestReply, InviteInfo, InviteInput, OrganizerReply, ResponseInput, SessionInput } from '@fuzl/planning';
 import type { PrismaClient, Prisma } from '../generated/prisma/client.js';
 import { ExtractionError } from '../extraction/errors.js';
@@ -77,7 +77,7 @@ export class GuestStore {
             throw deny();
         return row;
     }
-    async form(token: string): Promise<GuestForm> { const row = await this.invite(this.db, token); return { title: row.title, questions: questions(row.questions), expiresAt: row.expiresAt.toISOString() }; }
+    async form(token: string): Promise<GuestForm> { const row = await this.invite(this.db, token); const scope = await this.db.sessionScope.findFirst({ where: { inviteId: row.id, sessionId: row.sessionId } }); return { title: row.title, questions: questions(row.questions), expiresAt: row.expiresAt.toISOString(), ...(scope?.window ? { participation: scopeGuestWindowSchema.parse({ scopeId: scope.id, window: scope.window, expiresAt: row.expiresAt.toISOString() }) } : {}) }; }
     private async own(tx: Prisma.TransactionClient, inviteId: string, editToken: string): Promise<GuestReply> {
         if (!guestTokenSchema.safeParse(editToken).success)
             throw deny();

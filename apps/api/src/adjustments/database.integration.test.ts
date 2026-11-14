@@ -42,7 +42,7 @@ test('Section 10.1 disposable ownership → same-candidate preview → working a
     apply = { ...input(), previewId: report.previewId, suggestionId: report.suggestions[0].id, approved: true };
     assert.equal((await call(path + 'apply', apply, 'synthetic-other-bearer')).status, 404);
     const applied = await call(path + 'apply', apply); assert.equal(applied.status, 200); reply = workApplyReplySchema.parse(await applied.json());
-    assert.deepEqual(reply.summary.sources, f.summary.sources); assert.equal(reply.summary.organizerDecisions?.[0].checks?.length, 1);
+    assert.deepEqual(reply.summary.sources, f.summary.sources); assert.equal(reply.summary.organizerDecisions?.[0].checks?.length, 1); assert.deepEqual(reply.summary.organizerDecisions?.[0].checks?.[0].evidence.booking?.attendeeIds, f.summary.participants.map(p => p.id));
   });
   await t.test('working application is read-only until explicit save; retry identity and unchanged published plan/RSVP are preserved', async () => {
     assert.deepEqual((await organizer.getSession(owner, session.id)).payload.summary, f.summary);

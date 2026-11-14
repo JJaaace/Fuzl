@@ -1,3 +1,5 @@
+import { organizerParticipationRouter } from '../participation/router.js';
+import type { ParticipationOptions } from '../participation/router.js';
 import { groupIdeaRouter, sessionIdeaRouter } from '../ideas/router.js';
 import type { IdeaOptions } from '../ideas/router.js';
 import { IdeaStore } from '../ideas/store.js';
@@ -24,7 +26,7 @@ import { publicAccountConfiguration, verifyOrganizer } from './auth.js';
 import type { VerifyOrganizer } from './auth.js';
 import { database } from './database.js';
 import { OrganizerStore } from './store.js';
-export function accountRouter(options: { ideas?: IdeaOptions; adjustments?: AdjustmentOptions; outings?: OutingOptions; plans?: PlanOptions; ballots?: BallotOptions; events?: EventsOptions; places?: PlacesOptions; guests?: GuestOptions; verify?: VerifyOrganizer; store?: () => OrganizerStore } = {}) {
+export function accountRouter(options: { participation?: ParticipationOptions; ideas?: IdeaOptions; adjustments?: AdjustmentOptions; outings?: OutingOptions; plans?: PlanOptions; ballots?: BallotOptions; events?: EventsOptions; places?: PlacesOptions; guests?: GuestOptions; verify?: VerifyOrganizer; store?: () => OrganizerStore } = {}) {
   const router = Router();
   const ideas = options.ideas?.store ?? (() => new IdeaStore(database(), options.ideas?.now));
   const adjustments = options.adjustments?.cache ?? new AdjustmentCache(options.adjustments?.now);
@@ -76,6 +78,7 @@ export function accountRouter(options: { ideas?: IdeaOptions; adjustments?: Adju
     response.json(await store.updateSession(subject, id(request.params.id), value.groupId, value.revision, value.payload));
   }));
   privateRoutes.delete('/sessions/:id', route(async (store, subject, request, response) => { await store.deleteSession(subject, id(request.params.id)); response.status(204).end(); }));
+  privateRoutes.use('/sessions/:sessionId/participation', organizerParticipationRouter(options.participation));
   privateRoutes.use('/groups/:id/ideas', groupIdeaRouter({ ...options.ideas, store: ideas }));
   privateRoutes.use('/sessions/:sessionId/ideas', sessionIdeaRouter({ ...options.ideas, store: ideas, cache: adjustments }));
   privateRoutes.use('/groups/:id/outings', pastOutingRouter(options.outings));

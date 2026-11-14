@@ -1,8 +1,9 @@
+import { scopeGuestWindowSchema } from './participation-contract.js';
 import { z } from 'zod';
 import type { PlanningSummary, PlanningFact } from './model.js';
 export const guestTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 export const guestQuestionSchema = z.strictObject({ id: z.string().uuid(), text: z.string().trim().min(1).max(180), type: z.enum(['text', 'availability', 'budget']), required: z.boolean() });
-export const guestFormSchema = z.strictObject({ title: z.string().trim().min(1).max(100), questions: z.array(guestQuestionSchema).min(1).max(5), expiresAt: z.string().datetime() });
+export const guestFormSchema = z.strictObject({ participation: scopeGuestWindowSchema.optional(), title: z.string().trim().min(1).max(100), questions: z.array(guestQuestionSchema).min(1).max(5), expiresAt: z.string().datetime() });
 export const inviteInputSchema = z.strictObject({ title: guestFormSchema.shape.title, questions: guestFormSchema.shape.questions, approved: z.literal(true), replace: z.boolean(), sessionRevision: z.number().int().positive(), days: z.union([z.literal(1), z.literal(7), z.literal(14)]) }).refine(v => new Set(v.questions.map(q => q.id)).size === v.questions.length);
 const textAnswer = z.strictObject({ questionId: z.string().uuid(), kind: z.enum(['text', 'availability']), state: z.enum(['blank', 'unknown', 'answered']), text: z.string().trim().max(800).nullable() }).refine(v => v.state === 'answered' ? !!v.text : v.text === null);
 const budgetAnswer = z.strictObject({ questionId: z.string().uuid(), kind: z.literal('budget'), state: z.enum(['blank', 'unknown', 'known']), amount: z.number().min(0).max(1000000).refine(n => Math.abs(n * 100 - Math.round(n * 100)) < .000001).nullable(), currency: z.string().regex(/^[A-Z]{3}$/).nullable(), visibility: z.enum(['private', 'organizer']) }).refine(v => v.state === 'known' ? v.amount !== null : v.amount === null).refine(v => v.state !== 'blank' || v.currency === null);

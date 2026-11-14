@@ -1,6 +1,6 @@
 # Section 10.3 — Familiar favorites and something new
 
-Section 10.2 was committed and normally pushed to `origin/main` as **`01ec9838b027e6a05d97795feae7740d22ce26db` — Add group saved ideas and checked reuse in future plans** before this work. Section 10.3 is a separate local diff. No hosted migration, live-provider request, sign-in email, billing change or deployment was made.
+Section 10.2 was committed and normally pushed to `origin/main` as **`01ec9838b027e6a05d97795feae7740d22ce26db` — Add group saved ideas and checked reuse in future plans** before this work. Section 10.3 was subsequently committed and normally pushed as **635cf16 — Add session discovery preferences for favorites and new ideas**. The separate local attendance-scope extension is documented in [PARTICIPATION.md](PARTICIPATION.md). No hosted migration, live-provider request, sign-in email, billing change or deployment was made.
 
 ## Exact local demo
 
@@ -50,4 +50,4 @@ Manual checks still pending:
 2. On a separately authorized hosted rollout, use two controlled groups/accounts with actual completed outings and approved positive/mixed feedback. Search once, switch all three modes, confirm no provider/API request on switches, and verify other-group/uncertain matches cannot create favorites/newness. Edit/remove approved memory or correct an actual outing, deliberately recheck, and confirm labels/order update. Do not mark this passed from the simulator or disposable SQL.
 3. Carry forward pending migrations `202611070001_guest_responses`, `202611120001_ballots`, `202611140001_plans`, `202611140002_outings` and `202611140003_saved_ideas`. No new 10.3 migration. They require a privately reviewed authorized rollout without reset. Real Supabase callback/identity/original-tab preservation, hosted save/reopen/edit/delete/conflicts/sign-out/two-account isolation, controlled guest voting/plan/RSVP/reconfirmation/feedback/privacy, intended reachable HTTPS/restricted redirects and phone/browser checks remain pending before sharing real plans.
 
-Stop after Section 10.3. Participation modes, fairness scoring, backup plans, automatic link extraction, reviews/trends and deployment remain deferred. Changes remain local for review.
+This milestone stopped after 10.3 and is preserved in pushed `635cf16`. The separately authorized 10.4 participation extension reuses this ranking within the selected roster. Fairness scoring, backup plans, automatic link extraction, reviews/trends and deployment remain deferred; browser/hosted gaps above remain pending.

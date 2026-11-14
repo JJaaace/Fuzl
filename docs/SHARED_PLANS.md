@@ -67,3 +67,7 @@ Organizer attendance is a compact list of self-reported name, RSVP, update time 
 5. Browser/mobile review is **unverified**: browser discovery returned `[]`. Run the exact simulator path above at desktop and 320–360px/Safari; inspect long names/URLs, time/meeting-point clarity, visible focus, radio/checkbox/Enter behavior, confirmation announcements, stale error recovery and cancellation prominence. DOM tests and HTTP 200 are not rendered browser acceptance.
 
 Current automated/disposable results are in PROGRESS. The original 8B milestone added no live AI/place/event test, ticket purchase, external messaging, calendar integration, deployment or group memory. Section 9’s separately documented local extension now adds actual outings and approved group memory. The local simulator is suitable for reviewing behavior while hosted setup remains pending; its shared links are explicitly simulated.
+
+## Section 10.4 attendance snapshots
+
+[Participation scopes](PARTICIPATION.md) add **Use reviewed attendance scope in plan draft**. It copies a server-reviewed public mode/count and an internal roster/window proof, then uses the existing exact preview/publication workflow. Configured participation must be copied before publishing. Working-scope edits never silently change the shared page; material roster changes (including same-count identity changes) require RSVP reconfirmation after explicit publication. Guest DTOs omit the roster identities and proof. No extra plan SQL migration; the participation tables require their own pending hosted rollout.

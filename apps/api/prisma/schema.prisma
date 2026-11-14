@@ -48,6 +48,7 @@ model PlanningSession {
   groupId String @db.Uuid
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   title String @db.VarChar(100)
+  participation SessionScope?
   invites GuestInvite[]
   shortlist BallotShortlist?
   ballots Ballot[]
@@ -75,6 +76,8 @@ model GuestInvite {
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime @default(now())
+  scopes SessionScope[]
+  optIns ScopeOptIn[]
   responses GuestResponse[]
   @@index([sessionId])
   @@schema("fuzl")
@@ -85,6 +88,7 @@ model GuestResponse {
   inviteId String @db.Uuid
   invite GuestInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
   submissionId String @db.Uuid
+  optIns ScopeOptIn[]
   editDigest String @unique @db.VarChar(64)
   alias String @db.VarChar(80)
   answers Json
@@ -287,4 +291,40 @@ model SavedIdea {
   @@index([groupId])
   @@schema("fuzl")
   @@map("fuzl_saved_ideas")
+}
+
+model SessionScope {
+  id String @id @default(uuid()) @db.Uuid
+  sessionId String @unique @db.Uuid
+  session PlanningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  revision Int @default(1)
+  mode String @default("everyone") @db.VarChar(12)
+  window Json?
+  inviteId String? @db.Uuid
+  invite GuestInvite? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+  mappings Json @default("[]")
+  selected Json @default("[]")
+  reviewHash String? @db.VarChar(64)
+  lastRequestId String @db.Uuid
+  lastRequestHash String @db.VarChar(64)
+  optIns ScopeOptIn[]
+  @@schema("fuzl")
+  @@map("fuzl_session_scopes")
+}
+model ScopeOptIn {
+  id String @id @default(uuid()) @db.Uuid
+  scopeId String @db.Uuid
+  scope SessionScope @relation(fields: [scopeId], references: [id], onDelete: Cascade)
+  inviteId String @db.Uuid
+  invite GuestInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  responseId String @db.Uuid
+  response GuestResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  choice String @db.VarChar(12)
+  revision Int @default(1)
+  lastRequestId String @db.Uuid
+  lastRequestHash String @db.VarChar(64)
+  updatedAt DateTime @updatedAt
+  @@unique([scopeId, inviteId, responseId])
+  @@schema("fuzl")
+  @@map("fuzl_scope_opt_ins")
 }

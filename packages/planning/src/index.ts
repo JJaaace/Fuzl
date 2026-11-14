@@ -23,3 +23,6 @@ export * from './idea-reference.js';
 export * from './ideas.js';
 export * from './discovery.js';
 export * from './discovery-fixtures.js';
+export * from './participation-contract.js';
+export * from './participation.js';
+export * from './participation-fixtures.js';

@@ -1,3 +1,5 @@
+import { participationChecks } from './participation.js';
+import type { ParticipationScope } from './participation-contract.js';
 import { discoveryEvidence } from './discovery.js';
 import type { GroupVisitHistory } from './discovery.js';
 import { travelCheck, bookingCheck, retainedVisitChecks } from './visit-evidence.js';
@@ -10,14 +12,14 @@ import type { PlanningSummary } from './model.js';
 import type { PlaceArea } from './places.js';
 import type { AssessedEvent, EventCheck, EventQuery, EventResults, ScheduledEvent } from './events.js';
 
-export function evaluateEvents(events: ScheduledEvent[], area: PlaceArea, query: EventQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = [], history?: GroupVisitHistory): Pick<EventResults, 'ranked' | 'verified' | 'promising' | 'excluded' | 'notices'> {
+export function evaluateEvents(events: ScheduledEvent[], area: PlaceArea, query: EventQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = [], history?: GroupVisitHistory, participation?: ParticipationScope): Pick<EventResults, 'ranked' | 'verified' | 'promising' | 'excluded' | 'notices'> {
   const facts = summary.facts.filter(current), budgets = facts.filter(f => f.kind === 'budget');
   const seen = new Set<string>(), urls = new Set<string>(), ranked: AssessedEvent[] = [];
   for (const raw of events) {
     const event = retainedVisitChecks(raw, summary);
     if (seen.has(event.id) || (event.sourceUrl !== null && urls.has(event.sourceUrl))) continue;
     seen.add(event.id); if (event.sourceUrl !== null) urls.add(event.sourceUrl);
-    const s = event.schedule, checks: EventCheck[] = [], distanceKm = straightLineKm(area, event.venue);
+    const s = event.schedule, checks: EventCheck[] = participationChecks(participation, { date: event.schedule.date, start: event.schedule.time, end: event.schedule.endDate === event.schedule.date ? event.schedule.endTime : null, timeZone: event.schedule.timeZone }, summary, area.timeZone), distanceKm = straightLineKm(area, event.venue);
     const check = (kind: EventCheck['kind'], status: EventCheck['status'], detail: string, blocking = true) => checks.push({ kind, status, detail, blocking });
     const knownStatus = ['onsale', 'offsale', 'scheduled'].includes(event.providerStatus ?? '');
     check('event-status', ['canceled', 'cancelled'].includes(event.providerStatus ?? '') ? 'does-not-fit' : knownStatus ? 'fits' : 'needs-checking', ['canceled', 'cancelled'].includes(event.providerStatus ?? '') ? 'Cancelled event excluded.' : knownStatus ? 'Provider-reported schedule status; ticket availability remains separate.' : 'Status unknown, postponed or rescheduled. Confirm the current date and status before shortlisting as verified.');
@@ -57,11 +59,11 @@ export function evaluateEvents(events: ScheduledEvent[], area: PlaceArea, query:
           else if (f.endTime && (s.endDate !== f.exactDate || s.endTime! > f.endTime)) check('timing', 'does-not-fit', 'Event ends outside the confirmed firm availability window.');
           else check('timing', 'fits', 'Event schedule is within the confirmed firm availability supplied.');
         }
-      } else if (f.kind === 'travel') checks.push(travelCheck(f, event.visit, { date: s.date, start: s.time, end: s.endTime, timeZone: s.timeZone }, event.venue.address));
+      } else if (f.kind === 'travel') checks.push(travelCheck(f, event.visit, { date: s.date, start: s.time, end: s.endTime, timeZone: s.timeZone }, event.venue.address, participation ? participation.roster.filter(p => p.selected).map(p => p.id) : summary.participants.length ? summary.participants.map(p => p.id) : undefined));
       else if (f.strength === 'firm') check('constraint', 'needs-checking', 'Firm activity, accessibility, age, diet or other free-text requirements need specific evidence; event categories do not prove them.');
     }
     if (summary.questions.some(q => q.resolution === null)) check('constraint', 'needs-checking', 'Open planning questions remain unresolved.');
-    checks.push(bookingCheck(event.visit, { date: s.date, start: s.time, end: s.endTime, timeZone: s.timeZone }, event.venue.address));
+    checks.push(bookingCheck(event.visit, { date: s.date, start: s.time, end: s.endTime, timeZone: s.timeZone }, event.venue.address, participation ? participation.roster.filter(p => p.selected).map(p => p.id) : summary.participants.length ? summary.participants.map(p => p.id) : undefined));
     if (!facts.some(f => f.kind === 'travel')) check('travel', 'needs-checking', 'Travel time unknown; no duration limit was supplied.', false);
     const status = checks.some(c => c.blocking !== false && c.status === 'does-not-fit') ? 'does-not-fit' : checks.some(c => c.blocking !== false && c.status === 'needs-checking') ? 'needs-checking' : 'fits';
     const memory = memoryInfluence(event.sourceUrl, memories);

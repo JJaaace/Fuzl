@@ -16,7 +16,9 @@ test('Section 7A owned venue search with real private answers on disposable Post
   t.after(() => db.$disconnect());
   const owner = randomUUID(), other = randomUUID(), organizer = new OrganizerStore(db), guests = new GuestStore(db);
   const group = await organizer.createGroup(owner, { name: 'Places synthetic owner', aliases: [] });
-  const saved = await organizer.createSession(owner, group.id, { title: 'Places synthetic session', summaryVersion: 1, origin: 'manual', provenance: [], summary: demoPlaceSummary() });
+  const summary = demoPlaceSummary(); summary.participants = [{ id: 'synthetic-planner', name: 'Synthetic planner' }];
+  summary.facts.push({ id: 'known-availability', kind: 'schedule', subject: { kind: 'participant', participantId: 'synthetic-planner' }, status: 'confirmed', strength: 'firm', sourceIds: [], description: 'Explicit availability for this test', exactDate: '2026-11-14', startTime: '15:00', endTime: '17:00' });
+  const saved = await organizer.createSession(owner, group.id, { title: 'Places synthetic session', summaryVersion: 1, origin: 'manual', provenance: [], summary });
   const budgetQuestion = randomUUID();
   const invite = await guests.createInvite(owner, saved.id, { approved: true, title: 'Synthetic private spending', questions: [{ id: budgetQuestion, text: 'Private spending limit?', type: 'budget', required: false }], replace: false, days: 1, sessionRevision: 1 });
   await guests.submit(invite.token, { submissionId: randomUUID(), editToken: randomBytes(32).toString('base64url'), payload: { alias: 'PRIVATE respondent name', answers: [{ questionId: budgetQuestion, kind: 'budget', state: 'known', amount: 0.17, currency: 'USD', visibility: 'private' }] } });

@@ -126,7 +126,7 @@ export function createApp(options: { outings?: OutingOptions; plans?: PlanOption
   app.use('/api/plan', publicPlanRouter(options.plans));
   app.use('/api/ballot', publicBallotRouter(options.ballots));
   app.use('/api/guest', publicGuestRouter(options.guests));
-  app.use('/api', accountRouter({ ...options.accounts, outings: options.outings ?? options.accounts?.outings, guests: options.guests, ballots: options.ballots ?? options.accounts?.ballots, plans: options.plans ?? options.accounts?.plans }));
+  app.use('/api', accountRouter({ ...options.accounts, outings: options.outings ?? options.accounts?.outings, guests: options.guests ?? options.accounts?.guests, ballots: options.ballots ?? options.accounts?.ballots, plans: options.plans ?? options.accounts?.plans }));
   app.use(errors);
   return app;
 }

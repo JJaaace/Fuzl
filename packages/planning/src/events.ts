@@ -1,3 +1,4 @@
+import { scopeResultSchema } from './participation-contract.js';
 import { discoveryEvidenceSchema } from './discovery.js';
 import { ideaReferencesSchema, savedIdeaLabelSchema } from './idea-reference.js';
 import { visitEvidenceSchema } from './visit-evidence.js';
@@ -27,7 +28,7 @@ export const eventCheckSchema = z.strictObject({ kind: z.enum(['budget', 'privat
 export type EventCheck = z.infer<typeof eventCheckSchema>;
 export const assessedEventSchema = z.strictObject({ discovery: discoveryEvidenceSchema.optional(), event: scheduledEventSchema, memory: memoryInfluenceSchema.optional(), status: z.enum(['fits', 'needs-checking', 'does-not-fit']), checks: z.array(eventCheckSchema).max(200), distanceKm: z.number().nullable(), reason: z.string(), nextStep: z.string() });
 export type AssessedEvent = z.infer<typeof assessedEventSchema>;
-export const eventResultsSchema = z.strictObject({ ranked: z.array(assessedEventSchema).max(23).optional(), savedIdeaResults: z.array(assessedEventSchema).max(3).optional(), workId: z.string().uuid().optional(), mode: z.enum(['demo', 'live']), area: areaSchema, query: eventQuerySchema, retrievedAt: z.string().datetime(), verified: z.array(assessedEventSchema).max(3), promising: z.array(assessedEventSchema).max(3), excluded: z.array(assessedEventSchema).max(23), notices: z.array(z.string()).max(12) }).refine(r => r.verified.length + r.promising.length <= 3);
+export const eventResultsSchema = z.strictObject({ participation: scopeResultSchema.optional(), ranked: z.array(assessedEventSchema).max(23).optional(), savedIdeaResults: z.array(assessedEventSchema).max(3).optional(), workId: z.string().uuid().optional(), mode: z.enum(['demo', 'live']), area: areaSchema, query: eventQuerySchema, retrievedAt: z.string().datetime(), verified: z.array(assessedEventSchema).max(3), promising: z.array(assessedEventSchema).max(3), excluded: z.array(assessedEventSchema).max(23), notices: z.array(z.string()).max(12) }).refine(r => r.verified.length + r.promising.length <= 3);
 export type EventResults = z.infer<typeof eventResultsSchema>;
 export const eventResponseSchema = z.union([eventResultsSchema, placeClarificationSchema]);
 export type EventResponse = z.infer<typeof eventResponseSchema>;

@@ -1,3 +1,5 @@
+import { guestParticipationRouter } from '../participation/router.js';
+import type { ParticipationOptions } from '../participation/router.js';
 import { Router, json } from 'express';
 import type { ErrorRequestHandler, Request, Response } from 'express';
 import { guestTokenSchema, inviteInputSchema, recordId, responseCreateSchema, responseUpdateSchema } from '@fuzl/planning';
@@ -5,6 +7,7 @@ import { ExtractionError } from '../extraction/errors.js';
 import { database } from '../accounts/database.js';
 import { GuestStore } from './store.js';
 export interface GuestOptions {
+    participation?: ParticipationOptions;
     store?: () => GuestStore;
     now?: () => number;
 }
@@ -83,6 +86,7 @@ export function publicGuestRouter(options: GuestOptions = {}) {
         if (request.path === '/response') input(guestTokenSchema, request.get('x-invite-token'));
         next();
     });
+    router.use(guestParticipationRouter(options.participation));
     router.get('/form', route(options, async (store, req, res) => res.json(await store.form(token(req.get('authorization'))))));
     router.post('/responses', route(options, async (store, req, res) => res.json(await store.submit(token(req.get('authorization')), input(responseCreateSchema, req.body)))));
     router.get('/response', route(options, async (store, req, res) => res.json(await store.readOwn(input(guestTokenSchema, req.get('x-invite-token')), token(req.get('authorization'))))));

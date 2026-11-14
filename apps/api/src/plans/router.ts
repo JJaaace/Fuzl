@@ -27,6 +27,7 @@ export function organizerPlanRouter(options: PlanOptions = {}) {
   r.get('/', route(options, async (s, req, res) => res.json(await s.get(owner(res), session(req)))));
   r.post('/select', route(options, async (s, req, res) => res.json(await s.select(owner(res), session(req), input(selectPlanSchema, req.body)))));
   r.put('/draft', route(options, async (s, req, res) => res.json(await s.save(owner(res), session(req), input(savePlanSchema, req.body)))));
+  r.post('/scope', route(options, async (s, req, res) => res.json(await s.attachScope(owner(res), session(req), input(z.strictObject(planMutationBase), req.body)))));
   r.post('/publish', route(options, async (s, req, res) => res.json(await s.publish(owner(res), session(req), input(publishPlanSchema, req.body)))));
   r.post('/control', route(options, async (s, req, res) => res.json(await s.control(owner(res), session(req), input(controlPlanSchema, req.body)))));
   r.post('/link', route(options, async (s, req, res) => res.json(await s.link(owner(res), session(req), input(planLinkInputSchema, req.body)))));

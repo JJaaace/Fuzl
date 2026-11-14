@@ -1,3 +1,6 @@
+import { participationContext } from '../participation/store.js';
+import { localInstant, scopeWindowEnd } from '@fuzl/planning';
+import type { PlanningSummary } from '@fuzl/planning';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { canPlanTransition, detailsFromOption, guestTokenSchema, materialPlanKey, ownRsvpSchema, planDraftSchema, planOwnerSchema, publicPlanSchema, publishedDetailsSchema, shortlistContentSchema } from '@fuzl/planning';
 import type { PlanDetails, PlanDraft } from '@fuzl/planning';
@@ -61,7 +64,19 @@ export class PlanStore {
   async save(subject: string, sessionId: string, input: { requestId: string; revision: number; details: PlanDetails }) {
     return this.mutate(subject, sessionId, 'save', input, async (tx, p) => {
       if (['completed', 'cancelled'].includes(p.status)) throw new ExtractionError(409, 'plan_terminal', 'A completed or cancelled plan cannot be edited.');
-      const draft = planDraftSchema.parse(p.draft); await tx.sharedPlan.update({ where: { id: p.id }, data: { draft: json({ ...draft, details: input.details }) } });
+      const draft = planDraftSchema.parse(p.draft); if (JSON.stringify(input.details.attendanceScope) !== JSON.stringify(draft.details.attendanceScope)) throw new ExtractionError(400, 'scope_copy_required', 'Copy the server-reviewed attendance scope explicitly; its mode/count cannot be edited as free text.'); await tx.sharedPlan.update({ where: { id: p.id }, data: { draft: json({ ...draft, details: input.details }) } });
+    });
+  }
+  async attachScope(subject: string, sessionId: string, input: { requestId: string; revision: number }) {
+    return this.mutate(subject, sessionId, 'attendance-scope', input, async (tx, p) => {
+      if (['completed', 'cancelled'].includes(p.status)) throw conflict();
+      const session = await tx.planningSession.findUniqueOrThrow({ where: { id: sessionId } });
+      const current = await participationContext(tx, sessionId, session.summary as unknown as PlanningSummary, session.revision, this.now());
+      if (!current.scope.reviewed || !current.scope.attendeeCount) throw new ExtractionError(409, 'scope_review_required', 'Review current participant matches and opt-ins before copying the scope into the plan draft.');
+      const draft = planDraftSchema.parse(p.draft), rosterKey = hash([current.scope.mode, current.scope.roster.filter(r => r.selected).map(r => r.id).sort(), current.scope.window]);
+      draft.details.attendanceScope = { mode: current.scope.mode, count: current.scope.attendeeCount };
+      draft.scopeProof = { scopeKey: current.scope.key, rosterKey };
+      await tx.sharedPlan.update({ where: { id: p.id }, data: { draft: json(draft) } });
     });
   }
   private async version(tx: Prisma.TransactionClient, p: SharedPlan, snapshot: PlanDraft, status: string, notice: string, materialVersion: number) {
@@ -74,9 +89,21 @@ export class PlanStore {
       if (!canPlanTransition(p.status as 'proposed' | 'confirmed', 'confirmed')) throw new ExtractionError(409, 'plan_terminal', 'Only proposed or confirmed plans can be published.');
       if (p.publishedVersion >= 98) throw new ExtractionError(429, 'plan_publication_limit', 'The publication limit is reached. Closing RSVPs and cancellation/completion remain available.');
       const draft = planDraftSchema.parse(p.draft); if (hash(draft) !== input.previewKey) throw conflict(); if (!publishedDetailsSchema.safeParse(draft.details).success) throw new ExtractionError(400, 'plan_details_incomplete', 'A clear date, local time, time zone and meeting point are required. Check ambiguous daylight-saving clocks.');
+      if (!draft.scopeProof && await tx.sessionScope.findUnique({ where: { sessionId }, select: { id: true } })) throw new ExtractionError(409, 'scope_copy_required', 'Copy the reviewed attendance scope into this draft, then preview and approve it before publishing.');
+      if (draft.scopeProof) {
+        await tx.$queryRaw`SELECT id FROM fuzl.fuzl_session_scopes WHERE "sessionId" = ${sessionId}::uuid FOR SHARE`;
+        const session = await tx.planningSession.findUniqueOrThrow({ where: { id: sessionId } });
+        const current = await participationContext(tx, sessionId, session.summary as unknown as PlanningSummary, session.revision, this.now());
+        if (!current.scope.reviewed || current.scope.key !== draft.scopeProof.scopeKey) throw new ExtractionError(409, 'scope_changed', 'Attendance scope changed. Review it and copy it into the draft again before previewing/publishing.');
+        if (current.scope.mode === 'available') {
+          const w = current.scope.window, start = localInstant(draft.details.date!, draft.details.time!, draft.details.timeZone!);
+          const a = w ? localInstant(w.date, w.start, w.timeZone) : null, b = w ? scopeWindowEnd(w) : null;
+          if (start === null || a === null || b === null || start < a || start >= b) throw new ExtractionError(409, 'plan_outside_opt_in', 'Plan start must be inside the reviewed opt-in window. Collect and review new opt-ins for another window.');
+        }
+      }
       const old = p.publishedVersion ? await tx.planVersion.findUniqueOrThrow({ where: { planId_version: { planId: p.id, version: p.publishedVersion } } }) : null;
       const material = !old || materialPlanKey(planDraftSchema.parse(old.snapshot)) !== materialPlanKey(draft);
-      await this.version(tx, p, draft, 'confirmed', `${old ? material ? 'Plan time, place, activity or cost changed. Reconfirm your RSVP. ' : 'Plan details updated. ' : 'Plan confirmed by the organizer. '}${input.notice}`,  p.materialVersion + Number(material));
+      await this.version(tx, p, draft, 'confirmed', `${old ? material ? 'Plan time, place, activity, cost or attendance scope changed. Reconfirm your RSVP. ' : 'Plan details updated. ' : 'Plan confirmed by the organizer. '}${input.notice}`,  p.materialVersion + Number(material));
     });
   }
   async control(subject: string, sessionId: string, input: { requestId: string; revision: number; action: 'completed' | 'cancelled' | 'close-rsvps'; notice: string }) {

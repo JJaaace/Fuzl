@@ -23,9 +23,11 @@ export function adjustmentRouter(options: AdjustmentOptions = {}) {
       const snapshot = cache.get(input.snapshotId, subject, id.data);
       if (snapshot.revision !== input.sessionRevision || snapshot.contextVersion !== context.version || snapshot.summaryKey !== workHash(input.summary)) throw changed();
       if (input.evidence.some(e => !snapshot.context.candidates.some(c => workKey(c) === e.key))) throw new ExtractionError(400, 'unknown_work_option', 'Sourced checks must refer to this exact search’s options.');
+      const attendees = context.participation?.roster.filter(p => p.selected).map(p => p.id);
+      const scopedEvidence = attendees ? input.evidence.map(e => ({ ...e, evidence: { ...e.evidence, ...(e.evidence.travel ? { travel: { ...e.evidence.travel, attendeeIds: attendees } } : {}), ...(e.evidence.booking ? { booking: { ...e.evidence.booking, attendeeIds: attendees } } : {}) } })) : input.evidence;
       const requestKey = workHash({ snapshotId: input.snapshotId, sessionRevision: input.sessionRevision, summary: input.summary, evidence: input.evidence });
       if (!applying) {
-        const report = makeWork(snapshot.context, input.summary, input.evidence, context.memories, context.privateSpending.length > 0);
+        const report = makeWork(snapshot.context, context.checkingSummary ?? input.summary, scopedEvidence, context.memories, context.privateSpending.length > 0, context.participation);
         const latest = await store.context(subject, id.data, input); if (latest.version !== context.version) throw changed();
         cache.get(input.snapshotId, subject, id.data);
         const previewId = cache.preview(subject, id.data, input.snapshotId, requestKey, report.suggestions);
@@ -36,7 +38,7 @@ export function adjustmentRouter(options: AdjustmentOptions = {}) {
         const suggestion = preview.suggestions.find(s => s.id === choice.suggestionId); if (!suggestion) throw changed();
         if ((input.summary.organizerDecisions?.length ?? 0) >= 20) throw new ExtractionError(409, 'decision_limit', 'This session has reached its 20-decision history limit. Review the history before adding another decision.');
         const adjusted = applyWorkChange(snapshot.context, input.summary, suggestion), stamp = cache.decision(preview, suggestion.id);
-        const decision = recordWorkDecision(input.summary, suggestion, stamp.id, stamp.recordedAt, input.evidence);
+        const decision = recordWorkDecision(input.summary, suggestion, stamp.id, stamp.recordedAt, scopedEvidence);
         adjusted.summary.organizerDecisions = [...(input.summary.organizerDecisions ?? []), decision];
         if (!savedSummarySchema.safeParse(adjusted.summary).success || !summaryReferencesValid(adjusted.summary)) throw changed();
         const latest = await store.context(subject, id.data, input); if (latest.version !== context.version) throw changed(); cache.get(input.snapshotId, subject, id.data);

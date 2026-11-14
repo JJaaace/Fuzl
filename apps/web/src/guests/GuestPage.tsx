@@ -1,3 +1,4 @@
+import ScopeReply from '../participation/ScopeReply';
 import { useEffect, useRef, useState } from 'react';
 import { answersFit, responseInputSchema } from '@fuzl/planning';
 import type { GuestForm, GuestReply, ResponseInput } from '@fuzl/planning';
@@ -11,6 +12,7 @@ export default function GuestPage({ inviteToken }: {
 }) {
     const [form, setForm] = useState<GuestForm | null>(null);
     const [payload, setPayload] = useState<ResponseInput>({ alias: '', answers: [] });
+    const [replyEdit, setReplyEdit] = useState<string | null>(null);
     const [revision, setRevision] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
@@ -53,7 +55,7 @@ export default function GuestPage({ inviteToken }: {
                 if (controller.signal.aborted)
                     return;
                 storageKey.current = key;
-                permission.current = stored;
+                permission.current = stored; setReplyEdit(stored?.editToken ?? null);
                 setForm(data);
                 setRevision(own?.revision ?? null);
                 setPayload(own ? replyPayload(own) : { alias: '', answers: emptyAnswers(data.questions) });
@@ -93,7 +95,7 @@ export default function GuestPage({ inviteToken }: {
             if (controller.signal.aborted)
                 return;
             if (!answersFit(form.questions, replyPayload(result))) throw new Error('The response did not match this form. Your typed answers were kept.');
-            setRevision(result.revision);
+            setRevision(result.revision); setReplyEdit(credential.editToken);
             setMessage(JSON.stringify(replyPayload(result)) === JSON.stringify(parsed.data) ? 'Response sent. Only your response can be edited here.' : 'An earlier send already arrived. Your current entries were kept; save changes to update that response.');
         }
         catch (failure) {
@@ -111,9 +113,9 @@ export default function GuestPage({ inviteToken }: {
     {error && <div ref={errorNotice} tabIndex={-1} role="alert" className="validation-error">{error}</div>}
     {!loading && !form && <button onClick={() => (setLoading(true), setError(''), setLoadVersion(v => v + 1))}>Retry opening form</button>}
     {form && <><p className="eyebrow">A question for the group</p><h1>{form.title}</h1><p className="provider-disclosure">{guestDisclosure}</p>
-      <form noValidate onSubmit={e => { e.preventDefault(); void submit(); }}><fieldset disabled={busy || loading} className="guest-fields"><label className="field"><span>Your display name or alias</span><input required maxLength={80} autoComplete="nickname" value={payload.alias} onChange={e => setPayload({ ...payload, alias: e.target.value })}/></label><AnswerFields questions={form.questions} answers={payload.answers} disabled={busy || loading} onChange={answers => setPayload({ ...payload, answers })}/></fieldset>
+      {form.participation && <p className="notice">Window: {form.participation.window.date} · {form.participation.window.allDay ? 'All day (through local midnight)' : `${form.participation.window.start}–${form.participation.window.end}`} · {form.participation.window.timeZone}. Save your name/optional budget first, then explicitly save your window opt-in below. A budget reply alone never opts you in.</p>}<form noValidate onSubmit={e => { e.preventDefault(); void submit(); }}><fieldset disabled={busy || loading} className="guest-fields"><label className="field"><span>Your display name or alias</span><input required maxLength={80} autoComplete="nickname" value={payload.alias} onChange={e => setPayload({ ...payload, alias: e.target.value })}/></label><AnswerFields questions={form.questions} answers={payload.answers} disabled={busy || loading} onChange={answers => setPayload({ ...payload, answers })}/></fieldset>
         <button className="primary" disabled={busy || loading} type="submit">{busy ? 'Sending…' : revision === null ? 'Send response' : 'Save response changes'}</button>
-      </form>{revision !== null && <button className="quiet" disabled={busy || loading} onClick={() => { if (window.confirm('Reload your last sent response? Unsaved form entries will be replaced.')) {
+      </form>{form.participation && revision !== null && replyEdit && <ScopeReply invite={inviteToken!} edit={replyEdit} window={form.participation.window}/>} {revision !== null && <button className="quiet" disabled={busy || loading} onClick={() => { if (window.confirm('Reload your last sent response? Unsaved form entries will be replaced.')) {
             setLoading(true);
             setError('');
             setLoadVersion(v => v + 1);

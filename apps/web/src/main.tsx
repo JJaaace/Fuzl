@@ -1,3 +1,5 @@
+import BallotDemo from './ballots/BallotDemo';
+import GuestBallot from './ballots/GuestBallot';
 import PlaceDemo from './places/PlaceDemo';
 import { AccountProvider, useAccount } from './accounts/AccountProvider';
 import { StrictMode } from 'react';
@@ -15,11 +17,14 @@ function AccountWorkspace() {
 }
 
 const placesPreview = import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'places';
+const ballotPreview = import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'ballots';
 const guest = window.location.pathname === '/guest';
+const voting = window.location.pathname === '/vote';
+const votingToken = voting ? captureGuestEntry(window.location.href, path => window.history.replaceState(null, '', path), { getItem: key => sessionStorage.getItem(key), setItem: (key, value) => sessionStorage.setItem(key, value) }, '/vote', 'fuzl-ballot-invite') : null;
 const inviteToken = guest ? captureGuestEntry(window.location.href,path => window.history.replaceState(null,'',path),{ getItem: key => sessionStorage.getItem(key), setItem: (key,value) => sessionStorage.setItem(key,value) }) : null;
-const magicLink = guest ? null : captureMagicLink(window.location.href, (path) => window.history.replaceState(null, '', path));
+const magicLink = guest || voting ? null : captureMagicLink(window.location.href, (path) => window.history.replaceState(null, '', path));
 const favicon = document.getElementById('fuzl-favicon');
 if (favicon instanceof HTMLLinkElement) favicon.href = selectedLogo.favicon;
 createRoot(document.getElementById('root')!).render(
-  guest ? <StrictMode><GuestPage inviteToken={inviteToken} /></StrictMode> : placesPreview ? <StrictMode><PlaceDemo /></StrictMode> : <StrictMode><AccountProvider magicLink={magicLink}><AccountWorkspace /></AccountProvider></StrictMode>,
+  ballotPreview ? <StrictMode><BallotDemo/></StrictMode> : voting ? <StrictMode><GuestBallot inviteToken={votingToken}/></StrictMode> : guest ? <StrictMode><GuestPage inviteToken={inviteToken} /></StrictMode> : placesPreview ? <StrictMode><PlaceDemo /></StrictMode> : <StrictMode><AccountProvider magicLink={magicLink}><AccountWorkspace /></AccountProvider></StrictMode>,
 );

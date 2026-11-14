@@ -1,9 +1,12 @@
+import { useShortlist } from '../ballots/context';
+import { shortlistPlace } from '@fuzl/planning';
 import DiscoveryChecks from './DiscoveryChecks';
 import { placeEvidence } from '@fuzl/planning';
 import type { PlaceCorrection } from '@fuzl/planning';
 import PlaceEvidenceEditor from './PlaceEvidenceEditor';
 import type { AssessedPlace } from '@fuzl/planning';
 export default function PlaceCard({ place, busy = false, onReview }: { place: AssessedPlace; busy?: boolean; onReview?: (correction: PlaceCorrection) => boolean }) {
+  const onShortlist = useShortlist();
   const c = place.candidate, details = placeEvidence(c), current = details.effective, p = details.recordedPrice, h = current.hours;
   return <article className={`place-card fit-${place.status}`}><div className="fact-heading"><h4>{c.name}</h4><span className="badge">{place.status === 'fits' ? 'Fits checked constraints' : place.status === 'does-not-fit' ? 'Doesn’t fit' : 'Needs checking'}</span></div>
     <p>{current.address ?? 'Address unknown'}</p><p className="note">Venue location: {[current.city, current.state].filter(Boolean).join(', ') || 'City/state not supplied'}</p>{details.addressNeedsChecking && <p className="notice"><strong>Address needs checking</strong>{details.addressConflict && ' · Sources disagree. Review both values below.'}</p>}{c.source === 'geoapify' && <p className="note">Provider-reported location; confirm the venue’s current address before traveling.</p>}<p>{place.reason}</p>
@@ -12,6 +15,7 @@ export default function PlaceCard({ place, busy = false, onReview }: { place: As
     <p><strong>Next: {place.nextStep}</strong></p><a className="place-next" href={c.sourceUrl} target="_blank" rel="noreferrer">{c.source === 'geoapify' ? 'Open original provider map' : 'Open supplied source'} ↗</a><p className="note">{c.source === 'geoapify' ? 'Map pin only; it does not verify an address, price, hours or official website.' : 'Source link supplied with these details.'}</p>
     {details.official && <p><a href={details.official.value} target="_blank" rel="noreferrer">Official venue page — organizer matched</a><span className="note"> · Checked {details.official.source.checkedOn} · {details.official.matchNote}</span></p>}
     {onReview && <PlaceEvidenceEditor candidate={c} disabled={busy} onReview={onReview} />}
+    {onShortlist && <button onClick={() => onShortlist(() => shortlistPlace(place, crypto.randomUUID()))}>Add to shortlist</button>}
     <DiscoveryChecks checks={place.checks} ranking={place.ranking} />
   </article>;
 }

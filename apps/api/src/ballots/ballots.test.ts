@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { randomUUID } from 'node:crypto';
+import { ballotLinkSchema, ballotOptionSchema, ballotPublishSchema, ballotViewSchema, demoEvents, demoPlaces, demoPlaceQuery, demoPlaceSummary, evaluateEvents, evaluatePlaces, shortlistContentSchema, shortlistPlace, shortlistEvent, tallyLabel, voteCreateSchema } from '@fuzl/planning';
+import { createApp } from '../app.js';
+const date = '2026-11-12T12:00:00.000Z';
+test('shortlist snapshots preserve actual public uncertainty and zero; no private check details, excerpts, participants or organizer metadata', () => {
+  const summary = demoPlaceSummary(), f = demoPlaces(demoPlaceQuery, date); assert.ok('area' in f);
+  const data = evaluatePlaces(f.candidates, f.area, demoPlaceQuery, summary, [{ amount: 17.31, currency: 'USD', state: 'known' }]);
+  const option = shortlistPlace(data.verified[0], randomUUID()); assert.equal(option.cost.amount, 0); assert.equal(option.sample, true); assert.ok(option.unresolved.includes('Travel time unknown'));
+  const e = demoEvents({ area: '02108', radiusKm: 5, from: '2026-11-14', to: '2026-11-14' }, date); assert.ok('area' in e);
+  const result = evaluateEvents(e.events, e.area, { area: '02108', radiusKm: 5, from: '2026-11-14', to: '2026-11-14' }, summary);
+  const starting = result.promising.find(e => e.event.id === 'starting')!;
+  const event = shortlistEvent(starting, randomUUID()); assert.equal(event.cost.kind, 'starting'); assert.ok(event.unresolved.some(u => u.includes('fees')));
+  const unknown = shortlistEvent({ ...starting, event: { ...starting.event, price: { ...starting.event.price, amount: null, currency: null } } }, randomUUID()); assert.equal(unknown.cost.amount, null);
+  for (const privateField of ['private-budget', '17.31', 'summary', 'participants', 'sources', 'checks']) assert.ok(!JSON.stringify([option, event]).includes(privateField));
+  assert.equal(ballotOptionSchema.safeParse({ ...option, privateBudget: 17.31 }).success, false);
+  assert.equal(shortlistContentSchema.safeParse({ title: 'Pick', options: [option, event, unknown, { ...option, id: randomUUID() }] }).success, false);
+  assert.equal(shortlistContentSchema.safeParse({ title: 'Pick', options: [option, option] }).success, false);
+});
+test('public links, approval, bounded options, version fields and guest identity inputs validate strictly; ties never become a chosen final plan', () => {
+  for (const url of ['javascript:alert(1)', 'https://user:password@example.com/event', 'https://example.com/event?apikey=private', 'https://example.com/guest#invite=credential']) assert.equal(ballotLinkSchema.safeParse({ label: 'Source', url }).success, false);
+  assert.equal(ballotPublishSchema.safeParse({ approved: false }).success, false);
+  assert.equal(voteCreateSchema.safeParse({ submissionId: randomUUID(), editToken: 'a'.repeat(43), optionId: randomUUID(), alias: 'Sam' }).success, false);
+  assert.equal(tallyLabel({ totalResponses: 0, counts: [] }), 'No votes yet');
+  assert.equal(tallyLabel({ totalResponses: 2, counts: [{ optionId: randomUUID(), votes: 1 }, { optionId: randomUUID(), votes: 1 }] }), 'Tie between 2 options at 1 vote each');
+  assert.equal(tallyLabel({ totalResponses: 3, counts: [{ optionId: randomUUID(), votes: 2 }, { optionId: randomUUID(), votes: 1 }] }), 'Leading option has 2 votes');
+  assert.equal(ballotViewSchema.safeParse({ title: 'Bad', privateBudget: 17.31 }).success, false);
+});
+test('ballot public errors redact exceptions and credentials; auth, JSON, origins, rate and payload limits remain bounded offline', async t => {
+  let logs = 0; t.mock.method(console, 'error', () => { logs++; });
+  const server = createApp({ ballots: { store: () => { throw Error('token=private raw conversation'); } } }).listen(0, '127.0.0.1');
+  await new Promise<void>(r => server.once('listening', r)); t.after(() => new Promise<void>(r => server.close(() => r())));
+  const base = `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}/api`;
+  const auth = { Authorization: `Bearer ${'a'.repeat(43)}`, 'Content-Type': 'application/json' };
+  assert.equal((await fetch(base + '/ballot/form')).status, 400);
+  const fail = await fetch(base + '/ballot/form', { headers: auth }); assert.equal(fail.status, 503); assert.equal(fail.headers.get('referrer-policy'), 'no-referrer'); assert.ok(!(await fail.text()).includes('token=private'));
+  assert.equal((await fetch(base + '/ballot/votes', { method: 'POST', headers: { Authorization: auth.Authorization, 'Content-Type': 'text/plain' }, body: '{}' })).status, 415);
+  assert.equal((await fetch(base + '/ballot/form', { headers: { ...auth, Origin: 'https://wrong.example' } })).status, 403);
+  assert.equal((await fetch(base + '/ballot/votes', { method: 'POST', headers: auth, body: JSON.stringify({ oversized: 'x'.repeat(18000) }) })).status, 413);
+  const statuses = []; for (let i = 0; i < 13; i++) statuses.push((await fetch(base + '/ballot/votes', { method: 'POST', headers: auth, body: '{}' })).status); assert.ok(statuses.includes(429));
+  assert.equal(logs, 0);
+});

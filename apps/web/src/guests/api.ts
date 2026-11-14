@@ -1,11 +1,11 @@
 import { guestFormSchema, guestReplySchema, guestTokenSchema } from '@fuzl/planning';
 import type { GuestReply, ResponseInput } from '@fuzl/planning';
-export async function guestRequest<T>(path: string, token: string, signal: AbortSignal, method = 'GET', body?: unknown, inviteToken?: string): Promise<T> {
-    const response = await fetch(`/api/guest${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(inviteToken ? { 'X-Invite-Token': inviteToken } : {}) }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]), credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer' });
+export async function guestRequest<T>(path: string, token: string, signal: AbortSignal, method = 'GET', body?: unknown, inviteToken?: string, base = '/api/guest'): Promise<T> {
+    const response = await fetch(`${base}${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(inviteToken ? { 'X-Invite-Token': inviteToken } : {}) }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]), credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer' });
     const data = await response.json().catch(() => { throw new Error('The server returned an unreadable response. Your typed answers were kept.'); });
     if (!response.ok)
         throw new Error(data?.error?.message ?? 'The response could not be sent. Your typed answers were kept; retry deliberately.');
-    if (path === '/response' || path === '/responses') {
+    if (base === '/api/guest' && (path === '/response' || path === '/responses')) {
         const parsed = guestReplySchema.safeParse(data);
         if (!parsed.success)
             throw new Error('The server returned an unsupported response. Your typed answers were kept.');
@@ -27,18 +27,18 @@ export function newEditPermission(): EditPermission {
     const bytes = crypto.getRandomValues(new Uint8Array(32));
     return { submissionId: crypto.randomUUID(), editToken: btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '') };
 }
-export function captureGuestEntry(href: string, replace: (path: string) => void, storage: Pick<Storage, 'getItem' | 'setItem'>): string | null {
+export function captureGuestEntry(href: string, replace: (path: string) => void, storage: Pick<Storage, 'getItem' | 'setItem'>, path = '/guest', slot = 'fuzl-guest-invite'): string | null {
     const url = new URL(href);
     const candidate = new URLSearchParams(url.hash.slice(1)).get('invite');
-    replace('/guest'); // Before React/network work: no bearer in query, history or referrers.
+    replace(path); // Before React/network work: no bearer in query, history or referrers.
     try {
         if (candidate && !url.search && guestTokenSchema.safeParse(candidate).success) {
-            storage.setItem('fuzl-guest-invite', candidate);
+            storage.setItem(slot, candidate);
             return candidate;
         }
         if (url.hash || url.search)
             return null;
-        const stored = storage.getItem('fuzl-guest-invite');
+        const stored = storage.getItem(slot);
         return guestTokenSchema.safeParse(stored).success ? stored : null;
     }
     catch {

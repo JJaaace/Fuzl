@@ -11,3 +11,4 @@ export * from './place-evidence.js';
 export * from './events.js';
 export * from './event-evaluation.js';
 export * from './event-fixtures.js';
+export * from './ballots.js';

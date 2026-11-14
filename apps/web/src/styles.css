@@ -444,3 +444,13 @@ button.primary[aria-busy=true] { background: var(--accent-wash); color: var(--in
 .evidence-claim p { margin-block: 8px; }
 .place-evidence-editor h5 { font-size: 16px; }
 .area-clarification { border: 1px solid var(--accent); border-radius: var(--radius); padding: 18px; margin-block: 20px; }
+
+.ballot-option { min-width: 0; overflow-wrap: anywhere; }
+.ballot-option dl { margin-block: 12px; }
+.ballot-option dd { margin-left: 0; margin-bottom: 12px; }
+.ballot-option dt { color: var(--muted); font-size: 13px; }
+.ballot-preview { border: 1px solid var(--accent); padding: clamp(12px, 3vw, 24px); border-radius: var(--radius); }
+.ballot-choice { display: flex; gap: 12px; align-items: center; min-height: 44px; cursor: pointer; }
+.ballot-choice input { width: 22px; height: 22px; flex-shrink: 0; }
+.ballot-guest fieldset { min-width: 0; }
+.ballot-guest .primary { min-height: 44px; }

@@ -47,6 +47,8 @@ model PlanningSession {
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   title String @db.VarChar(100)
   invites GuestInvite[]
+  shortlist BallotShortlist?
+  ballots Ballot[]
   summaryVersion Int @default(1)
   summary Json
   provenance Json
@@ -103,4 +105,51 @@ model GuestPrivateAnswer {
   @@unique([responseId, questionId])
   @@schema("fuzl")
   @@map("fuzl_guest_private_answers")
+}
+
+model BallotShortlist {
+  sessionId String @id @db.Uuid
+  session PlanningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  content Json
+  revision Int @default(1)
+  updatedAt DateTime @updatedAt
+  @@schema("fuzl")
+  @@map("fuzl_ballot_shortlists")
+}
+model Ballot {
+  id String @id @default(uuid()) @db.Uuid
+  sessionId String @db.Uuid
+  session PlanningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  currentSessionId String? @unique @db.Uuid
+  publicationId String @db.Uuid
+  version Int
+  revision Int @default(1)
+  tokenDigest String @unique @db.VarChar(64)
+  content Json
+  expiresAt DateTime
+  closedAt DateTime?
+  revokedAt DateTime?
+  supersededByVersion Int?
+  createdAt DateTime @default(now())
+  votes BallotVote[]
+  @@unique([sessionId, version])
+  @@unique([sessionId, publicationId])
+  @@index([sessionId])
+  @@schema("fuzl")
+  @@map("fuzl_ballots")
+}
+model BallotVote {
+  id String @id @default(uuid()) @db.Uuid
+  ballotId String @db.Uuid
+  ballot Ballot @relation(fields: [ballotId], references: [id], onDelete: Cascade)
+  submissionId String @db.Uuid
+  editDigest String @unique @db.VarChar(64)
+  optionId String @db.Uuid
+  revision Int @default(1)
+  lastRequestId String? @db.Uuid
+  updatedAt DateTime @updatedAt
+  @@unique([ballotId, submissionId])
+  @@index([ballotId])
+  @@schema("fuzl")
+  @@map("fuzl_ballot_votes")
 }

@@ -1,3 +1,5 @@
+import { organizerBallotRouter } from '../ballots/router.js';
+import type { BallotOptions } from '../ballots/router.js';
 import { eventRouter } from '../events/router.js';
 import type { EventsOptions } from '../events/router.js';
 import { placeRouter } from '../places/router.js';
@@ -12,7 +14,7 @@ import { publicAccountConfiguration, verifyOrganizer } from './auth.js';
 import type { VerifyOrganizer } from './auth.js';
 import { database } from './database.js';
 import { OrganizerStore } from './store.js';
-export function accountRouter(options: { events?: EventsOptions; places?: PlacesOptions; guests?: GuestOptions; verify?: VerifyOrganizer; store?: () => OrganizerStore } = {}) {
+export function accountRouter(options: { ballots?: BallotOptions; events?: EventsOptions; places?: PlacesOptions; guests?: GuestOptions; verify?: VerifyOrganizer; store?: () => OrganizerStore } = {}) {
   const router = Router();
   router.get('/account-config', (_request, response) => response.set('Cache-Control', 'no-store').json(publicAccountConfiguration()));
   const privateRoutes = Router();
@@ -62,6 +64,7 @@ export function accountRouter(options: { events?: EventsOptions; places?: Places
     response.json(await store.updateSession(subject, id(request.params.id), value.groupId, value.revision, value.payload));
   }));
   privateRoutes.delete('/sessions/:id', route(async (store, subject, request, response) => { await store.deleteSession(subject, id(request.params.id)); response.status(204).end(); }));
+  privateRoutes.use('/sessions/:sessionId/ballots', organizerBallotRouter(options.ballots));
   privateRoutes.use('/sessions/:sessionId/events', eventRouter(options.events));
   privateRoutes.use('/sessions/:sessionId/places', placeRouter(options.places));
   privateRoutes.use('/sessions/:sessionId/guest', organizerGuestRouter(options.guests));

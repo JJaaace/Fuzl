@@ -1,3 +1,4 @@
+import { WorkspaceEdits } from '../accounts/api';
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import type { TestContext } from 'node:test';
@@ -325,4 +326,14 @@ test('unsaved outing or takeaway fields participate in the workspace unload prot
   const panel = document.createElement('section'); panel.className = 'outing-organizer'; panel.dataset.planDirty = 'true'; document.body.append(panel); t.after(() => panel.remove());
   const pending = event(); window.dispatchEvent(pending); assert.equal(pending.defaultPrevented, true);
   panel.dataset.planDirty = 'false'; const saved = event(); window.dispatchEvent(saved); assert.equal(saved.defaultPrevented, false);
+});
+
+test('adjustment review controls do not invalidate their own preview; real planning inputs still advance the workspace revision', async t => {
+  let edits = 0; const original = WorkspaceEdits.prototype.change;
+  t.mock.method(WorkspaceEdits.prototype, 'change', function (this: WorkspaceEdits) { edits++; original.call(this); });
+  await mount(t); await sample();
+  const panel = document.createElement('section'); panel.className = 'make-work';
+  const action = document.createElement('button'); action.textContent = 'Synthetic adjustment approval'; const field = document.createElement('input'); panel.append(action, field); document.querySelector('.summary-panel')!.append(panel); t.after(() => panel.remove());
+  const before = edits; await click(action); await enter(field, 'Synthetic estimate'); assert.equal(edits, before);
+  await enter(document.querySelector<HTMLTextAreaElement>('#draft')!, 'A real planning edit'); assert.ok(edits > before);
 });

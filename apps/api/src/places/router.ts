@@ -1,3 +1,5 @@
+import { workHash } from '../adjustments/cache.js';
+import type { AdjustmentCache } from '../adjustments/cache.js';
 import { PlaceSearchCache, searchBoundaryKey } from './cache.js';
 import { Router } from 'express';
 import type { Request } from 'express';
@@ -8,7 +10,7 @@ import { GeoapifyProvider } from './provider.js';
 import type { VenueProvider } from './provider.js';
 import { PlaceStore } from './store.js';
 import type { PlaceContextStore } from './store.js';
-export interface PlacesOptions { store?: () => PlaceContextStore; provider?: VenueProvider; now?: () => number }
+export interface PlacesOptions { adjustments?: AdjustmentCache; store?: () => PlaceContextStore; provider?: VenueProvider; now?: () => number }
 export function placeRouter(options: PlacesOptions = {}) {
   const router = Router({ mergeParams: true });
   let active = false, attempts = 0;
@@ -58,7 +60,8 @@ export function placeRouter(options: PlacesOptions = {}) {
       const manual = manualPlaces(input.manual, retrievedAt);
       const all = [...found.candidates, ...manual].map(candidate => candidateSchema.parse(correctedPlace(candidate, input.corrections ?? [])));
       const result = placeResultsSchema.parse({ mode: input.mode, searchId, coverage: found.candidates.length === 0 ? 'empty' : found.candidates.length < 3 ? 'sparse' : 'available', retrievedAt, ...evaluatePlaces(all, found.area, input.query, input.summary, latest.privateSpending, latest.memories) });
-      res.json(result);
+      const workId = options.adjustments?.put({ mode: input.mode, subject, sessionId: id.data, revision: input.sessionRevision, contextVersion: latest.version, summaryKey: workHash(input.summary), context: { kind: 'places', area: found.area, query: input.query, candidates: all } });
+      res.json({ ...result, ...(workId ? { workId } : {}) });
     } catch (error) {
       if (controller.signal.aborted) return;
       if (error instanceof ExtractionError) throw error;

@@ -117,9 +117,9 @@ function Workspace() {
       </header>
       {accountError && <p className="notice" role="status">{accountError}</p>}
       <main id="groups-main" tabIndex={-1} hidden={view !== 'groups'} aria-label="Saved groups"><SavedGroups active={view === 'groups'} onOpen={openSaved} onWorkspace={() => setView('workspace')} /></main>
-      <main id="workspace-main" tabIndex={-1} hidden={view !== 'workspace'} onInputCapture={() => { workspaceEdits.current.change(); setDirty(true); }} onClickCapture={(event) => {
+      <main id="workspace-main" tabIndex={-1} hidden={view !== 'workspace'} onInputCapture={(event) => { if ((event.target as HTMLElement).closest('.make-work')) return; workspaceEdits.current.change(); setDirty(true); }} onClickCapture={(event) => {
         const target = event.target as HTMLElement;
-        if (target.closest('.summary-panel, .draft-panel, .screenshot-panel, .analysis-panel')) { workspaceEdits.current.change(); setDirty(true); }
+        if (!target.closest('.make-work') && target.closest('.summary-panel, .draft-panel, .screenshot-panel, .analysis-panel')) { workspaceEdits.current.change(); setDirty(true); }
         const source = target.closest<HTMLAnchorElement>('a[href^="#screenshot-"]');
         if (source) {
           event.preventDefault(); transition({ type: 'mode', mode: 'screenshots' });
@@ -176,7 +176,10 @@ function Workspace() {
           <div className="draft-heading"><div><p className="eyebrow">{planning.review.origin === 'sample' ? 'Manually authored sample data' : planning.review.origin === 'ai' ? 'AI-extracted claims · review required' : 'Entered manually'}</p><h2 id="summary-title" tabIndex={-1}>{planning.review.origin === 'sample' ? 'Sample summary' : 'Your planning summary'}</h2></div><details className="summary-options"><summary>Summary options</summary><p className="note">{planning.review.title}</p><button className="danger quiet" onClick={() => { if (window.confirm('Remove this summary, including unapplied edits? Your draft will stay.')) { setPlanning((current) => ({ ...current, review: null })); setLoadedSession(null); transition({ type: 'stage', stage: 'conversation' }); } }}>Remove summary</button></details></div>
           <p className="note">A working summary, not a booking. Save is explicit; raw screenshots and the full conversation are not saved.</p>
           <SummaryReview active={stage === 'understanding' && !previewReady} summary={planning.review.summary} sourceKind={planning.review.origin} transcript={summaryTranscript} provenance={loadedSession?.payload.provenance} availableScreenshots={screenshotIds} onChange={(summary) => setPlanning((current) => current.review ? { ...current, review: { ...current.review, summary } } : current)} />
-          <SaveSession onApplyGuest={(value) => {
+          <SaveSession onApplyAdjustment={(reply, revision, expected) => {
+            if (!planning.review || revision !== workspaceEdits.current.revision || JSON.stringify(supportingSummary(planning.review.summary)) !== expected || document.querySelector('.summary-panel .fact-form')) return false;
+            setPlanning(current => current.review ? { ...current, review: { ...current.review, summary: { ...reply.summary, sources: current.review.summary.sources } } } : current); workspaceEdits.current.change(); setDirty(true); return true;
+          }} onApplyGuest={(value) => {
             if (value.editRevision !== workspaceEdits.current.revision || !planning.review) throw new Error('The workspace changed. Review it before applying this answer.');
             const summary = applyGuestAnswer(planning.review.summary,value.reply,value.questionId,value.participantId,value.resolveId,value.supersedes,value.mode);
             setPlanning(current => current.review ? { ...current, review: { ...current.review, summary } } : current); workspaceEdits.current.change(); setDirty(true);

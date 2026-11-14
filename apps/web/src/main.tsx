@@ -1,3 +1,4 @@
+import AdjustmentDemo from './adjustments/AdjustmentDemo';
 import GuestPlan from './plans/GuestPlan';
 import BallotDemo from './ballots/BallotDemo';
 import GuestBallot from './ballots/GuestBallot';
@@ -17,6 +18,7 @@ function AccountWorkspace() {
   return <App key={privacyEpoch} />;
 }
 
+const adjustmentPreview = import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'adjustments';
 const placesPreview = import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'places';
 const ballotPreview = import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'ballots';
 const outingPreview = import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'outings';
@@ -31,5 +33,5 @@ const magicLink = guest || voting || sharedPlan ? null : captureMagicLink(window
 const favicon = document.getElementById('fuzl-favicon');
 if (favicon instanceof HTMLLinkElement) favicon.href = selectedLogo.favicon;
 createRoot(document.getElementById('root')!).render(
-  sharedPlan ? <StrictMode><GuestPlan inviteToken={planToken}/></StrictMode> : outingPreview ? <StrictMode><BallotDemo withPlans withOutings/></StrictMode> : planPreview ? <StrictMode><BallotDemo withPlans/></StrictMode> : ballotPreview ? <StrictMode><BallotDemo/></StrictMode> : voting ? <StrictMode><GuestBallot inviteToken={votingToken}/></StrictMode> : guest ? <StrictMode><GuestPage inviteToken={inviteToken} /></StrictMode> : placesPreview ? <StrictMode><PlaceDemo /></StrictMode> : <StrictMode><AccountProvider magicLink={magicLink}><AccountWorkspace /></AccountProvider></StrictMode>,
+  sharedPlan ? <StrictMode><GuestPlan inviteToken={planToken}/></StrictMode> : adjustmentPreview ? <StrictMode><AdjustmentDemo/></StrictMode> : outingPreview ? <StrictMode><BallotDemo withPlans withOutings/></StrictMode> : planPreview ? <StrictMode><BallotDemo withPlans/></StrictMode> : ballotPreview ? <StrictMode><BallotDemo/></StrictMode> : voting ? <StrictMode><GuestBallot inviteToken={votingToken}/></StrictMode> : guest ? <StrictMode><GuestPage inviteToken={inviteToken} /></StrictMode> : placesPreview ? <StrictMode><PlaceDemo /></StrictMode> : <StrictMode><AccountProvider magicLink={magicLink}><AccountWorkspace /></AccountProvider></StrictMode>,
 );

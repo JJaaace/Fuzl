@@ -1,3 +1,4 @@
+import { visitEvidenceSchema } from './visit-evidence.js';
 import { memoryInfluenceSchema } from './memory.js';
 import { z } from 'zod';
 import { savedSummarySchema, summaryReferencesValid } from './saved.js';
@@ -13,7 +14,7 @@ export type EventSearch = z.infer<typeof eventSearchSchema>;
 export const scheduledEventSchema = z.strictObject({
   id: z.string().min(1).max(300), title: z.string().min(1).max(300),
   source: z.enum(['ticketmaster', 'demo']), sourceUrl: sourceLinkSchema, retrievedAt: z.string().datetime(),
-  providerStatus: z.string().min(1).max(100).nullable(),
+  visit: visitEvidenceSchema.optional(), providerStatus: z.string().min(1).max(100).nullable(),
   venue: z.strictObject({ name: z.string().max(160).nullable(), address: z.string().max(300).nullable(), city: z.string().max(100).nullable(), state: z.string().max(100).nullable(), lat: z.number().min(-90).max(90).nullable(), lon: z.number().min(-180).max(180).nullable() }),
   schedule: z.strictObject({ date: localDateSchema.nullable(), time: clockSchema.nullable(), endDate: localDateSchema.nullable(), endTime: clockSchema.nullable(), timeZone: zoneSchema.nullable(), utcStart: z.string().datetime().nullable(), dateUncertain: z.boolean(), timeUncertain: z.boolean(), zoneConflict: z.boolean() }),
   price: z.strictObject({ amount: z.number().finite().min(0).max(1000000).nullable(), currency: z.string().regex(/^[A-Z]{3}$/).nullable(), kind: z.enum(['starting', 'total', 'unknown']), basis: z.enum(['per-person', 'unknown']), fees: z.enum(['included', 'unknown']) }),
@@ -24,7 +25,9 @@ export const eventCheckSchema = z.strictObject({ kind: z.enum(['budget', 'privat
 export type EventCheck = z.infer<typeof eventCheckSchema>;
 export const assessedEventSchema = z.strictObject({ event: scheduledEventSchema, memory: memoryInfluenceSchema.optional(), status: z.enum(['fits', 'needs-checking', 'does-not-fit']), checks: z.array(eventCheckSchema).max(200), distanceKm: z.number().nullable(), reason: z.string(), nextStep: z.string() });
 export type AssessedEvent = z.infer<typeof assessedEventSchema>;
-export const eventResultsSchema = z.strictObject({ mode: z.enum(['demo', 'live']), area: areaSchema, query: eventQuerySchema, retrievedAt: z.string().datetime(), verified: z.array(assessedEventSchema).max(3), promising: z.array(assessedEventSchema).max(3), excluded: z.array(assessedEventSchema).max(20), notices: z.array(z.string()).max(12) }).refine(r => r.verified.length + r.promising.length <= 3);
+export const eventResultsSchema = z.strictObject({ workId: z.string().uuid().optional(), mode: z.enum(['demo', 'live']), area: areaSchema, query: eventQuerySchema, retrievedAt: z.string().datetime(), verified: z.array(assessedEventSchema).max(3), promising: z.array(assessedEventSchema).max(3), excluded: z.array(assessedEventSchema).max(20), notices: z.array(z.string()).max(12) }).refine(r => r.verified.length + r.promising.length <= 3);
 export type EventResults = z.infer<typeof eventResultsSchema>;
 export const eventResponseSchema = z.union([eventResultsSchema, placeClarificationSchema]);
 export type EventResponse = z.infer<typeof eventResponseSchema>;
+
+export const eventRecheckSchema = eventSearchSchema.extend({ workId: z.string().uuid() });

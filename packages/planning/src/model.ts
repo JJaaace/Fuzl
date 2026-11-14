@@ -54,6 +54,7 @@ export function validateQuestion(text: string, resolved: boolean, resolution: st
 }
 
 export interface PlanningSummary {
+  organizerDecisions?: import('./organizer-decisions.js').OrganizerDecision[];
   participants: Participant[];
   speakers: SpeakerMapping[];
   sources: SourceText[];

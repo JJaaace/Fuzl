@@ -1,3 +1,4 @@
+import { visitEvidenceSchema } from './visit-evidence.js';
 import { memoryInfluenceSchema } from './memory.js';
 import { z } from 'zod';
 import { parseUsArea } from './place-location.js';
@@ -28,7 +29,7 @@ export const candidateSchema = z.strictObject({
   id: z.string().min(1).max(300), name: z.string().min(1).max(160), address: z.string().max(300).nullable(), category: placeCategorySchema,
   lat: z.number().min(-90).max(90).nullable(), lon: z.number().min(-180).max(180).nullable(),
   source: z.enum(['geoapify', 'demo', 'organizer']), sourceUrl: sourceLinkSchema, retrievedAt: z.string().datetime(),
-  price: placePriceSchema, hours: placeHoursSchema, city: z.string().max(100).nullable().optional(), state: z.string().max(100).nullable().optional(), timeZone: zoneSchema.nullable().optional(), evidence: evidenceSchema.optional(),
+  visit: visitEvidenceSchema.optional(), price: placePriceSchema, hours: placeHoursSchema, city: z.string().max(100).nullable().optional(), state: z.string().max(100).nullable().optional(), timeZone: zoneSchema.nullable().optional(), evidence: evidenceSchema.optional(),
 });
 export type PlaceCandidate = z.infer<typeof candidateSchema>;
 export const manualCandidateSchema = candidateSchema.omit({ id: true, source: true, retrievedAt: true, evidence: true }).extend({ manualId: z.string().uuid().optional() });
@@ -55,7 +56,7 @@ export const fitCheckSchema = z.strictObject({ kind: z.enum(['budget', 'private-
 export type FitCheck = z.infer<typeof fitCheckSchema>;
 export const assessedPlaceSchema = z.strictObject({ candidate: candidateSchema, memory: memoryInfluenceSchema.optional(), status: z.enum(fitStates), checks: z.array(fitCheckSchema).max(70), reason: z.string().max(350), nextStep: z.string().max(150), distanceKm: z.number().nonnegative().nullable(), ranking: z.array(z.string().max(150)).max(4), effectiveAddress: z.string().nullable().optional(), localWindow: z.string().max(200).nullable().optional() });
 export type AssessedPlace = z.infer<typeof assessedPlaceSchema>;
-export const placeResultsSchema = z.strictObject({ mode: z.enum(['demo', 'live']), searchId: z.string().uuid().nullable().optional(), coverage: z.enum(['empty', 'sparse', 'available']).optional(), area: areaSchema, retrievedAt: z.string().datetime(), verified: z.array(assessedPlaceSchema).max(3), promising: z.array(assessedPlaceSchema).max(3), excluded: z.array(assessedPlaceSchema).max(23), notices: z.array(z.string().max(350)).max(10) }).refine(v => v.verified.length + v.promising.length <= 3);
+export const placeResultsSchema = z.strictObject({ workId: z.string().uuid().optional(), mode: z.enum(['demo', 'live']), searchId: z.string().uuid().nullable().optional(), coverage: z.enum(['empty', 'sparse', 'available']).optional(), area: areaSchema, retrievedAt: z.string().datetime(), verified: z.array(assessedPlaceSchema).max(3), promising: z.array(assessedPlaceSchema).max(3), excluded: z.array(assessedPlaceSchema).max(23), notices: z.array(z.string().max(350)).max(10) }).refine(v => v.verified.length + v.promising.length <= 3);
 export type PlaceResults = z.infer<typeof placeResultsSchema>;
 export const unknownPrice: PlaceCandidate['price'] = { amount: null, currency: null, basis: 'unknown', coverage: 'unknown' };
 export const unknownHours: PlaceCandidate['hours'] = { kind: 'unknown', text: null, date: null, start: null, end: null, timeZone: null, closed: false };

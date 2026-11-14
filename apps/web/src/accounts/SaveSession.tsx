@@ -1,3 +1,4 @@
+import type { ApplyAdjustment } from '../adjustments/MakeThisWork';
 import SessionDiscovery from '../ballots/SessionDiscovery';
 import OrganizerGuests from '../guests/OrganizerGuests';
 import type { ApplyReply } from '../guests/OrganizerGuests';
@@ -7,15 +8,16 @@ import type { SavedGroup, SavedSession, SessionInput } from '@fuzl/planning';
 import { useAccount } from './AccountProvider';
 import { privateRequest, RequestLifetime, SavedWorkError, validateLoadedSession } from './api';
 import { Field } from '../planning/FactEditor';
-export default function SaveSession({ input, loaded, onSaved, onOpen, onSignIn, getEditRevision = () => 0, onApplyGuest }: {
-  onApplyGuest: (value: ApplyReply) => void; getEditRevision?: () => number; input: SessionInput; loaded: SavedSession | null; onSaved: (session: SavedSession, unchanged: boolean) => void;
+export default function SaveSession({ input, loaded, onSaved, onOpen, onSignIn, getEditRevision = () => 0, onApplyGuest, onApplyAdjustment }: {
+  onApplyAdjustment?: ApplyAdjustment; onApplyGuest: (value: ApplyReply) => void; getEditRevision?: () => number; input: SessionInput; loaded: SavedSession | null; onSaved: (session: SavedSession, unchanged: boolean) => void;
   onOpen: (session: SavedSession) => void; onSignIn: () => void;
 }) {
   const { session } = useAccount();
-  return session ? <SignedInSave key={session.user.id} token={session.access_token} onApplyGuest={onApplyGuest} getEditRevision={getEditRevision} input={input} loaded={loaded} onSaved={onSaved} onOpen={onOpen} />
+  return session ? <SignedInSave key={session.user.id} token={session.access_token} onApplyGuest={onApplyGuest} onApplyAdjustment={onApplyAdjustment} getEditRevision={getEditRevision} input={input} loaded={loaded} onSaved={onSaved} onOpen={onOpen} />
     : <div className="save-session"><p className="notice">Save this session to create a link.</p><p>Save the summary and supporting message excerpts. Raw screenshots and the entire conversation are not saved.</p><button className="primary" onClick={onSignIn}>Sign in to save session</button></div>;
 }
-function SignedInSave({ token, input, loaded, onSaved, onOpen, getEditRevision, onApplyGuest }: {
+function SignedInSave({ token, input, loaded, onSaved, onOpen, getEditRevision, onApplyGuest, onApplyAdjustment }: {
+  onApplyAdjustment?: ApplyAdjustment;
   onApplyGuest: (value: ApplyReply) => void; token: string; getEditRevision: () => number; input: SessionInput; loaded: SavedSession | null; onSaved: (session: SavedSession, unchanged: boolean) => void; onOpen: (session: SavedSession) => void;
 }) {
   const [title, setTitle] = useState(loaded?.title ?? input.title); const [groupId, setGroupId] = useState(loaded?.groupId ?? '');
@@ -62,7 +64,7 @@ function SignedInSave({ token, input, loaded, onSaved, onOpen, getEditRevision, 
         void privateRequest<SavedSession>(token, `/sessions/${loaded.id}`, active.signal).then((result) => { if (!active.signal.aborted) onOpen(validateLoadedSession(result)); }).catch(() => { if (!active.signal.aborted) setMessage('Could not reopen the latest version. Your edits were kept.'); });
       }}>Open latest version</button>}</div><p role="status" aria-live="polite">{message}</p>
     {loaded ? <OrganizerGuests key={loaded.id} token={token} loaded={loaded} summary={input.summary} getEditRevision={getEditRevision} onApply={onApplyGuest} /> : <p className="notice">Save this session to create a link.</p>}
-    {loaded && <SessionDiscovery key={loaded.id + "-places"} token={token} loaded={loaded} summary={input.summary} getEditRevision={getEditRevision} />}
+    {loaded && <SessionDiscovery key={loaded.id + "-places"} token={token} loaded={loaded} summary={input.summary} getEditRevision={getEditRevision} onApplyAdjustment={onApplyAdjustment} />}
     {loaded && <p className="note">Saved revision {loaded.revision} · Last saved {new Date(loaded.updatedAt).toLocaleString()}</p>}
   </section>;
 }

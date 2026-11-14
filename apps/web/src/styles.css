@@ -463,3 +463,7 @@ button.primary[aria-busy=true] { background: var(--accent-wash); color: var(--in
 .outing-organizer legend, .guest-feedback legend { font-weight: 600; padding: 0 .35rem; }
 .outing-organizer textarea, .guest-feedback textarea { width: 100%; box-sizing: border-box; }
 .group-memory { overflow-wrap: anywhere; }
+
+.make-work fieldset { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-small); padding: 1rem; margin: 1rem 0; }
+.make-work input, .make-work select { max-width: 100%; }
+.make-work, .recorded-visit, .organizer-decisions { overflow-wrap: anywhere; }

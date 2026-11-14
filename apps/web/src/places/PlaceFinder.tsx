@@ -1,3 +1,5 @@
+import MakeThisWork from '../adjustments/MakeThisWork';
+import type { ApplyAdjustment } from '../adjustments/MakeThisWork';
 import EventFinder from '../events/EventFinder';
 import { useEffect, useRef, useState } from 'react';
 import { demoPlaces, evaluatePlaces, factValue, placeCategories, placeQuerySchema, placeResponseSchema, manualPlaces, correctedPlace } from '@fuzl/planning';
@@ -5,9 +7,9 @@ import type { PlaceQuery, PlaceResults, PlanningSummary, SavedSession, PlaceSear
 import { privateRequest, SavedWorkError } from '../accounts/api';
 import PlaceCard from './PlaceCard';
 import ManualPlace from './ManualPlace';
-export interface FinderProps { token?: string; loaded?: SavedSession; summary: PlanningSummary; getEditRevision: () => number; initialQuery?: PlaceQuery; previewOnly?: boolean }
+export interface FinderProps { token?: string; loaded?: SavedSession; summary: PlanningSummary; getEditRevision: () => number; initialQuery?: PlaceQuery; previewOnly?: boolean; onApplyAdjustment?: ApplyAdjustment }
 const initial: PlaceQuery = { area: '', radiusKm: 5, category: 'any', date: null, start: null, end: null, timeZone: null };
-export default function PlaceFinder({ token, loaded, summary, getEditRevision, initialQuery = initial, previewOnly = false }: FinderProps) {
+export default function PlaceFinder({ token, loaded, summary, getEditRevision, initialQuery = initial, previewOnly = false, onApplyAdjustment }: FinderProps) {
   const [open, setOpen] = useState(previewOnly);
   const [discovery, setDiscovery] = useState<'places' | 'events'>('places');
   const [query, setQuery] = useState<PlaceQuery>(initialQuery);
@@ -29,7 +31,7 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
   useEffect(() => { latest.current = fingerprint; }, [fingerprint]);
   useEffect(() => () => { sequence.current++; pending.current?.abort(); }, []);
   function allowDraftReplacement(exceptVenue?: string) {
-    const unsent = [...document.querySelectorAll<HTMLElement>('.place-evidence-editor[data-places-dirty="true"]')].some(node => node.dataset.venue !== exceptVenue);
+    const unsent = [...document.querySelectorAll<HTMLElement>('.place-evidence-editor[data-places-dirty="true"], .make-work[data-places-dirty="true"]')].some(node => node.dataset.venue !== exceptVenue);
     return !unsent || window.confirm('This will replace unsubmitted source fields. Recorded details and the planning summary stay. Continue?');
   }
   async function search(mode: 'demo' | 'live', resolutionId?: string, recheck = false, nextCorrections = corrections, exceptVenue?: string) {
@@ -94,14 +96,14 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
       {clarification && clarification.fingerprint === fingerprint && <section className="area-clarification" aria-label="Choose resolved area"><h4>Which area did you mean?</h4><p>{clarification.data.message}</p><label className="field"><span>Resolved area choices</span><select value={choice} onChange={e => setChoice(e.target.value)}><option value="">Choose an area</option>{clarification.data.choices.map(area => <option key={area.id} value={area.id}>{area.label} · {area.lat.toFixed(3)}, {area.lon.toFixed(3)} · {area.timeZone ?? 'zone unknown'}</option>)}</select></label><button disabled={busy || !choice} onClick={() => void search(clarification.data.mode, choice)}>Search selected area</button></section>}
       <h3 ref={heading} tabIndex={-1}>{visible ? visible.mode === 'demo' ? 'Demo results' : 'Places to consider' : 'Your shortlist'}</h3>
       {visible && <>{(visible.coverage === 'empty' || visible.coverage === 'sparse') && <section className="notice"><strong>{visible.coverage === 'empty' ? 'No venue listings returned for these filters.' : 'Sparse coverage: fewer than three venue listings returned.'}</strong><p>Try a different radius or category deliberately. Firm planning constraints stay unchanged.</p><button disabled={busy || query.radiusKm >= 30} onClick={() => change({ ...query, radiusKm: Math.min(30, query.radiusKm + 5) })}>Increase radius by 5 km (search when ready)</button><button disabled={busy || query.category === 'any'} onClick={() => change({ ...query, category: 'any' })}>Show all categories (search when ready)</button></section>}<p className="note">Resolved area: {visible.area.label} · Retrieved {new Date(visible.retrievedAt).toLocaleString()}{visible.mode === 'demo' && ' · Synthetic venues and details, not real recommendations'}</p>
-        <h4>Fits the verified constraints</h4>{!visible.verified.length && <p>No returned option is verified to fit all checked constraints. Your limits were kept.</p>}{visible.verified.map(card)}
+        <h4>Fits the verified constraints</h4>{!visible.verified.length && <p>No returned option is verified to fit all checked constraints. Your limits were kept.</p>}{visible.verified.map(card)}{!visible.verified.length && <MakeThisWork key={visible.workId ?? result?.fingerprint} snapshotId={visible.workId} token={token} loaded={loaded} summary={summary} getEditRevision={getEditRevision} active={open && discovery === 'places'} window={{ date: query.date, start: query.start, end: query.end, timeZone: query.timeZone }} onApply={onApplyAdjustment ? (reply, revision, expected) => { if (!onApplyAdjustment(reply, revision, expected)) return false; latest.current = ''; if (reply.query) setQuery(reply.query); setOutdated(true); return true; } : undefined}/>}
         {!!visible.promising.length && <><h4>Promising — needs checking</h4>{visible.promising.map(card)}</>}
         {!visible.verified.length && !visible.promising.length && <p>No useful options returned for these filters. Review the exclusions or try another area/category without changing firm limits.</p>}
         {!!visible.excluded.length && <details><summary>Doesn’t fit ({visible.excluded.length})</summary>{visible.excluded.map(card)}</details>}
         <ul className="note">{visible.notices.map(n => <li key={n}>{n}</li>)}</ul>{visible.mode === 'live' && <p className="places-attribution">Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors (ODbL)</a></p>}
       </>}
       </div>
-      <EventFinder active={open && discovery === 'events'} query={query} onQuery={change} summary={summary} token={token} loaded={loaded} previewOnly={previewOnly} getEditRevision={getEditRevision} />
+      <EventFinder active={open && discovery === 'events'} query={query} onQuery={change} summary={summary} token={token} loaded={loaded} previewOnly={previewOnly} getEditRevision={getEditRevision} onApplyAdjustment={onApplyAdjustment} />
     </div>
   </section>;
 }

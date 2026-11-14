@@ -15,3 +15,7 @@ export * from './ballots.js';
 export * from './plans.js';
 export * from './outings.js';
 export * from './memory.js';
+export * from './visit-evidence.js';
+export * from './organizer-decisions.js';
+export * from './adjustments.js';
+export * from './adjustment-fixtures.js';

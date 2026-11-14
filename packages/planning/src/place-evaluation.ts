@@ -1,3 +1,4 @@
+import { travelCheck, bookingCheck, retainedVisitChecks } from './visit-evidence.js';
 import { memoryInfluence } from './memory.js';
 import type { GroupMemory } from './memory.js';
 import { placeEvidence } from './place-evidence.js';
@@ -35,7 +36,8 @@ export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, qu
   const budgets = facts.filter(f => f.kind === 'budget');
   const seenIds = new Set<string>(), seenUrls = new Set<string>();
   const ranked: { result: AssessedPlace; score: number }[] = [];
-  for (const listing of candidates) {
+  for (const raw of candidates) {
+    const listing = retainedVisitChecks(raw, summary);
     const details = placeEvidence(listing), candidate = details.effective;
     const key = `${listing.source}:${listing.id}`;
     if (seenIds.has(key) || seenUrls.has(candidate.sourceUrl)) continue;
@@ -43,7 +45,7 @@ export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, qu
     const checks: FitCheck[] = [];
     const distanceKm = details.addressConflict && details.addressNeedsChecking || details.evidence.listingChanged ? null : straightLineKm(area, candidate);
     checks.push({ kind: 'address', status: details.addressNeedsChecking ? 'needs-checking' : 'fits', detail: details.evidence.listingChanged ? 'The listing changed. Review your recorded sources and confirm the address again.' : details.addressNeedsChecking ? 'Address needs checking. Confirm the venue address from a matched source; conflicting values remain visible.' : 'Using the organizer-confirmed address or known demo location. A different address never inherits the old coordinates.' });
-    checks.push({ kind: 'booking', status: 'needs-checking', blocking: false, detail: 'Booking, tickets, seats and group capacity have not been verified. A constraint fit is not a reservation.' });
+    checks.push(bookingCheck(candidate.visit, { date: query.date, start: query.start, end: query.end, timeZone: query.timeZone ?? candidate.timeZone ?? null }, candidate.address));
     if (!facts.some(f => f.kind === 'travel')) checks.push({ kind: 'travel', status: 'needs-checking', blocking: false, detail: 'Travel time is unknown. No travel-duration limit was supplied; distance is not a driving estimate.' });
     checks.push({ kind: 'radius', status: distanceKm === null ? 'needs-checking' : distanceKm <= query.radiusKm ? 'fits' : 'does-not-fit', detail: distanceKm === null ? 'Position unknown; verify the search boundary.' : 'Straight-line distance from the search-area center, not a route, departure point or travel-time estimate.' });
     if (query.category !== 'any') checks.push({ kind: 'constraint', status: candidate.category === 'any' ? 'needs-checking' : candidate.category === query.category ? 'fits' : 'does-not-fit', detail: 'Compare the supplied category with the chosen search category; an unknown category remains unchecked.' });
@@ -75,7 +77,7 @@ export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, qu
         if (!settled(fact) || !fact.exactDate || !fact.startTime || !fact.endTime) checks.push({ kind: 'timing', status: 'needs-checking', detail: 'A planning date/time is incomplete or unconfirmed. Search timing does not silently resolve that answer.' });
         else if (fact.strength === 'firm' && completeTime && (fact.exactDate !== query.date || query.start! < fact.startTime || query.end! > fact.endTime)) checks.push({ kind: 'timing', status: 'does-not-fit', detail: 'Chosen search timing falls outside a confirmed firm planning window. Change the plan explicitly before using this window.' });
       } else if (fact.kind === 'travel') {
-        checks.push({ kind: 'travel', status: 'needs-checking', detail: 'Travel duration/mode has not been measured. Radius and straight-line distance cannot verify a drive-time or other travel limit.' });
+        checks.push(settled(fact) && fact.strength !== 'unknown' ? travelCheck(fact, candidate.visit, { date: query.date, start: query.start, end: query.end, timeZone: query.timeZone ?? candidate.timeZone ?? null }, candidate.address) : { kind: 'travel', status: 'needs-checking', detail: 'Confirm the travel mode, limit and firmness before comparing a sourced estimate.' });
       } else if (fact.strength === 'unknown') {
         checks.push({ kind: 'constraint', status: 'needs-checking', detail: 'The firmness of an activity or preference is unknown. Confirm whether it is required before treating it as satisfied.' });
       } else if (fact.strength === 'firm') {
@@ -88,7 +90,7 @@ export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, qu
     const flexibleBudgetFits = budgets.filter(b => settled(b) && attributed(b, summary) && b.strength === 'flexible' && budgetCheck(candidate, b, 'budget', false).status === 'fits').length;
     const known = checks.filter(c => c.status === 'fits').length;
     const ranking = [`${matches} exact activity preference match${matches === 1 ? '' : 'es'}`, `${known} checks supported by supplied details`, distanceKm === null ? 'Proximity unknown' : `${distanceKm.toFixed(1)} km straight-line from area center`];
-    const reason = status === 'fits' ? 'The supplied details satisfy the checked constraints; this is a suggestion, not a reservation.' : status === 'does-not-fit' ? 'A firm constraint or search boundary excludes this option.' : matches ? 'Matches a reviewed activity preference; unresolved checks remain.' : 'A candidate in the chosen area; verify the unresolved details before deciding.';
+    const reason = status === 'fits' ? 'The supplied details satisfy the checked constraints; this is a suggestion, not a reservation.' : status === 'does-not-fit' ? 'A current constraint, travel bound, access check or search boundary excludes this option.' : matches ? 'Matches a reviewed activity preference; unresolved checks remain.' : 'A candidate in the chosen area; verify the unresolved details before deciding.';
     const nextStep = checks.some(c => c.kind === 'budget' && c.status !== 'fits') ? 'Check total per-person prices' : checks.some(c => c.kind === 'private-budget' && c.status !== 'fits') ? 'Review private spending feasibility' : checks.some(c => c.kind === 'timing' && c.status !== 'fits') ? 'Confirm date-specific hours' : checks.some(c => c.blocking !== false && c.status !== 'fits') ? 'Check remaining requirements' : 'Confirm seats, tickets or reservation availability';
     // Hard eligibility is sorted before these transparent preference tie-breakers.
     const memory = memoryInfluence(listing.sourceUrl, memories);

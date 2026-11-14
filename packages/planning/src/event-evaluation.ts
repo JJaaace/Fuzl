@@ -1,3 +1,4 @@
+import { travelCheck, bookingCheck, retainedVisitChecks } from './visit-evidence.js';
 import { memoryInfluence } from './memory.js';
 import type { GroupMemory } from './memory.js';
 import { attributed, budgetCheck, current, reviewed, settled, straightLineKm } from './place-evaluation.js';
@@ -10,7 +11,8 @@ import type { AssessedEvent, EventCheck, EventQuery, EventResults, ScheduledEven
 export function evaluateEvents(events: ScheduledEvent[], area: PlaceArea, query: EventQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = []): Pick<EventResults, 'verified' | 'promising' | 'excluded' | 'notices'> {
   const facts = summary.facts.filter(current), budgets = facts.filter(f => f.kind === 'budget');
   const seen = new Set<string>(), urls = new Set<string>(), ranked: AssessedEvent[] = [];
-  for (const event of events) {
+  for (const raw of events) {
+    const event = retainedVisitChecks(raw, summary);
     if (seen.has(event.id) || urls.has(event.sourceUrl)) continue;
     seen.add(event.id); urls.add(event.sourceUrl);
     const s = event.schedule, checks: EventCheck[] = [], distanceKm = straightLineKm(area, event.venue);
@@ -41,6 +43,9 @@ export function evaluateEvents(events: ScheduledEvent[], area: PlaceArea, query:
       if (!reviewed(f) || !settled(f) || !attributed(f, summary) || f.strength === 'unknown') { check('constraint', 'needs-checking', 'A planning answer is unreviewed, tentative, conflicting, incomplete or unattributed. Search controls leave that fact unchanged.'); continue; }
       if (f.kind === 'schedule') {
         if (!f.exactDate || !f.startTime || !f.endTime) check('timing', 'needs-checking', 'Planning availability is incomplete; choosing search dates does not resolve unknown dates or clock bounds.');
+        if (f.exactDate && f.strength === 'flexible' && f.subject.kind === 'group') {
+          check('timing', !dated || instant === null || s.timeZone !== area.timeZone || !f.startTime || !f.endTime || !s.endDate || !s.endTime ? 'needs-checking' : s.date !== f.exactDate || s.endDate !== f.exactDate || s.time! < f.startTime || s.endTime > f.endTime ? 'does-not-fit' : 'fits', 'Compare the fixed event schedule with the current explicitly flexible group outing window. Only the organizer can adjust that window.');
+        }
         if (f.exactDate && f.strength === 'firm') {
           // Planning clocks have no zone field. Compare only when the event and
           // selected area's reliable zones agree; never assume a participant zone.
@@ -50,11 +55,11 @@ export function evaluateEvents(events: ScheduledEvent[], area: PlaceArea, query:
           else if (f.endTime && (s.endDate !== f.exactDate || s.endTime! > f.endTime)) check('timing', 'does-not-fit', 'Event ends outside the confirmed firm availability window.');
           else check('timing', 'fits', 'Event schedule is within the confirmed firm availability supplied.');
         }
-      } else if (f.kind === 'travel') check('travel', 'needs-checking', 'Travel duration/mode has not been measured. Radius is not a travel-time check.');
+      } else if (f.kind === 'travel') checks.push(travelCheck(f, event.visit, { date: s.date, start: s.time, end: s.endTime, timeZone: s.timeZone }, event.venue.address));
       else if (f.strength === 'firm') check('constraint', 'needs-checking', 'Firm activity, accessibility, age, diet or other free-text requirements need specific evidence; event categories do not prove them.');
     }
     if (summary.questions.some(q => q.resolution === null)) check('constraint', 'needs-checking', 'Open planning questions remain unresolved.');
-    check('booking', 'needs-checking', 'Ticket availability, group capacity and booking are unverified. Onsale does not mean tickets are available.', false);
+    checks.push(bookingCheck(event.visit, { date: s.date, start: s.time, end: s.endTime, timeZone: s.timeZone }, event.venue.address));
     if (!facts.some(f => f.kind === 'travel')) check('travel', 'needs-checking', 'Travel time unknown; no duration limit was supplied.', false);
     const status = checks.some(c => c.blocking !== false && c.status === 'does-not-fit') ? 'does-not-fit' : checks.some(c => c.blocking !== false && c.status === 'needs-checking') ? 'needs-checking' : 'fits';
     const memory = memoryInfluence(event.sourceUrl, memories);

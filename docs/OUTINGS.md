@@ -1,6 +1,6 @@
 # Section 9 — actual outings, optional feedback and approved group memory
 
-This builds on pushed 8A `4b8b844` and the preserved local 8B implementation. Both 8B and 9 remain local. No hosted migration, real account/guest test, provider call, email, billing change, push or deployment ran for Section 9. Reviews/trends and later sections are not included.
+This builds on pushed 8A `4b8b844` and the preserved local 8B implementation. Both 8B and 9 are now included in pushed checkpoint `9edc96e`; the separate Section 10.1 extension remains local. No hosted migration, real account/guest test, provider call, email, billing change, push or deployment ran for Section 9. Reviews/trends and later sections are not included.
 
 ## Exact synthetic demo
 

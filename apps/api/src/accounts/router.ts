@@ -1,3 +1,6 @@
+import { adjustmentRouter } from '../adjustments/router.js';
+import type { AdjustmentOptions } from '../adjustments/router.js';
+import { AdjustmentCache } from '../adjustments/cache.js';
 import { organizerOutingRouter, pastOutingRouter } from '../outings/router.js';
 import type { OutingOptions } from '../outings/router.js';
 import { organizerPlanRouter } from '../plans/router.js';
@@ -18,8 +21,9 @@ import { publicAccountConfiguration, verifyOrganizer } from './auth.js';
 import type { VerifyOrganizer } from './auth.js';
 import { database } from './database.js';
 import { OrganizerStore } from './store.js';
-export function accountRouter(options: { outings?: OutingOptions; plans?: PlanOptions; ballots?: BallotOptions; events?: EventsOptions; places?: PlacesOptions; guests?: GuestOptions; verify?: VerifyOrganizer; store?: () => OrganizerStore } = {}) {
+export function accountRouter(options: { adjustments?: AdjustmentOptions; outings?: OutingOptions; plans?: PlanOptions; ballots?: BallotOptions; events?: EventsOptions; places?: PlacesOptions; guests?: GuestOptions; verify?: VerifyOrganizer; store?: () => OrganizerStore } = {}) {
   const router = Router();
+  const adjustments = options.adjustments?.cache ?? new AdjustmentCache(options.adjustments?.now);
   router.get('/account-config', (_request, response) => response.set('Cache-Control', 'no-store').json(publicAccountConfiguration()));
   const privateRoutes = Router();
   privateRoutes.use(async (request, response, next) => {
@@ -72,8 +76,9 @@ export function accountRouter(options: { outings?: OutingOptions; plans?: PlanOp
   privateRoutes.use('/sessions/:sessionId/outings', organizerOutingRouter(options.outings));
   privateRoutes.use('/sessions/:sessionId/plans', organizerPlanRouter(options.plans));
   privateRoutes.use('/sessions/:sessionId/ballots', organizerBallotRouter(options.ballots));
-  privateRoutes.use('/sessions/:sessionId/events', eventRouter(options.events));
-  privateRoutes.use('/sessions/:sessionId/places', placeRouter(options.places));
+  privateRoutes.use('/sessions/:sessionId/adjustments', adjustmentRouter({ ...options.adjustments, cache: adjustments }));
+  privateRoutes.use('/sessions/:sessionId/events', eventRouter({ ...options.events, adjustments }));
+  privateRoutes.use('/sessions/:sessionId/places', placeRouter({ ...options.places, adjustments }));
   privateRoutes.use('/sessions/:sessionId/guest', organizerGuestRouter(options.guests));
   router.use('/private', privateRoutes);
   return router;

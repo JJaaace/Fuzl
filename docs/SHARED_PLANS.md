@@ -1,6 +1,6 @@
 # Section 8B — shared plans and RSVPs
 
-Built on pushed Section 8A checkpoint `4b8b844`. This milestone adds an explicit organizer plan choice, a proposed → confirmed → completed/cancelled lifecycle, a stable account-free plan link and credential-scoped Going/Maybe/Can’t make it responses. Votes remain separate. No provider call, email, message, billing change, hosted migration or deployment was made for 8B; its changes remain local.
+Built on pushed Section 8A checkpoint `4b8b844`. This milestone adds an explicit organizer plan choice, a proposed → confirmed → completed/cancelled lifecycle, a stable account-free plan link and credential-scoped Going/Maybe/Can’t make it responses. Votes remain separate. No provider call, email, message, billing change, hosted migration or deployment was made for 8B; its changes are now included with Section 9 in pushed checkpoint `9edc96e`. Section 10.1 is a separate local extension.
 
 Section 9 now extends completion with a separate actual outing record and optional feedback, without changing the original plan snapshot. Use [OUTINGS.md](OUTINGS.md) and `/?design=outings` for completion/history/memory controls; `/?design=plans` remains the preserved voting/RSVP simulator. The historical status-only completion route does not itself create a visit or infer attendance.
 

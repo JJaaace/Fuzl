@@ -1,3 +1,4 @@
+import { organizerDecisionSchema } from './organizer-decisions.js';
 import { z } from 'zod';
 import { guestOriginSchema } from './guests.js';
 import { planningSummarySchema } from './contract.js';
@@ -48,7 +49,7 @@ export function summaryReferencesValid(summary: PlanningSummary): boolean {
 // evidence. Provider output and analysis-response schemas remain unchanged.
 const [schedule, budget, activity, travel, preference] = planningSummarySchema.shape.facts.element.options;
 const manualEvidence = { guest: guestOriginSchema.optional(), sourceIds: z.array(schedule.shape.sourceIds.element).max(20) };
-export const savedSummarySchema = planningSummarySchema.extend({ questions: z.array(planningSummarySchema.shape.questions.element.extend({ guest: guestOriginSchema.optional() })).max(30), facts: z.array(z.discriminatedUnion('kind', [
+export const savedSummarySchema = planningSummarySchema.extend({ organizerDecisions: z.array(organizerDecisionSchema).max(20).optional(), questions: z.array(planningSummarySchema.shape.questions.element.extend({ guest: guestOriginSchema.optional() })).max(30), facts: z.array(z.discriminatedUnion('kind', [
   schedule.extend(manualEvidence), budget.extend(manualEvidence), activity.extend(manualEvidence),
   travel.extend(manualEvidence), preference.extend(manualEvidence),
 ])).max(60) }).refine((summary) => summary.facts.every((fact) => (!fact.extraction && !fact.guest) || fact.sourceIds.length > 0));

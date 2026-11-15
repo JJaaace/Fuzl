@@ -167,6 +167,7 @@ model SharedPlan {
   sessionId String @unique @db.Uuid
   session PlanningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   draft Json
+  backup Json?
   status String @default("proposed") @db.VarChar(12)
   revision Int @default(1)
   publishedVersion Int @default(0)

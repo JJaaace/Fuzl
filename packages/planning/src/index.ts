@@ -29,3 +29,5 @@ export * from './participation-fixtures.js';
 
 export * from './travel-balance.js';
 export * from './travel-fixtures.js';
+export * from './backups.js';
+export * from './backup-fixtures.js';

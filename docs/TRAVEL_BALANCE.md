@@ -1,6 +1,6 @@
 # Section 10.5 — Balance travel
 
-Section 10.4 was committed and normally pushed to `origin/main` as **`50f88e9adbe43c112f815cdeb58e96e3c614d24d` — Add reviewed attendance scopes and credential-scoped outing opt-ins** before this work. Section 10.5 stays local. No hosted migration, real account/guest interaction, provider request, email, billing change or deployment was performed.
+Section 10.4 was committed and normally pushed to `origin/main` as **`50f88e9adbe43c112f815cdeb58e96e3c614d24d` — Add reviewed attendance scopes and credential-scoped outing opt-ins** before this work. Section 10.5 is preserved in pushed `d27ca9f`; the separately authorized Section 10.6 remains local. No hosted migration, real account/guest interaction, provider request, email, billing change or deployment was performed.
 
 ## Exact local demo
 
@@ -57,4 +57,4 @@ Browser discovery returned `[]`. Rendered desktop, 320–360px/mobile/Safari, ke
 
 Hosted migration/account/guest checks remain pending. Predecessors: `202611070001_guest_responses`, `202611120001_ballots`, `202611140001_plans`, `202611140002_outings`, `202611140003_saved_ideas`, `202611140004_participation`, then `202611140005_travel_balance`. Review actual status and separately authorize the intended rollout using the existing private backend TLS/database configuration and `npm run db:migrate`, without reset. Complete real callback/signed-in identity/original-tab preservation, save/reopen/edit/delete/conflicts/sign-out/two-account isolation; credential-owned guest opt-ins/budgets/expiry/revocation; published scope revisions/RSVP reconfirmation and public privacy checks. Use controlled synthetic records, not friends' real history, first. A reachable intended HTTPS origin and restricted redirects are still needed before sharing real links.
 
-Stop after Section 10.5. Backup plans, monitoring, weather, reviews/trends, reminders, personal relationship inference and deployment remain deferred.
+This milestone stopped after Section 10.5 and is preserved in pushed `d27ca9f`. The separately authorized [10.6 backup workflow](BACKUPS.md) remains local. Monitoring, weather, reviews/trends, reminders, personal relationship inference and deployment remain deferred.

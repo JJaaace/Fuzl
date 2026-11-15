@@ -14,8 +14,8 @@ import type { PlanningFact, PlanningSummary } from './model.js';
 import type { AssessedPlace, FitCheck, PlaceArea, PlaceCandidate, PlaceQuery, PlaceResults } from './places.js';
 // Only the server supplies these. They never appear in a result DTO.
 export interface PrivateSpending { amount: number | null; currency: string | null; state: string }
-export function straightLineKm(area: PlaceArea, candidate: Pick<PlaceCandidate, 'lat' | 'lon'>): number | null {
-  if (candidate.lat === null || candidate.lon === null) return null;
+export function straightLineKm(area: PlaceArea | null, candidate: Pick<PlaceCandidate, 'lat' | 'lon'>): number | null {
+  if (area === null || candidate.lat === null || candidate.lon === null) return null;
   const rad = (n: number) => n * Math.PI / 180;
   const x = Math.sin(rad(candidate.lat - area.lat) / 2) ** 2 + Math.cos(rad(area.lat)) * Math.cos(rad(candidate.lat)) * Math.sin(rad(candidate.lon - area.lon) / 2) ** 2;
   return 6371 * 2 * Math.asin(Math.sqrt(Math.min(1, x)));
@@ -38,7 +38,7 @@ export function budgetCheck(candidate: Pick<PlaceCandidate, 'price'>, limit: { a
         : 'Affordability needs checking: match total cost, per-person basis, currency and a settled limit. Admission alone or a price tier is insufficient.';
   return { kind, status, detail };
 }
-export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, query: PlaceQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = [], history?: GroupVisitHistory, participation?: ParticipationScope, travel?: TravelContext): Omit<PlaceResults, 'mode' | 'retrievedAt'> {
+export function assessPlaces(candidates: PlaceCandidate[], area: PlaceArea | null, query: PlaceQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = [], history?: GroupVisitHistory, participation?: ParticipationScope, travel?: TravelContext, referenceZone?: string | null): Pick<PlaceResults, 'ranked' | 'verified' | 'promising' | 'excluded' | 'notices'> {
   const facts = summary.facts.filter(current);
   const budgets = facts.filter(f => f.kind === 'budget');
   const seenIds = new Set<string>(), seenUrls = new Set<string>();
@@ -49,7 +49,11 @@ export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, qu
     const key = `${listing.source}:${listing.id}`;
     if (seenIds.has(key) || (candidate.sourceUrl !== null && seenUrls.has(candidate.sourceUrl))) continue;
     seenIds.add(key); if (candidate.sourceUrl !== null) seenUrls.add(candidate.sourceUrl);
-    const checks: FitCheck[] = participationChecks(participation, { date: query.date, start: query.start, end: query.end, timeZone: query.timeZone ?? candidate.timeZone ?? null }, summary, area.timeZone);
+    // With no resolved area or reviewed reference zone, availability clocks
+    // cannot verify/exclude a backup. The normal fact loop retains each as an
+    // unresolved requirement; explicit opt-in/No evidence remains independent.
+    const availabilitySummary = !area && !referenceZone ? { ...summary, facts: summary.facts.filter(f => f.kind !== 'schedule') } : summary;
+    const checks: FitCheck[] = participationChecks(participation, { date: query.date, start: query.start, end: query.end, timeZone: query.timeZone ?? candidate.timeZone ?? null }, availabilitySummary, area?.timeZone ?? referenceZone);
     const distanceKm = details.addressConflict && details.addressNeedsChecking || details.evidence.listingChanged ? null : straightLineKm(area, candidate);
     checks.push({ kind: 'address', status: details.addressNeedsChecking ? 'needs-checking' : 'fits', detail: details.evidence.listingChanged ? 'The listing changed. Review your recorded sources and confirm the address again.' : details.addressNeedsChecking ? 'Address needs checking. Confirm the venue address from a matched source; conflicting values remain visible.' : 'Using the organizer-confirmed address or known demo location. A different address never inherits the old coordinates.' });
     checks.push(bookingCheck(candidate.visit, { date: query.date, start: query.start, end: query.end, timeZone: query.timeZone ?? candidate.timeZone ?? null }, candidate.address, participation ? participation.roster.filter(p => p.selected).map(p => p.id) : summary.participants.length ? summary.participants.map(p => p.id) : undefined));
@@ -81,6 +85,7 @@ export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, qu
       }
       if (!attributed(fact, summary)) { checks.push({ kind: 'constraint', status: 'needs-checking', detail: 'A planning requirement has unknown attribution. Confirm its subject before treating it as verified.' }); continue; }
       if (fact.kind === 'schedule') {
+        if (!area && (!referenceZone || referenceZone !== query.timeZone)) { checks.push({ kind: 'timing', status: 'needs-checking', detail: 'Review the availability clocks’ time zone before comparing a backup schedule.' }); continue; }
         if (!settled(fact) || !fact.exactDate || !fact.startTime || !fact.endTime) checks.push({ kind: 'timing', status: 'needs-checking', detail: 'A planning date/time is incomplete or unconfirmed. Search timing does not silently resolve that answer.' });
         else if (fact.strength === 'firm' && completeTime && (fact.exactDate !== query.date || query.start! < fact.startTime || query.end! > fact.endTime)) checks.push({ kind: 'timing', status: 'does-not-fit', detail: 'Chosen search timing falls outside a confirmed firm planning window. Change the plan explicitly before using this window.' });
       } else if (fact.kind === 'travel') {
@@ -107,5 +112,9 @@ export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, qu
   ranked.sort((a, b) => (a.result.status === 'fits' ? 0 : a.result.status === 'needs-checking' ? 1 : 2) - (b.result.status === 'fits' ? 0 : b.result.status === 'needs-checking' ? 1 : 2) || b.score - a.score || a.result.candidate.id.localeCompare(b.result.candidate.id));
   const balanced = balanceTravel(ranked.map(r => r.result), travel, r => ({ key: workKey(r.candidate), address: r.effectiveAddress ?? r.candidate.address, window: { date: query.date, start: query.start, end: query.end, timeZone: query.timeZone ?? r.candidate.timeZone ?? null } }));
   const useful = balanced.filter(r => r.status !== 'does-not-fit').slice(0, 3);
-  return { ranked: balanced, area, verified: useful.filter(r => r.status === 'fits'), promising: useful.filter(r => r.status === 'needs-checking'), excluded: balanced.filter(r => r.status === 'does-not-fit'), notices: ['Results cover only the returned candidates, not every place in the area.', 'Hours do not establish seats, tickets, group capacity or reservations. Suggestions are not confirmed plans.', ...(facts.some(f => !reviewed(f)) ? ['Unreviewed AI claims remain unreviewed and were not used as verified constraints or ranking preferences.'] : []), ...(summary.questions.some(q => !q.resolution) ? ['Open questions remain unresolved; check them before deciding.'] : [])] };
+  return { ranked: balanced, verified: useful.filter(r => r.status === 'fits'), promising: useful.filter(r => r.status === 'needs-checking'), excluded: balanced.filter(r => r.status === 'does-not-fit'), notices: ['Results cover only the returned candidates, not every place in the area.', 'Hours do not establish seats, tickets, group capacity or reservations. Suggestions are not confirmed plans.', ...(facts.some(f => !reviewed(f)) ? ['Unreviewed AI claims remain unreviewed and were not used as verified constraints or ranking preferences.'] : []), ...(summary.questions.some(q => !q.resolution) ? ['Open questions remain unresolved; check them before deciding.'] : [])] };
+}
+
+export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, query: PlaceQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = [], history?: GroupVisitHistory, participation?: ParticipationScope, travel?: TravelContext): Omit<PlaceResults, 'mode' | 'retrievedAt'> {
+  return { area, ...assessPlaces(candidates, area, query, summary, privateSpending, memories, history, participation, travel) };
 }

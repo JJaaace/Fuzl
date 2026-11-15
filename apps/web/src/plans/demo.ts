@@ -33,7 +33,7 @@ export function planDemo(ballots: () => Promise<unknown>, onLink: (token: string
         const material = !publishedDraft || materialPlanKey(publishedDraft) !== materialPlanKey(plan.draft), version = (plan.published?.version ?? 0) + 1, materialVersion = (plan.published?.materialVersion ?? 0) + Number(material);
         const notice = `${version > 1 && material ? 'Plan changed. Reconfirm your RSVP. ' : 'Plan confirmed. '}${input.notice}`;
         plan.status = 'confirmed'; plan.published = { id: plan.id, version, materialVersion, status: 'confirmed', details: structuredClone(plan.draft.details), sample: plan.draft.option.sample, changeNotice: notice, publishedAt: new Date().toISOString(), rsvpOpen: plan.published?.rsvpOpen ?? true }; publishedDraft = structuredClone(plan.draft);
-        plan.history.unshift({ version, materialVersion, status: 'confirmed', changeNotice: notice, publishedAt: plan.published.publishedAt });
+        plan.history.unshift({ details: structuredClone(plan.draft.details), selectedName: plan.draft.option.name, version, materialVersion, status: 'confirmed', changeNotice: notice, publishedAt: plan.published.publishedAt });
       } else if (path === '/control') {
         const action = input.action; if (action !== 'close-rsvps' && !canPlanTransition(plan.status, action as 'completed' | 'cancelled')) throw Error('Invalid lifecycle change');
         if (action !== 'close-rsvps') plan.status = action as 'completed' | 'cancelled';
@@ -54,5 +54,10 @@ export function planDemo(ballots: () => Promise<unknown>, onLink: (token: string
     if (path === '/rsvps') { const p = rsvpCreateSchema.parse(raw); if (p.payload.planVersion !== plan.published.version) throw Error('Plan changed. Reload and review.'); const old = rows.get(p.editToken); if (old) return dto(old); const r = { id: crypto.randomUUID(), submissionId: p.submissionId, alias: p.payload.alias, choice: p.payload.choice, revision: 1, answeredMaterialVersion: plan.published.materialVersion, needsReconfirmation: false, updatedAt: new Date().toISOString() }; rows.set(p.editToken, r); return dto(r); }
     const p = rsvpEditSchema.parse(raw); if (!row || p.payload.planVersion !== plan.published.version || row.revision !== p.revision && row.lastRequestId !== p.requestId) throw Error('Plan or RSVP changed. Reload.'); const next = { ...row, alias: p.payload.alias, choice: p.payload.choice, answeredMaterialVersion: plan.published.materialVersion, revision: row.lastRequestId === p.requestId ? row.revision : row.revision + 1, lastRequestId: p.requestId, updatedAt: new Date().toISOString() }; rows.set(auth, next); return dto(next);
   };
-  return { owner, guest, ballots };
+  const replace = async (draft: PlanDraft, notice: string, revision: number) => {
+    if (!plan || plan.revision !== revision || plan.status !== 'confirmed' || !publishablePlan(draft.details)) throw Error('Demo plan changed. Preview again.');
+    plan.draft = structuredClone(draft); plan.draftKey = await key(draft);
+    return owner('/publish', 'POST', { requestId: crypto.randomUUID(), revision, previewKey: plan.draftKey, approved: true, notice });
+  };
+  return { owner, guest, ballots, replace };
 }

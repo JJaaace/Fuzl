@@ -484,3 +484,7 @@ button.primary[aria-busy=true] { background: var(--accent-wash); color: var(--in
 .participation-panel li { padding-block: 8px; }
 .participation-panel li label { display: block; margin-block: 8px; }
 .participation-panel input[type=checkbox] { width: 20px; height: 20px; margin-right: 8px; }
+
+.backup-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.backup-comparison > section { min-width: 0; }
+@media (max-width: 650px) { .backup-comparison { grid-template-columns: 1fr; } }

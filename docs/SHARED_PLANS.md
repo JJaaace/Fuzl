@@ -71,3 +71,7 @@ Current automated/disposable results are in PROGRESS. The original 8B milestone 
 ## Section 10.4 attendance snapshots
 
 [Participation scopes](PARTICIPATION.md) add **Use reviewed attendance scope in plan draft**. It copies a server-reviewed public mode/count and an internal roster/window proof, then uses the existing exact preview/publication workflow. Configured participation must be copied before publishing. Working-scope edits never silently change the shared page; material roster changes (including same-count identity changes) require RSVP reconfirmation after explicit publication. Guest DTOs omit the roster identities and proof. No extra plan SQL migration; the participation tables require their own pending hosted rollout.
+
+## Section 10.6 private backups
+
+[BACKUPS.md](BACKUPS.md) documents one privately saved backup, a current-fit/side-by-side switch preview and explicit atomic publication through the existing plan version/RSVP path. The shared link and any closure/revocation remain unchanged. Known end times now appear in public details and are material for reconfirmation; absent ends remain unknown. Owner history includes the frozen public details of earlier versions. The backup condition note stays outside public DTOs/snapshots. Migration `202611140006_backups` remains disposable-only; hosted and rendered browser checks are pending. No monitoring or automatic switching.

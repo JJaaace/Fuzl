@@ -11,12 +11,13 @@ export const logoVariants = [
   { id: 'spark', name: 'Spark', description: 'A short diagonal fuse and a visible rounded attachment. The growing dots lead directly into the cap.', src: '/brand/fuzl-spark.svg', favicon: '/brand/favicon-spark.svg' },
   { id: 'arc', name: 'Arc', description: 'A curved fuse approaching from the right, with a softer cap and a round, low-centered body.', src: '/brand/fuzl-arc.svg', favicon: '/brand/favicon-arc.svg' },
 ] as const;
+export const faviconVersion = '11a2';
 export const activeLogo: MascotVariant = 'spark';
 export const selectedLogo = logoVariants.find((variant) => variant.id === activeLogo)!;
 
 // Geometry and colors shared by the inline header and exported/static assets.
-export function mascotSvg(variant: MascotVariant, { animated = false, favicon = false, motionCss = '' } = {}): string {
+export function mascotSvg(variant: MascotVariant, { animated = false, favicon = false, tone = 'auto', motionCss = '' } = {}): string {
   const shape = mascotGeometry[variant]; const cap = shape.cap;
   const body = `<g class="mascot-body" fill="currentColor"><path d="${shape.fuse}" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><rect x="${cap.x}" y="${cap.y}" width="${cap.width}" height="${cap.height}" rx="3" transform="rotate(${cap.rotation} ${cap.x + cap.width / 2} ${cap.y + cap.height / 2})"/><circle cx="${shape.cx}" cy="${shape.cy}" r="${shape.radius}"/><path class="mascot-smile" d="${shape.smile}" fill="${mascotColors.smile}"/></g>${shape.dots.map((dot, index) => `<circle class="fuse-dot fuse-dot-${fuseDotNames[index]}" cx="${dot.x}" cy="${dot.y}" r="${dot.radius}" fill="${fuseRestColors[index]}"/>`).join('')}`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="fuzl-mascot${animated ? ' is-lighting' : ''}" style="color:${mascotColors.body}"><title>${animated ? 'Light the fuse' : `Fuzl ${variant}`}</title>${animated ? `<style>${motionCss}</style>` : ''}${favicon ? `<rect width="64" height="64" rx="8" fill="${mascotColors.canvas}"/>` : ''}${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${favicon ? '1 1 62 62' : '0 0 64 64'}" class="fuzl-mascot${animated ? ' is-lighting' : ''}" style="color:${mascotColors.body}"><title>${animated ? 'Light the fuse' : `Fuzl ${variant}`}</title>${animated ? `<style>${motionCss}</style>` : ''}${favicon ? `<style>${tone === 'auto' ? '@media(prefers-color-scheme:light){' : ''}${tone !== 'dark' ? '.mascot-body{color:#24170b}.mascot-smile{fill:#f5f0e7}.fuse-dot-near{stroke:#24170b;stroke-width:.7}' : ''}${tone === 'auto' ? '}' : ''}</style>` : ''}${body}</svg>`;
 }

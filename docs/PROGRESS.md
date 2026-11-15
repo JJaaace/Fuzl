@@ -1,6 +1,36 @@
 # Fuzl progress
 
-Updated November 14, 2026. Active authorization: **Section 10.7 — compact organizer-only group history and a Saved ideas entry point**, building on pushed Section 10.6 checkpoint `3c9f119`. Reviews, trends, deployment and later milestones remain future context. The supplied specification is preserved unchanged. Section 5 remains incompletely verified.
+Updated November 15, 2026. Active authorization: **Section 11A — existing-app design and usability**, local on pushed Section 10.7 checkpoint `38172be`. The specification is preserved unchanged. Deployment, reviews/trends and later features remain deferred; hosted/browser acceptance gaps remain open.
+
+## Section 11A — follow-up visual refinement (local)
+
+Used the now-attached Uber/portfolio references. Preserved the complete initial local pass before editing in ignored `artifacts/design/11a-before-next-pass/`; did not commit, push or restore over it. The approved particle geometry/color/wave is byte-identical to that source baseline.
+
+Wide opening now uses left headline/right unified composer, stacked on phones. Header uses text navigation; ivory primary controls, compact top-edge mode/example controls, optional date before Analyze, visible shorter provider disclosure. Summary results, saving shortcut and open questions lead; shortcut focuses the same save section, without saving. Broader guide/section spacing and 520ms/20px once-only entrances give a slower settle; native scrolling and backward restoration are retained. The ribbon now has up to 96 points, longer speed-dependent history, three separately delayed spline threads and continuous tapered gradient meshes, with editor/control fading and existing reduced-motion/pause protections. Title is exactly **Fuzl**. SVG plus a new transparent 16/32/48px ICO are the active versioned icon declarations; no tile pixels added.
+
+**Actual checks:** **301 offline passes**, thirteen intentional DB skips (314 total), zero failures; full typecheck, lint and build passed (Vite retains its existing >500kB chunk warning). Existing sample/replacement/AI/guest workflows pass; new tight-turn strand continuity and composer/disclosure/date/explicit-saving tests pass. Asset generation and all transparent ICO-frame checks passed. Shared-geometry four-second WebP/poster proof inspected; it is **not an app recording**. Local/LAN preview and health return HTTP 200. No new provider request, email, migration, hosted change or deployment.
+
+**Still unverified:** browser selection reported no available browser and discovery `[]`. No real desktop before/after screenshot, mobile app screenshot, app recording, Safari tab/cache inspection, rendered keyboard/scroll/reduced-motion check or whole-page visual verification. Exact replay/capture steps and renderer-proof limitations are in [DESIGN_11A.md](DESIGN_11A.md). Previous hosted account/guest/ballot/plan/migration checks remain pending. Changes stay local.
+
+## Section 11A — initial local workspace motion and guest usability
+
+Read the supplied written request, existing design notes/instructions, canvas/brand/navigation/summary and guest flows. Applied **fuzl-ui-review**. Working tree was clean at `38172bea9c123392fcaf3b8b9deaa6f005ad8d72`. No prior patches were reapplied. The referenced portfolio/Uber images were not available as image attachments; used the written direction and original Fuzl styling.
+
+- Existing single canvas: stable seeded orbits plus shared slow wave; bounded interpolated ivory/amber mouse ribbon, local particle response, softer editor treatment, lighter touch field, static reduced motion, hidden/offscreen pause, DPR cap and cleanup outside React state. Summary and guest pages remain quiet.
+- Native scrolling, one-time progressive section entrances, explicit forward heading focus/reveal and backward stage scroll restoration. Existing result acceptance, stale-source checks, unpublished edits and summary reveal remain intact.
+- Larger opening type, compact planning hierarchy, modest shared radii, quieter secondary actions and fewer nested borders. Guest ballot option name appears once. Shared-plan activity/time/meeting/cost precede RSVP choices; uncertainty, links and booking details still precede explicit review/submit. No request/credential/server contract changed.
+- Removed the favicon's baked-in tile. Active static SVG and transparent 16/32px fallbacks retain three fuse dots/crescent; light/dark tab variants, versioned references and local preview/proof script. No active manifest variants existed.
+
+| Section 11A check | Actual result |
+| --- | --- |
+| `npm test` | **299 passed**, 13 intentional disposable-suite skips (312 total), zero failures; geometry/ribbon/canvas lifecycle, native-focus/once-only entrances, preserved samples/editors/AI safeguards and synthetic ballot/RSVP/reconfirmation flows |
+| Types / lint / build | Passed; zero lint warnings |
+| SVG/PNG generation and raster proofs | Passed; inspected actual 16/32px favicon on light/dark, transparent empty corners; not browser-tab evidence |
+| Local UI / additional LAN UI / proxied API health | HTTP 200; running previews `127.0.0.1:5173` and `192.168.1.105:5174` |
+| Browser / Safari / mobile / motion recording / fresh-tab icon caching | **Unverified**; browser discovery returned `[]` twice. Exact manual checks in [DESIGN_11A.md](DESIGN_11A.md) |
+| Database / hosted / live providers | No new migration or DB run, no live AI/place/event requests, no emails, no deployment. Prior 99 disposable SQL passes remain historical evidence. Hosted migrations, callback/signed-in identity/original-tab edit preservation/save-reopen/sign-out/two-account isolation and hosted guest/ballot/plan workflows remain pending |
+
+Changes left local for visual review, with existing history/planning behavior preserved. [Design details and exact demo](DESIGN_11A.md) explain the code, preview addresses and remaining rendered checks. Section 11A is **not fully visually verified**.
 
 ## Section 10.7 — local group history & next ideas
 
@@ -735,4 +765,4 @@ Drafts clear on reload. Health is a snapshot of reachability, with no automatic 
 
 Foundation implementation and available automated/HTTP checks are complete; manual browser acceptance remains pending. A focused local foundation commit records this work. No remote was created, pushed, published, or deployed.
 
-This historical stopping boundary was advanced by Jace’s later instructions. The active boundary is now **after the Section 10.7 group-history pass (without photos or reminders)**, as authorized by the latest request; hosting/deployment and later milestones remain deferred. Reviews/trends remain deferred.
+This historical stopping boundary was advanced by Jace’s later instructions. The active boundary is now **the Section 11A local design/usability pass**, as authorized by the latest request; hosting/deployment and later milestones remain deferred. Reviews/trends remain deferred.

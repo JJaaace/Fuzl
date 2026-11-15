@@ -1,3 +1,4 @@
+import { focusAndReveal } from '../ui/presentation';
 import FuseDots from '../ui/FuseDots';
 import { useEffect, useRef, useState } from 'react';
 import { MAX_CONVERSATION_LENGTH, transcriptDraft, transcriptInputError } from '@fuzl/planning';
@@ -34,7 +35,7 @@ export default function ScreenshotPanel({ onUse, onTranscriptChange, onFilesChan
     if (!reviewVisible) return;
     const frame = requestAnimationFrame(() => {
       const heading = transcriptHeading.current;
-      if (heading && !heading.closest('[hidden]') && (document.activeElement === document.body || document.activeElement === readButton.current)) heading.focus();
+      if (heading && !heading.closest('[hidden]') && (document.activeElement === document.body || document.activeElement === readButton.current)) focusAndReveal(heading);
     });
     return () => cancelAnimationFrame(frame);
   }, [status, reviewVisible]);

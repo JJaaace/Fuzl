@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import SavedSource from '../accounts/SavedSource';
 import type { SavedProvenance } from '@fuzl/planning';
 import type { TranscriptSnapshot } from '@fuzl/planning';
@@ -45,16 +46,18 @@ function FactCard({ fact, summary, sourceKind, transcript, provenance, available
   </article>;
 }
 
-export default function SummaryReview({ summary, sourceKind = 'sample', transcript, active = true, provenance = [], availableScreenshots = [], onChange }: {
-  summary: PlanningSummary; active?: boolean; onChange: (summary: PlanningSummary) => void;
+export default function SummaryReview({ summary, sourceKind = 'sample', transcript, active = true, provenance = [], availableScreenshots = [], onChange, nextAction }: {
+  nextAction?: ReactNode; summary: PlanningSummary; active?: boolean; onChange: (summary: PlanningSummary) => void;
   sourceKind?: 'sample' | 'manual' | 'ai'; transcript?: TranscriptSnapshot | null; provenance?: SavedProvenance; availableScreenshots?: string[];
 }) {
   const [newKind, setNewKind] = useState<FactKind>('schedule');
   const [newFact, setNewFact] = useState<PlanningFact | null>(null);
   return <>
     <SummaryOverview summary={summary} active={active} />
+    {nextAction}
+    <Questions summary={summary} onChange={onChange} />
     {!!summary.organizerDecisions?.length && <details className="review-section organizer-decisions"><summary>Organizer decisions ({summary.organizerDecisions.length})</summary><p className="note">Explicit working-session decisions, separate from original conversation evidence. They do not change a published plan or any RSVP.</p><ul>{summary.organizerDecisions.map(d => <li key={d.id}><strong>{d.before} → {d.after}</strong><p>{d.reason}</p><p className="note">{new Date(d.recordedAt).toLocaleString()} · Original source references: {d.sourceIds.join(', ') || 'Manual fact'}</p>{d.checks?.flatMap(c => [c.evidence.travel, c.evidence.booking].filter(Boolean).map((e, i) => <p key={`${c.key}:${i}`}><a href={e!.sourceUrl} target="_blank" rel="noreferrer">Organizer-recorded check source</a> · Checked {e!.checkedOn} · {e!.destination}</p>))}</li>)}</ul></details>}
-    <details className="people-details review-section">
+    <details data-section-entry className="people-details review-section">
       <summary><span>Participants &amp; speaker mappings</span><span className="muted">Edit names &amp; attribution</span></summary>
       <p className="note">Names are editable aliases. Speaker mappings update the attribution of linked facts; original quotes stay unchanged.</p>
       <div className="form-grid participant-fields">
@@ -76,8 +79,8 @@ export default function SummaryReview({ summary, sourceKind = 'sample', transcri
       </div>}
     </details>
 
-    <Questions summary={summary} onChange={onChange} />
-    <details className="facts-details review-section">
+
+    <details data-section-entry className="facts-details review-section">
       <summary><span id="facts-title">Planning facts</span><span className="muted">{summary.facts.length} facts · review &amp; edit</span></summary>
       <p className="note">Unknown isn’t zero. A fact’s status is separate from whether you’ve reviewed it.</p>
       <ul className="status-overview" aria-label="Fact statuses">{factStatuses.map((status) => <li key={status}>{status}: {summary.facts.filter((fact) => fact.status === status).length}</li>)}</ul>

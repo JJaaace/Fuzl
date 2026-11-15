@@ -1,3 +1,4 @@
+import { focusAndReveal } from '../ui/presentation';
 import FuseDots from '../ui/FuseDots';
 import { useEffect, useRef, useState } from 'react';
 import { MAX_CONVERSATION_LENGTH } from '@fuzl/planning';
@@ -47,7 +48,7 @@ export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, on
     if (!previewVisible || mismatch) return;
     const frame = requestAnimationFrame(() => {
       const heading = previewHeading.current;
-      if (heading && !heading.closest('[hidden]') && (document.activeElement === document.body || document.activeElement === submitButton.current)) heading.focus();
+      if (heading && !heading.closest('[hidden]') && (document.activeElement === document.body || document.activeElement === submitButton.current)) focusAndReveal(heading);
     });
     return () => cancelAnimationFrame(frame);
   }, [result, previewVisible, mismatch]);
@@ -76,14 +77,15 @@ export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, on
 
   return <section className="analysis-panel" aria-label="AI understanding">
     <div className="analysis-controls" hidden={!controlsVisible}>
-      <p id="analysis-disclosure" className="provider-disclosure"><Icon name="spark" /><span>Analyze conversation sends this draft and the optional reference date to <strong>{configuration?.provider === 'gemini' ? 'Google Gemini' : configuration?.provider === 'openai' ? 'OpenAI' : 'the selected provider (OpenAI or Google Gemini)'}</strong>. {configuration?.provider === 'gemini' ? 'Use synthetic conversations only; unpaid Google content may be used for improvement and human review.' : 'Your provider may retain content under its data policy.'}</span></p>
+      <p id="analysis-disclosure" className="provider-disclosure"><Icon name="spark" /><span>Sends this draft and the optional date to <strong>{configuration?.provider === 'gemini' ? 'Google Gemini' : configuration?.provider === 'openai' ? 'OpenAI' : 'the selected provider (OpenAI or Google Gemini)'}</strong>. {configuration?.provider === 'gemini' ? 'Synthetic data only; unpaid Google content may be used for improvement and human review.' : 'Your provider may retain content under its data policy.'}</span></p>
       <form noValidate aria-describedby="analysis-disclosure" onSubmit={(event) => { event.preventDefault(); void analyze(); }}>
 
+        <details className="reference-details"><summary>Conversation date <span className="muted">· optional</span></summary><Field label="Date of the conversation (optional reference)" type="date" value={referenceDate} onChange={(event) => setReferenceDate(event.target.value)} /><p className="note">When were the messages written? We never assume today or turn an ambiguous “Friday” into an exact date.</p></details>
         <div className="analysis-action-row"><div className="actions"><button ref={submitButton} className="primary analyze-button" type="submit" aria-busy={status === 'loading'} disabled={!configuration || configurationLoading || status === 'loading' || !!draftIssue || !draft.trim() || tooLong}>{status === 'loading' ? <FuseDots /> : <Icon name="spark" />}{status === 'loading' ? 'Analyzing…' : 'Analyze conversation'}<Icon name="arrow" className={status === 'loading' ? 'loading-arrow' : ''} /></button>
           {status === 'loading' && <button type="button" onClick={() => { pending.current?.abort(); pending.current = null; setStatus('cancelled'); setResult(null); onPreviewCleared?.(); }}>Cancel analysis</button>}
           {result && <button type="button" className="quiet" onClick={() => onPreview?.('open')}>Review last AI result</button>}
         </div><p className={tooLong ? 'validation-error' : 'character-count'}>{draft.length} / {MAX_CONVERSATION_LENGTH} characters</p></div>
-        <details className="reference-details"><summary>Conversation date <span className="muted">· optional</span></summary><Field label="Date of the conversation (optional reference)" type="date" value={referenceDate} onChange={(event) => setReferenceDate(event.target.value)} /><p className="note">When were the messages written? We never assume today or turn an ambiguous “Friday” into an exact date.</p></details>
+
         {draftIssue && <p className="validation-error">{draftIssue}</p>}
       </form>
       <details className="privacy-details"><summary>Privacy & provider details</summary><p className="note">The full draft and reference-date input are not saved by Fuzl. Save session separately stores the summary and supporting excerpts. {configuration?.provider === 'gemini' ? 'Do not send personal, sensitive, or confidential information to unpaid Google services. Check Free Tier eligibility and quotas in Google AI Studio.' : 'Share only content you intend to send. Review the provider’s data handling before use.'} No automatic provider fallback.</p>{configuration && <p className="note">Selected provider: {configuration.provider} · {configuration.model}</p>}</details>

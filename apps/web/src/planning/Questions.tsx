@@ -39,7 +39,7 @@ function QuestionForm({ question, onApply, onCancel }: {
 export default function Questions({ summary, onChange }: { summary: PlanningSummary; onChange: (summary: PlanningSummary) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [newQuestion, setNewQuestion] = useState<OpenQuestion | null>(null);
-  return <section className="review-section" aria-labelledby="questions-title">
+  return <section data-section-entry className="review-section" aria-labelledby="questions-title">
     <h3 id="questions-title">Missing answers & conflicts</h3>
     <p className="note">Add an answer or record a conflict. Related facts stay unchanged until you edit them.</p>
     {summary.questions.length === 0 && <p>No questions recorded. This does not establish that the plan is complete.</p>}

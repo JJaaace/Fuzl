@@ -347,3 +347,36 @@ test('discovery preference controls do not invalidate in-flight planning work; s
   const before = edits; await click(action); await enter(field, 'new'); assert.equal(edits, before);
   await enter(document.querySelector<HTMLTextAreaElement>('#draft')!, 'A real planning edit'); assert.ok(edits > before);
 });
+
+test('explicit stage navigation restores the prior native scroll when returning and keeps a predictable heading focus', async t => {
+  let y = 210; const restored: ScrollToOptions[] = [];
+  t.mock.getter(window, 'scrollY', () => y);
+  t.mock.method(window, 'scrollTo', (options: ScrollToOptions | number) => { if (typeof options !== 'number') restored.push(options); });
+  await mount(t); await sample();
+  await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+  y = 640; await stage('Conversation');
+  await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+  assert.deepEqual(restored.at(-1), { top: 210, behavior: 'instant' });
+  assert.equal(document.activeElement?.id, 'intro-title');
+  assert.ok(document.querySelector('.stage-nav button[aria-current=step]')?.textContent?.includes('Conversation'));
+  await stage('Understanding'); await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+  assert.equal(document.activeElement?.id, 'intro-title');
+});
+
+
+test('the single composer keeps mode/example controls together, date and disclosure before submit, and summary saving explicit', async t => {
+  const { calls } = await mount(t);
+  const composer = document.querySelector('.conversation-composer')!;
+  assert.equal(composer.querySelectorAll('.composer-topbar .input-modes button').length, 2);
+  assert.ok(composer.querySelector('.composer-topbar .composer-examples'));
+  const controls = [...composer.querySelectorAll('#draft, #analysis-disclosure, .reference-details, .analyze-button')];
+  assert.deepEqual(controls.map(e => e.id || e.className), ['draft', 'analysis-disclosure', 'reference-details', 'primary analyze-button']);
+  const draft = composer.querySelector('#draft'); await click(button('Upload screenshots')); await click(button('Paste conversation')); assert.equal(document.querySelector('#draft'), draft);
+  await sample();
+  const summary = document.querySelector('.summary-panel')!;
+  const next = summary.querySelector('.summary-next button') as HTMLButtonElement;
+  assert.equal(next.textContent?.trim(), 'Continue to saving');
+  await click(next); assert.equal(document.activeElement, summary.querySelector('.save-session'));
+  assert.ok(summary.querySelector('.facts-details')); assert.ok(summary.querySelector('.review-section'));
+  assert.equal(calls.filter(url => url !== '/api/ai-config').length, 0, 'navigation/shortcut never saves, analyzes, or publishes');
+});

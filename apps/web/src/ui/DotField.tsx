@@ -9,5 +9,6 @@ export default function DotField({ active, dimmed }: { active: boolean; dimmed: 
     return () => { running.dispose(); controller.current = null; };
   }, []);
   useEffect(() => { controller.current?.setActive(active); }, [active]);
+  useEffect(() => { controller.current?.setDimmed(dimmed); }, [dimmed]);
   return <div className={`dot-field ${dimmed ? 'is-dimmed' : ''}`} aria-hidden="true"><canvas ref={canvas} /></div>;
 }

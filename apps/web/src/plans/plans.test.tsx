@@ -26,6 +26,13 @@ test('synthetic ballot → vote → explicit plan preview/publication → Going 
   await enter(control('Plan date'), '2026-11-21'); await enter(control('Plan local time'), '15:00'); await enter(control('Plan time zone'), 'America/New_York'); await enter(control('Plan meeting point'), 'Synthetic park north gate'); await click(button('Save plan draft')); await click(button('Preview shared plan')); await click(control('I approve these exact public details')); await click(button('Confirm & publish plan')); await waitFor(() => !!document.body.textContent?.includes('Current shared plan v1'));
   await click(button('Create / replace plan link')); await click(button('Guest plan demo')); await waitFor(() => !!document.querySelector('.plan-guest')?.textContent?.includes('No RSVP yet'));
   assert.ok(document.querySelector('.plan-guest')?.textContent?.includes('Group agreed; booking / tickets still need arranging'));
+  const guestPlan = document.querySelector('.plan-guest')!;
+  assert.notEqual(guestPlan.querySelector('h1')?.textContent, 'The group’s plan', 'activity is the guest heading');
+  assert.equal(guestPlan.querySelectorAll('.rsvp-choices input[type=radio]').length, 3);
+  const order = [...guestPlan.querySelectorAll('.plan-essentials, .rsvp-choices, .plan-evidence, .check-label, button[type=submit]')].map(e => e.className);
+  assert.deepEqual(order, ['plan-essentials', 'rsvp-choices', 'plan-evidence', 'check-label', 'primary'], 'essential details and response choices come first; unresolved evidence still precedes explicit approval and send');
+  assert.equal(guestPlan.querySelector('.dot-field'), null, 'guest RSVP has no decorative animation');
+
   await enter(control('Your RSVP name'), 'Sam'); await click(document.querySelector<HTMLInputElement>('.plan-guest input[type=radio]')!); await click(control('I reviewed the current plan')); await click(button('Send RSVP')); await waitFor(() => !!document.querySelector('.plan-guest')?.textContent?.includes('RSVP saved'));
   const choices = [...document.querySelectorAll<HTMLInputElement>('.plan-guest input[type=radio]')]; await click(choices[1]); assert.ok(document.querySelector('.plan-guest')?.textContent?.includes('Unsaved RSVP changes')); await click(control('I reviewed the current plan')); await click(button('Update my RSVP')); await waitFor(() => !!document.querySelector('.plan-guest')?.textContent?.includes('RSVP saved'));
   await click(button('Organizer demo')); await click(button('Refresh plan & attendance')); assert.ok(document.querySelector('.plan-organizer')?.textContent?.includes('1 Maybe'));

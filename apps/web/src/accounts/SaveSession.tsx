@@ -14,7 +14,7 @@ export default function SaveSession({ input, loaded, onSaved, onOpen, onSignIn, 
 }) {
   const { session } = useAccount();
   return session ? <SignedInSave key={session.user.id} token={session.access_token} focusOuting={focusOuting} onApplyGuest={onApplyGuest} onApplyAdjustment={onApplyAdjustment} getEditRevision={getEditRevision} input={input} loaded={loaded} onSaved={onSaved} onOpen={onOpen} />
-    : <div className="save-session"><p className="notice">Save this session to create a link.</p><p>Save the summary and supporting message excerpts. Raw screenshots and the entire conversation are not saved.</p><button className="primary" onClick={onSignIn}>Sign in to save session</button></div>;
+    : <div className="save-session" tabIndex={-1}><p className="notice">Save this session to create a link.</p><p>Save the summary and supporting message excerpts. Raw screenshots and the entire conversation are not saved.</p><button className="primary" onClick={onSignIn}>Sign in to save session</button></div>;
 }
 function SignedInSave({ token, input, loaded, onSaved, onOpen, getEditRevision, onApplyGuest, onApplyAdjustment, focusOuting }: {
   focusOuting?: boolean; onApplyAdjustment?: ApplyAdjustment;
@@ -51,7 +51,7 @@ function SignedInSave({ token, input, loaded, onSaved, onOpen, getEditRevision, 
       setMessage(error instanceof Error ? error.message : 'Save failed. Your edits were kept. Retry deliberately.');
     } finally { if (!active.signal.aborted) setBusy(false); }
   }
-  return <section className="save-session" aria-labelledby="save-title"><h3 id="save-title">Save this session</h3>
+  return <section className="save-session" tabIndex={-1} aria-labelledby="save-title"><h3 id="save-title">Save this session</h3>
     <p className="note">Keeps the applied summary, review labels and supporting excerpts. Raw imports stay temporary. Apply or cancel open editors before saving.</p>
     <div className="form-grid"><Field label="Session title" value={title} maxLength={100} disabled={busy} onChange={(event) => setTitle(event.target.value)} />
       <label className="field"><span>Save under group</span><select value={groupId} disabled={busy} onChange={(event) => setGroupId(event.target.value)}><option value="">Choose a group</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label></div>

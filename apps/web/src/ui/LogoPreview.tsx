@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import Logo from './Logo';
-import { activeLogo, logoVariants, selectedLogo } from './brand';
+import { activeLogo, logoVariants } from './brand';
 export default function LogoPreview() {
   const [replay, setReplay] = useState(0);
   return <div className="page logo-preview"><header className="app-header"><a href="/" className="brand"><Logo /><span>Fuzl</span></a><span className="eyebrow">Local design preview</span></header>
     <main><h1>A little spark. A friendly plan.</h1><p>Two refined, rounded mascots. Exactly three fuse dots: ember orange outside, golden yellow in the middle, warm ivory nearest the body. Spark is the provisional choice.</p>
       <section className="motion-preview surface" aria-label="Light the fuse animation"><Logo key={replay} size={96} playOnMount={replay > 0} /><div><h2>Light the fuse</h2><p>800 ms. A soft brightness pulse travels inward, the body makes a small lift, and the filled crescent opens and settles. Reduced motion shows the static mark.</p><button className="primary" onClick={() => setReplay((value) => value + 1)}>Replay Light the fuse</button><p className="note"><a href="/brand/light-the-fuse.svg" target="_blank" rel="noreferrer">Open the standalone animated SVG</a></p></div></section>
-      <section className="actual-brand-sizes"><div className="brand"><Logo size={40} /><span>Fuzl</span><span className="size-label">Header · 40px</span></div><div><img src={selectedLogo.favicon} width="16" height="16" alt="Static Fuzl favicon at 16 pixels" /><span>16px favicon</span></div><div><img src={selectedLogo.favicon} width="24" height="24" alt="Static Fuzl favicon at 24 pixels" /><span>24px favicon</span></div></section>
+      <section className="actual-brand-sizes"><div className="brand"><Logo size={40} /><span>Fuzl</span><span className="size-label">Header · 40px</span></div>{(['dark', 'light'] as const).map(tone => <div className={`favicon-proof favicon-proof-${tone}`} key={tone}>{[16, 32].map(size => <span key={size}><img src={`/brand/favicon-${tone}-${size}.png?v=11a2`} width={size} height={size} alt={`Transparent static favicon at ${size} pixels on ${tone}`}/>{size}px</span>)}</div>)}</section>
       {logoVariants.map((variant) => <section className="logo-exploration" key={variant.id}><div><h2>{variant.name} {variant.id === activeLogo && <span className="badge">Selected provisionally</span>}</h2><p>{variant.description} The custom filled crescent is wide and low, thickest at its center, with two rounded, tapered tips.</p><a href={variant.src}>Open static SVG</a></div>
         {['dark', 'light'].map((background) => <div className={`logo-strip logo-strip-${background}`} key={background} aria-label={`${variant.name} on ${background}`}>
           {[16, 24, 40].map((size) => <div key={size}><Logo variant={variant.id} size={size} /><span>{size}px</span></div>)}

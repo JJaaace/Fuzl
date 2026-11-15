@@ -30,19 +30,31 @@ export function dotAppearance(dot: FieldDot, seconds: number) {
   const distance = Math.hypot(x / .475, y / .39);
   const edge = Math.max(0, Math.min(1, (distance - .36) / .36));
   const quiet = edge * edge * (3 - 2 * edge);
+  const orbit = seconds * TAU / (3.8 + dot.period * .38) + dot.phase;
+  const size = 3 + 7 * dot.phase / TAU, tilt = dot.angle + dot.phase * .4;
+  const ox = Math.cos(orbit) * size, oy = Math.sin(orbit) * size * .65;
   return {
-    dx: quiet * (.45 * wave - .2 * echo),
-    dy: -quiet * (5 * wave + echo),
+    dx: quiet * (Math.cos(tilt) * ox - Math.sin(tilt) * oy) + quiet * (.45 * wave - .2 * echo),
+    dy: quiet * (Math.sin(tilt) * ox + Math.cos(tilt) * oy) - quiet * (5 * wave + echo),
     alpha: Math.min(.95, dot.opacity * (.82 + .06 * Math.sin(seconds * TAU / dot.period + dot.phase)) + quiet * (.11 * wave + .025 * echo)),
     warmth: quiet * (.55 * wave + .1 * echo),
   };
 }
 export type FieldColor = readonly [number, number, number];
 export const fieldColors: { ink: FieldColor; amber: FieldColor } = { ink: [245, 240, 231], amber: [255, 190, 105] };
-export function drawDotField(context: CanvasRenderingContext2D, width: number, height: number, dots: readonly FieldDot[], seconds: number, colors = fieldColors) {
+export interface FieldInteraction { points: readonly {x:number;y:number}[]; strength:number; drift:number; light:boolean }
+export function drawDotField(context: CanvasRenderingContext2D, width: number, height: number, dots: readonly FieldDot[], seconds: number, colors = fieldColors, interaction?: FieldInteraction) {
   context.clearRect(0, 0, width, height);
   for (const dot of dots) {
-    const { dx, dy, alpha, warmth } = dotAppearance(dot, seconds);
+    let { dx, dy, alpha, warmth } = dotAppearance(dot, seconds);
+    const scale = interaction?.light ? .4 : 1;
+    dx *= scale; dy *= scale; alpha *= interaction?.light ? .7 : 1;
+    const x=dot.x*width+dx,y=dot.y*height+dy;
+    let nearest: {x:number;y:number}|undefined, distance=Infinity;
+    for(const point of interaction?.points??[]) {const d=Math.hypot(x-point.x,y-point.y);if(d<distance){distance=d;nearest=point;}}
+    const influence=Math.max(0,1-distance/72)**2*(interaction?.strength??0);
+    if(nearest&&influence>0) {const length=Math.max(1,distance);dx+=(x-nearest.x)/length*influence*5;dy+=(y-nearest.y)/length*influence*5;alpha=Math.min(.98,alpha+influence*.25);warmth=Math.min(1,warmth+influence*.5);}
+    dy += (interaction?.drift??0) * Math.min(1,Math.hypot(dot.x-.5,dot.y-.43)*2);
     const color = colors.ink.map((value, index) => Math.round(value + (colors.amber[index] - value) * warmth));
     context.fillStyle = `rgba(${color.join(',')},${alpha.toFixed(3)})`;
     context.beginPath(); context.arc(dot.x * width + dx, dot.y * height + dy, dot.radius, 0, TAU); context.fill();

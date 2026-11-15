@@ -1,6 +1,6 @@
 # Section 10.6 — one private backup and an explicit plan switch
 
-Section 10.5 was committed and normally pushed to `origin/main` as **`d27ca9f` — Add optional travel balancing from reviewed outing history** before this work. Section 10.6 stays local for review. No hosted migration, real account/guest request, provider request, email, external message, billing change or deployment ran.
+Section 10.5 was committed and normally pushed to `origin/main` as **`d27ca9f` — Add optional travel balancing from reviewed outing history** before this work. Section 10.6 is preserved in pushed `3c9f119`; the separately authorized Section 10.7 history view stays local. No hosted migration, real account/guest request, provider request, email, external message, billing change or deployment ran.
 
 ## Exact synthetic demo
 
@@ -62,4 +62,4 @@ Actual command counts are in [PROGRESS.md](PROGRESS.md). Offline HTTP/rule tests
 
 Before real sharing, complete the carried-forward managed callback/identity/original-tab preservation, save/reopen/edit/delete/conflicts/sign-out and two-account checks, then controlled guest opt-ins/private budgets and same-link original RSVP → backup preview/publication → own reconfirmation. Check expired/revoked/closed access, actual account/group isolation and public network redaction on two controlled profiles. An intended reachable HTTPS app/API origin and restricted redirects remain necessary. No email or notification is sent by this feature.
 
-Stop after Section 10.6. Continuous monitoring, weather integration, automatic switching, messaging, reminders, recaps and Section 10.7 remain deferred.
+This milestone stopped after Section 10.6 and is preserved in pushed `3c9f119`. The separately authorized [Section 10.7 group history](GROUP_HISTORY.md) reuses its completed backup records and stays local. Continuous monitoring, weather integration, automatic switching, messaging, photos and reminders remain deferred.

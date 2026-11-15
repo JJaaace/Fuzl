@@ -1,6 +1,6 @@
 import { Prisma as PrismaValue } from '../generated/prisma/client.js';
 import { createHash } from 'node:crypto';
-import { actualOutingSchema, memoryOpinionSchema, ballotSourceUrl, feedbackSentiment, outingOwnerSchema, ownFeedbackSchema, planDraftSchema, publicOutingSchema, localInstant } from '@fuzl/planning';
+import { pastOutingsSchema, actualOutingSchema, memoryOpinionSchema, ballotSourceUrl, feedbackSentiment, outingOwnerSchema, ownFeedbackSchema, planDraftSchema, publicOutingSchema, localInstant } from '@fuzl/planning';
 import type { GroupVisitHistory, GroupMemory, recordOutingSchema, outingEditSchema, memoryEditSchema, feedbackCreateSchema, feedbackEditSchema } from '@fuzl/planning';
 import type { z } from 'zod';
 import type { Outing, OutingFeedback, Prisma, PrismaClient } from '../generated/prisma/client.js';
@@ -32,8 +32,24 @@ export class OutingStore {
   }
   async past(subject: string, groupId: string) {
     if (!await this.db.group.findFirst({ where: { id: groupId, owner: { authSubject: subject } } })) throw unavailable();
-    const rows = await this.db.outing.findMany({ where: { groupId, group: { owner: { authSubject: subject } }, plan: { status: 'completed' } }, select: { id: true, actual: true, approvedTakeaway: true, approvedFeedbackVersion: true, feedbackVersion: true, plan: { select: { sessionId: true } } }, orderBy: { createdAt: 'desc' }, take: 100 });
-    return rows.map(row => ({ id: row.id, sessionId: row.plan.sessionId, actual: actualOutingSchema.parse(row.actual), approvedTakeaway: row.approvedTakeaway, memoryActive: row.approvedTakeaway !== null && row.approvedFeedbackVersion === row.feedbackVersion })).sort((a, b) => b.actual.date!.localeCompare(a.actual.date!));
+    // Order the bounded result in SQL by the recorded actual local date/time,
+    // not creation time. Only active approved text and explicit entry counts
+    // leave this query; individual feedback/names/travel are never selected.
+    const rows = await this.db.$queryRaw<unknown[]>`
+      SELECT o.id, p."sessionId", o.actual,
+        CASE WHEN o."approvedFeedbackVersion" = o."feedbackVersion"
+          THEN o."approvedTakeaway" ELSE NULL END AS "approvedTakeaway",
+        COALESCE(o."approvedTakeaway" IS NOT NULL AND o."approvedFeedbackVersion" = o."feedbackVersion", false) AS "memoryActive",
+        jsonb_array_length(o."confirmedAttendees") AS "organizerAttendanceCount"
+      FROM fuzl.fuzl_outings o
+      JOIN fuzl.fuzl_shared_plans p ON p.id = o."planId"
+      JOIN fuzl.fuzl_groups g ON g.id = o."groupId"
+      JOIN fuzl.fuzl_organizers a ON a.id = g."ownerId"
+      WHERE o."groupId" = ${groupId}::uuid AND a."authSubject" = ${subject}::uuid AND p.status = 'completed'
+      ORDER BY o.actual->>'date' DESC, o.actual->>'time' DESC, o.id DESC
+      LIMIT 100
+    `;
+    return pastOutingsSchema.parse(rows);
   }
   private validateActual(input: z.infer<typeof outingEditSchema>) {
     const a = actualOutingSchema.parse(input.actual), instant = localInstant(a.date!, a.time!, a.timeZone!);

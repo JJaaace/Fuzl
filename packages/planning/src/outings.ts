@@ -17,6 +17,8 @@ export const publicOutingSchema = z.strictObject({ id: z.string().uuid(), revisi
 export const memoryEditSchema = z.strictObject({ ...planMutationBase, feedbackVersion: z.number().int().min(0), privateNotes: z.string().trim().max(1000), proposedTakeaway: z.string().trim().max(300), approvedTakeaway: z.string().trim().min(1).max(300).nullable(), action: z.enum(['notes', 'approve', 'remove']), approved: z.literal(true) }).refine(v => v.action === 'approve' ? v.approvedTakeaway !== null : v.approvedTakeaway === null);
 export const outingOwnerSchema = z.strictObject({ id: z.string().uuid(), sessionId: z.string().uuid(), revision: z.number().int().positive(), actual: actualOutingSchema, original: planDraftSchema, originalVersion: z.number().int().positive(), sameListing: z.boolean(), confirmedAttendees: z.array(z.string()).max(200), feedbackVersion: z.number().int().min(0), feedback: z.array(ownFeedbackSchema.extend({ id: z.string().uuid() })).max(200), privateNotes: z.string(), proposedTakeaway: z.string(), approvedTakeaway: z.string().nullable(), memoryActive: z.boolean(), createdAt: z.string().datetime() });
 export type OwnerOuting = z.infer<typeof outingOwnerSchema>;
-export const pastOutingSchema = outingOwnerSchema.pick({ id: true, sessionId: true, actual: true, approvedTakeaway: true, memoryActive: true });
+// Recap DTO deliberately excludes original snapshots, individual feedback,
+// attendance names, private notes/budgets and personal travel observations.
+export const pastOutingSchema = outingOwnerSchema.pick({ id: true, sessionId: true, actual: true, memoryActive: true }).extend({ approvedTakeaway: z.string().trim().min(1).max(300).nullable(), organizerAttendanceCount: z.number().int().min(0).max(200).optional() }).refine(v => v.memoryActive ? v.approvedTakeaway !== null : v.approvedTakeaway === null);
 export type PastOuting = z.infer<typeof pastOutingSchema>;
 export const pastOutingsSchema = z.array(pastOutingSchema).max(100);

@@ -1,5 +1,4 @@
-import SavedIdeas from '../ideas/SavedIdeas';
-import PastOutings from '../outings/PastOutings';
+import GroupHistory from '../outings/GroupHistory';
 import { useEffect, useRef, useState } from 'react';
 import type { SavedGroup, SavedSession, SessionListItem } from '@fuzl/planning';
 import { useAccount } from './AccountProvider';
@@ -29,7 +28,7 @@ function SignIn() {
     </form><p role="status">{message}</p>{(!client || error) && <button type="button" disabled={loading || busy} onClick={reload}>Reload account configuration</button>}<p className="note">Free development email delivery is restricted to Supabase organization members and currently two messages/hour. Follow the setup guide before testing.</p>
   </section>;
 }
-export default function SavedGroups({ onOpen, onWorkspace, active = true }: { active?: boolean; onOpen: (session: SavedSession) => void; onWorkspace: () => void }) {
+export default function SavedGroups({ onOpen, onWorkspace, active = true }: { active?: boolean; onOpen: (session: SavedSession, focusOuting?: boolean) => void; onWorkspace: () => void }) {
   const { session } = useAccount();
   const [reauthenticating, setReauthenticating] = useState(false);
   if (!session) return <SignIn />;
@@ -37,7 +36,7 @@ export default function SavedGroups({ onOpen, onWorkspace, active = true }: { ac
     {reauthenticating && <SignIn />}
     <div hidden={reauthenticating}><GroupLibrary key={session.user.id} token={session.access_token} active={active && !reauthenticating} onOpen={onOpen} onWorkspace={onWorkspace} /></div></>;
 }
-function GroupLibrary({ token, active, onOpen, onWorkspace }: { token: string; active: boolean; onOpen: (session: SavedSession) => void; onWorkspace: () => void }) {
+function GroupLibrary({ token, active, onOpen, onWorkspace }: { token: string; active: boolean; onOpen: (session: SavedSession, focusOuting?: boolean) => void; onWorkspace: () => void }) {
   const [groups, setGroups] = useState<SavedGroup[]>([]); const [selected, setSelected] = useState<SavedGroup | null>(null);
   const [sessions, setSessions] = useState<SessionListItem[]>([]); const [name, setName] = useState(''); const [aliases, setAliases] = useState('');
   const [editing, setEditing] = useState(false); const [busy, setBusy] = useState(false); const [message, setMessage] = useState(''); const [version, setVersion] = useState(0);
@@ -83,8 +82,10 @@ function GroupLibrary({ token, active, onOpen, onWorkspace }: { token: string; a
             await privateRequest(token, `/groups/${selected.id}`, active.signal, 'DELETE'); if (active.signal.aborted) return; setSelected(null); setSessions([]); setVersion((value) => value + 1);
           }); }}>Delete group</button></div>
         <button onClick={onWorkspace}>Go to workspace to save a session</button>
-        <SavedIdeas key={selected.id + "-ideas"} token={token} groupId={selected.id}/>
-        <PastOutings key={selected.id} token={token} groupId={selected.id}/>
+        <GroupHistory key={selected.id} token={token} groupId={selected.id} active={active} refreshKey={version} disabled={busy} onOpen={sessionId => act(async current => {
+          const result = validateLoadedSession(await privateRequest<SavedSession>(token, `/sessions/${sessionId}`, current.signal)); if (!current.signal.aborted) onOpen(result, true);
+        })}/>
+        <h3>Saved planning sessions</h3>
         <ul className="session-list">{sessions.map((item) => <li key={item.id}><strong>{item.title}</strong><p className="note">Updated {new Date(item.updatedAt).toLocaleString()}</p>
           <div className="actions"><button disabled={busy} onClick={() => void act(async (active) => {
             const result = validateLoadedSession(await privateRequest<SavedSession>(token, `/sessions/${item.id}`, active.signal)); if (!active.signal.aborted) onOpen(result);

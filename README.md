@@ -4,7 +4,7 @@ Turn your group chat into a plan.
 
 Fuzl helps one organizer turn selected conversation context into an editable plan. **Sections 7A/7B add place search, US-area clarification and sourced feasibility checks for owned saved sessions**, alongside Section 6 account-free guest answers, organizer sign-in, private groups and explicit saving/reopening. The first Section 7C pass adds scheduled event discovery and fit checks through the same workspace. The temporary text/screenshot workspace remains usable without an account. Friends do not need accounts.
 
-Supabase supplies managed email magic-link Auth and PostgreSQL; Prisma migrations and server ownership checks protect saved work. Sections 8A/8B add shortlist voting, explicit plan agreement, shared plan pages and credential-scoped RSVPs. Section 9 adds actual outings, optional explicit-attendee feedback and approved group-level memory. Reservations, verified personal identity/attendance, messaging integrations and native features remain unimplemented. The original [specification](FUZL_CODEX_SPEC.md) is unchanged. Current authorization is Section 10.6: one private backup and an explicit, rechecked switch through plan revisions. Section 10.5 travel balancing is preserved in pushed `d27ca9f`. Reviews, trends, deployment and later work remain deferred.
+Supabase supplies managed email magic-link Auth and PostgreSQL; Prisma migrations and server ownership checks protect saved work. Sections 8A/8B add shortlist voting, explicit plan agreement, shared plan pages and credential-scoped RSVPs. Section 9 adds actual outings, optional explicit-attendee feedback and approved group-level memory. Reservations, verified personal identity/attendance, messaging integrations and native features remain unimplemented. The original [specification](FUZL_CODEX_SPEC.md) is unchanged. Current authorization is the history portion of Section 10.7: compact organizer-only actual outings and a Saved ideas entry point. Section 10.6 backups are preserved in pushed `3c9f119`. Reviews, trends, deployment and later work remain deferred.
 
 ## Current design review
 
@@ -18,13 +18,23 @@ The provisional **Spark** mascot has an ivory body, a wide filled espresso cresc
 
 The opening composition includes a persistent canvas field: 760 desktop dots (240 on phones), a shared diagonal ripple that lifts nearby dots together, slight brightening and a weaker crossing wave. It stays visible around screenshot input and dims behind the summary. Rendering pauses offscreen, on hidden tabs and in Saved groups; reduced motion draws a static field. To see it locally, watch the opening workspace for 5–15 seconds, switch input modes, then load an example. No AI request is needed.
 
+## Group history & next ideas (Section 10.7)
+
+Choose a saved group to see the latest actual completed outings first, with recorded location/time and current approved takeaways. **Open outing details** reuses the original session and actual/takeaway editor; earlier public versions preserve an outdoor plan replaced by a backup. Outings without feedback still appear. Cancelled plans, unused backups and unvisited ideas stay outside visit history. Recaps include only explicit organizer attendance-entry counts, never inferred RSVPs, private feedback, budgets or travel records.
+
+**Saved ideas · for next time** opens the existing group-scoped library above the session list. Use a session for that group to evaluate an idea through the normal candidate/shortlist checks. Recaps refresh on group reentry or **Refresh past outings**, and idea drafts survive ordinary detail/return navigation. History and approved takeaways stay organizer-only.
+
+**Exact demo:** http://127.0.0.1:5173/?design=history → **History Group A → Open outing details** on indoor games → inspect earlier plan history → edit/approve or remove the takeaway → **Back to group history**. **Saved ideas · for next time** shows the untried night-market fixture; **History Group B** shows only its own cafe/idea. [GROUP_HISTORY.md](docs/GROUP_HISTORY.md) gives exact edit controls, actual corrections, the real planning path and pending checks.
+
+No new migration, key or provider request. Section 10.7 stays local; existing hosted rollout and rendered browser/mobile/account checks remain pending. Photos and reminders are deferred.
+
 ## Private backup and explicit switch (Section 10.6)
 
 On a confirmed owned plan, **Set backup** selects a saved shortlist snapshot or a manual idea. Activity, date/local time/zone, meeting point, cost/links and unresolved checks form the proposed public replacement; its condition note stays private. Saving does not change the shared page. **Switch to backup · preview** rechecks the latest saved constraints and reviewed attendees, shows both versions, blocks known firm conflicts and requires explicit approval/unknown acknowledgment. Publication retains the link and original history and applies material RSVP reconfirmation, including a known end-time change. Fuzl does not monitor weather or switch automatically.
 
 **Exact demo:** http://127.0.0.1:5173/?design=backups → guest Going on the original → organizer **Set backup → Synthetic indoor games** → enter November 21, 2026, 19:00, America/New_York (optional end 20:30 and reviewed availability zone) → **Save private backup → Reload backup & fit checks → Switch to backup · preview → both approvals → Confirm switch & publish backup** → guest **Reload shared plan / my RSVP → Reconfirm RSVP**. [BACKUPS.md](docs/BACKUPS.md) has exact fields, conflict/stale cases and pending checks.
 
-Section 10.6 stays local. Migration **`202611140006_backups`** adds one private nullable column and was tested only on disposable PostgreSQL. Hosted rollout/account/guest and rendered desktop/mobile checks remain pending. No new key, provider call, email, notification or deployment.
+Section 10.6 is pushed as `3c9f119`; 10.7 stays local. Migration **`202611140006_backups`** adds one private nullable column and was tested only on disposable PostgreSQL. Hosted rollout/account/guest and rendered desktop/mobile checks remain pending. No new key, provider call, email, notification or deployment.
 
 ## Balance travel (Section 10.5)
 
@@ -32,7 +42,7 @@ Optional **Balance travel** is off by default near Discovery preference. It uses
 
 **Exact demo:** http://127.0.0.1:5173/?design=travel → **Show demo results → Add to shortlist** on the central garden → check **Balance travel** (east garden moves ahead) → **Reviewed subset · Avery & Blake → Show demo results** (central garden stays first). Try missing estimates, corrections/deletion and separate-group history. The over-budget option stays excluded. [TRAVEL_BALANCE.md](docs/TRAVEL_BALANCE.md) documents the rule, exact real-data steps and pending checks.
 
-Section 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 stays local. New migration **`202611140005_travel_balance`** adds two private nullable columns, tested only on disposable PostgreSQL. Existing hosted migrations, real account/guest and rendered browser/mobile checks remain pending. No new key or provider request.
+Section 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 stays local. New migration **`202611140005_travel_balance`** adds two private nullable columns, tested only on disposable PostgreSQL. Existing hosted migrations, real account/guest and rendered browser/mobile checks remain pending. No new key or provider request.
 
 ## Participation scope (Section 10.4)
 
@@ -42,7 +52,7 @@ Current Places/Events checks and Make this work use the selected roster, keeping
 
 **Exact six-person demo:** http://127.0.0.1:5173/?design=participation → **Show demo results** (six cannot be verified) → **Who’s available? → Include Avery/Blake/Casey/Devon → approve scope → Review & use attendance scope → Show demo results** (four fit the synthetic supplied limits). Change a guest’s own opt-in, refresh/review, try expiry and Group B. No account/API/provider request or working public link. [PARTICIPATION.md](docs/PARTICIPATION.md) contains exact clicks, real setup, privacy/model details and pending checks.
 
-Section 10.3 is pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 stays local. New migration **`202611140004_participation`** adds two protected tables, tested only on disposable PostgreSQL. Existing hosted migrations and real account/guest/mobile/browser acceptance remain pending. No new key or environment setting.
+Section 10.3 is pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 stays local. New migration **`202611140004_participation`** adds two protected tables, tested only on disposable PostgreSQL. Existing hosted migrations and real account/guest/mobile/browser acceptance remain pending. No new key or environment setting.
 
 ## Discovery preference (Section 10.3)
 
@@ -52,7 +62,7 @@ Switching modes uses the already-checked candidate pool locally, with **no API/p
 
 **Exact synthetic demo:** http://127.0.0.1:5173/?design=discovery → **Show demo results → Add to shortlist** on the garden → **Discovery preference: Something new** (saved market moves first) → **Familiar favorites** (garden returns first). The selected garden stays in the shortlist. Expand the over-budget exclusion; try Group B for the insufficient-history notice. [DISCOVERY_PREFERENCES.md](docs/DISCOVERY_PREFERENCES.md) covers exact steps, matching/ranking, privacy and pending manual checks.
 
-Section 10.2 was pushed as `01ec983`; 10.3 was pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 remains local for review. Browser/mobile rendering and hosted account/guest acceptance remain unverified; existing migrations through saved ideas remain pending on hosted Supabase.
+Section 10.2 was pushed as `01ec983`; 10.3 was pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 remains local for review. Browser/mobile rendering and hosted account/guest acceptance remain unverified; existing migrations through saved ideas remain pending on hosted Supabase.
 
 ## Saved ideas (Section 10.2)
 
@@ -62,7 +72,7 @@ In another saved session for that group, use **From your saved ideas → Add ide
 
 **Exact synthetic demo:** http://127.0.0.1:5173/?design=ideas → enter **Synthetic night market** → **Save idea → Open second session for this group → Add idea to candidates → Evaluate saved ideas (no provider call) → Add to shortlist → Save shortlist → Preview ballot**. No account, database or provider call; reload resets it. Try Group B, archive/edit/remove, and the expired-event fixture. [SAVED_IDEAS.md](docs/SAVED_IDEAS.md) gives complete steps, storage/privacy rules and pending real checks.
 
-Section 10.1 is pushed as `6616d6b`. Section 10.2 is pushed as `01ec983`; 10.3 is pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 remains local. The saved-ideas **`202611140003_saved_ideas`** migration passed only on disposable PostgreSQL; it and earlier Section 6/8A/8B/9 hosted migrations remain pending. No new key/settings. Actual rendered browser/mobile and hosted account/guest verification remain unverified.
+Section 10.1 is pushed as `6616d6b`. Section 10.2 is pushed as `01ec983`; 10.3 is pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 remains local. The saved-ideas **`202611140003_saved_ideas`** migration passed only on disposable PostgreSQL; it and earlier Section 6/8A/8B/9 hosted migrations remain pending. No new key/settings. Actual rendered browser/mobile and hosted account/guest verification remain unverified.
 
 ## Make this work (Section 10.1)
 
@@ -70,7 +80,7 @@ When a saved session’s discovery shortlist has no checked fit, **Make this wor
 
 Preview original/new values, affected options and remaining checks, then explicitly apply. This records an organizer decision in the working summary; **Save session** persists it. Published plans and RSVPs stay unchanged. Existing Places and new Events rechecks reuse the same list without a provider call.
 
-**Synthetic demo:** http://127.0.0.1:5173/?design=adjustments → **Make this work → approve → Apply this adjustment**. Switch cases for time, sourced travel, radius-only, firm travel and a fixed event. Exact clicks, bounds, data handling and pending hosted/browser checks: [MAKE_THIS_WORK.md](docs/MAKE_THIS_WORK.md). No new key, dependency or SQL migration. Sections 8B/9 were pushed as `9edc96e`; Section 10.1 was pushed as `6616d6b`; Section 10.2 was pushed as `01ec983`; Section 10.3 was pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 remains local for review.
+**Synthetic demo:** http://127.0.0.1:5173/?design=adjustments → **Make this work → approve → Apply this adjustment**. Switch cases for time, sourced travel, radius-only, firm travel and a fixed event. Exact clicks, bounds, data handling and pending hosted/browser checks: [MAKE_THIS_WORK.md](docs/MAKE_THIS_WORK.md). No new key, dependency or SQL migration. Sections 8B/9 were pushed as `9edc96e`; Section 10.1 was pushed as `6616d6b`; Section 10.2 was pushed as `01ec983`; Section 10.3 was pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 remains local for review.
 
 ## Actual outings & approved memory (Section 9)
 
@@ -78,7 +88,7 @@ Reopen a saved session’s confirmed plan and use **Mark completed · record the
 
 People reporting attendance can optionally answer repeat/value questions and a note at the existing plan link, update their own feedback, and choose whether it may inform group memory. The organizer separately saves private notes/proposals and explicitly approves, edits or removes a short group takeaway. Feedback/actual-detail changes suspend use pending review. Same-group searches may apply a small exact-listing preference boost; past enjoyment never overrides firm constraints or current uncertainty.
 
-**No-account synthetic demo:** http://127.0.0.1:5173/?design=outings. Follow [OUTINGS.md](docs/OUTINGS.md) for exact steps through plan → actual completion → feedback → approval → next shortlist. This is an in-memory UI simulator with no API/provider call or working shared link. Real persistence is tested separately on disposable PostgreSQL. Section 8B and 9 are included in pushed checkpoint `9edc96e`. Section 10.1 was pushed as `6616d6b`; Section 10.2 was pushed as `01ec983`; Section 10.3 was pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 remains local for review. Browser/hosted verification and the Section 6/8A/8B/9 hosted migrations remain pending; no new key/settings are needed.
+**No-account synthetic demo:** http://127.0.0.1:5173/?design=outings. Follow [OUTINGS.md](docs/OUTINGS.md) for exact steps through plan → actual completion → feedback → approval → next shortlist. This is an in-memory UI simulator with no API/provider call or working shared link. Real persistence is tested separately on disposable PostgreSQL. Section 8B and 9 are included in pushed checkpoint `9edc96e`. Section 10.1 was pushed as `6616d6b`; Section 10.2 was pushed as `01ec983`; Section 10.3 was pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 remains local for review. Browser/hosted verification and the Section 6/8A/8B/9 hosted migrations remain pending; no new key/settings are needed.
 
 ## Shared plans & RSVPs (Section 8B)
 
@@ -94,7 +104,7 @@ From an owned saved session, use **Add to shortlist** on Places/Events or **Add 
 
 **Exact local demo:** `npm run dev` → [ballot simulator](http://127.0.0.1:5173/?design=ballots) → **Show demo results → Add to shortlist** on the walk → **Events → November 14, 2026 → Show demo events → Add to shortlist** → **Save shortlist → Preview ballot → approve → Publish ballot → Guest ballot demo**. Vote, change the vote, then **Organizer demo → Refresh tallies**. This is explicitly synthetic and uses no account, API, database or provider; the real routes are tested separately on disposable PostgreSQL. [Ballot architecture, exact revision/close demo and pending browser/hosted checks](docs/BALLOTS.md).
 
-The Section 8A checkpoint was pushed as `4b8b844`. Its migration was tested only on a disposable local database. Hosted rollout, real guest/account workflow and rendered phone/browser verification remain pending. Its prior local-only statements describe preparation before that checkpoint; Section 8B and 9 are now included in pushed checkpoint `9edc96e`; Section 10.1 was pushed as `6616d6b`; Section 10.2 was pushed as `01ec983`; Section 10.3 was pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 remains local for review. No provider calls, email or deployment.
+The Section 8A checkpoint was pushed as `4b8b844`. Its migration was tested only on a disposable local database. Hosted rollout, real guest/account workflow and rendered phone/browser verification remain pending. Its prior local-only statements describe preparation before that checkpoint; Section 8B and 9 are now included in pushed checkpoint `9edc96e`; Section 10.1 was pushed as `6616d6b`; Section 10.2 was pushed as `01ec983`; Section 10.3 was pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 remains local for review. No provider calls, email or deployment.
 
 ## Find events (Section 7C, first pass)
 

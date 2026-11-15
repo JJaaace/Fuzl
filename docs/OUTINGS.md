@@ -60,3 +60,7 @@ Only Section 9 is implemented here. No scheduled reminders, automatic messages, 
 ## Optional reviewed travel (Section 10.5)
 
 [Balance travel](TRAVEL_BALANCE.md) adds organizer-only one-way minutes for explicitly confirmed saved-group attendees after completion. Discovery → Private travel records & current estimates → Completed outings supports record/correct/delete. Display names, votes, RSVPs and old feedback never auto-match a person or supply minutes. Actual-outing corrections clear the travel review. Public outing/feedback DTOs stay unchanged; the private history is used only for the current reviewed roster after firm checks. New migration `202611140005_travel_balance` remains disposable-only; real hosted/browser checks are pending.
+
+## Compact saved-group history (Section 10.7)
+
+[GROUP_HISTORY.md](GROUP_HISTORY.md) adds a compact latest-actual-outing recap and Saved ideas entry point before the session list. The existing private history endpoint now orders actual dates/clocks before its 100-row limit and returns only active approved text, not suspended takeaways or individual feedback/travel data. Open outing details to inspect original public history or correct actuals/takeaways; return/refresh updates the card while preserving idea drafts. Explicit organizer attendance entries stay separate from guest self-reports, RSVPs and votes. No new migration/provider call; hosted and rendered browser checks remain pending.

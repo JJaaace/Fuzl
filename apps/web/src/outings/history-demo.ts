@@ -1,0 +1,15 @@
+import { demoPlaces, demoPlaceQuery, emptyIdea, groupHistoryFixture, memoryEditSchema, outingEditSchema, outingOwnerSchema } from '@fuzl/planning';
+import { ideaDemo } from '../ideas/demo';
+export function historyDemo(){
+  const f=groupHistoryFixture(),found=demoPlaces(demoPlaceQuery,'2026-11-14T12:00:00Z');if(!('area'in found))throw Error('Synthetic area missing');const ideas=ideaDemo(found.candidates[0],f.groups.map(g=>g.id));
+  // Keep one fixed mapping per fixture group; no name-based identity inference.
+  const ready=Promise.all(ideas.transports.map((transport,i)=>transport('','POST',{requestId:crypto.randomUUID(),content:{...emptyIdea(),name:i===0?'Synthetic night market to try':'Synthetic Group B pottery idea',kind:'idea',link:`https://example.com/synthetic-next-${i}`,note:'PRIVATE saved idea note'},allowDuplicate:false},new AbortController().signal)));
+  const history=f.groups.map(group=>async(signal:AbortSignal)=>{void signal;await ready;return f.records.filter(row=>row.groupId===group.id&&row.plan.status==='completed').map(f.recap).sort((a,b)=>b.actual.date!.localeCompare(a.actual.date!)||b.actual.time!.localeCompare(a.actual.time!));});
+  const details=(sessionId:string)=>{const record=f.records.find(r=>r.outing.sessionId===sessionId);if(!record)throw Error('Unknown synthetic outing');const requests=new Map<string,string>();
+    const outing=async(path:string,method:string,raw?:unknown)=>{void method;if(path==='')return structuredClone(record.outing);const body=raw as{revision:number;requestId:string},fingerprint=JSON.stringify([path,raw]);if(requests.has(body.requestId)){if(requests.get(body.requestId)!==fingerprint)throw Error('Synthetic retry changed.');return structuredClone(record.outing);}if(body.revision!==record.outing.revision)throw Error('Synthetic outing changed. Reload deliberately.');
+      if(path==='/memory'){const input=memoryEditSchema.parse(raw);if(input.feedbackVersion!==record.outing.feedbackVersion)throw Error('Feedback changed.');record.outing.privateNotes=input.privateNotes;record.outing.proposedTakeaway=input.proposedTakeaway;if(input.action!=='notes'){record.outing.approvedTakeaway=input.approvedTakeaway;record.outing.memoryActive=input.action==='approve';}}
+      else if(path==='/actual'){const input=outingEditSchema.parse(raw);record.outing.actual=input.actual;record.outing.sameListing=input.sameListing;record.outing.confirmedAttendees=input.confirmedAttendees;record.outing.feedbackVersion++;record.outing.memoryActive=false;record.outing.feedback=record.outing.feedback.map(f=>({...f,needsReview:true}));}else throw Error('This fixture is already completed.');record.outing.revision++;requests.set(body.requestId,fingerprint);return outingOwnerSchema.parse(structuredClone(record.outing));};
+    return{plan:async(path:string)=>{if(path)throw Error('Plan history is read-only in this recap fixture. Edit actual outing/takeaway below.');return structuredClone(record.plan);},ballots:async()=>({shortlist:null,ballots:[]}),outing};
+  };
+  return{...f,ready,history,ideas:ideas.transports,ideaGroupIds:ideas.groups,details};
+}

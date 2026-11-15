@@ -488,3 +488,11 @@ button.primary[aria-busy=true] { background: var(--accent-wash); color: var(--in
 .backup-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .backup-comparison > section { min-width: 0; }
 @media (max-width: 650px) { .backup-comparison { grid-template-columns: 1fr; } }
+
+.outing-history-list { list-style: none; padding: 0; margin: .75rem 0; display: grid; gap: .75rem; }
+.outing-recap { border: 1px solid var(--border); border-radius: 16px; padding: 1rem; overflow-wrap: anywhere; }
+.outing-recap h4 { margin: 0; }
+.outing-recap p { margin: .5rem 0; }
+.history-ideas { margin-top: 1rem; }
+.history-ideas > summary { cursor: pointer; padding: .75rem 0; }
+@media (max-width: 650px) { .group-history > .fact-heading { align-items: stretch; flex-direction: column; } .group-history > .fact-heading button { width: 100%; } }

@@ -2,8 +2,8 @@ import { createIdeaSchema, updateIdeaSchema, controlIdeaSchema, cardIdeaSchema, 
 import type { SavedIdea, IdeaReference, PlaceCandidate } from '@fuzl/planning';
 import type { IdeaTransport } from './SavedIdeas';
 // UI simulation only. Real ownership, SQL, locks and privacy have separate tests.
-export function ideaDemo(card: PlaceCandidate) {
-  const groups = [crypto.randomUUID(), crypto.randomUUID()], rows: SavedIdea[] = [], ids = new Map<string, SavedIdea>();
+export function ideaDemo(card: PlaceCandidate, groups: string[] = [crypto.randomUUID(), crypto.randomUUID()]) {
+  const rows: SavedIdea[] = [], ids = new Map<string, SavedIdea>();
   const transports = groups.map(groupId => {
     const transport: IdeaTransport = async (path, method, raw) => {
       if (method === 'GET') {

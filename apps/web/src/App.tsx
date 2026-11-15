@@ -63,10 +63,12 @@ function Workspace() {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty, planning.draft, screenshotIds.length]);
-  function openSaved(saved: SavedSession) {
+  const [outingTarget,setOutingTarget]=useState<string|null>(null);
+  function openSaved(saved: SavedSession, focusOuting = false) {
     if ((workspaceEdits.current.hasWork() || planning.review || planning.draft.trim() || screenshotIds.length || dirty) && !window.confirm('Replace this workspace, including unapplied edits and temporary screenshots, with the saved session? Unsaved changes will be lost.')) return;
     workspaceEdits.current.change();
     setPlanning({ draft: '', review: { origin: saved.payload.origin, title: saved.title, sourceDraft: '', summary: saved.payload.summary } });
+    setOutingTarget(focusOuting ? saved.id : null);
     setLoadedSession(saved); setTranscript(null); setSummaryTranscript(null); setScreenshotIds([]);
     setWorkspaceVersion((value) => value + 1); setReviewVersion((value) => value + 1); setSourceVersion((value) => value + 1);
     setDirty(false); setView('workspace'); setNavigation({ ...initialNavigation, stage: 'understanding' }); requestAnimationFrame(() => document.getElementById('summary-title')?.focus());
@@ -183,7 +185,7 @@ function Workspace() {
             if (value.editRevision !== workspaceEdits.current.revision || !planning.review) throw new Error('The workspace changed. Review it before applying this answer.');
             const summary = applyGuestAnswer(planning.review.summary,value.reply,value.questionId,value.participantId,value.resolveId,value.supersedes,value.mode);
             setPlanning(current => current.review ? { ...current, review: { ...current.review, summary } } : current); workspaceEdits.current.change(); setDirty(true);
-          }} key={reviewVersion} getEditRevision={() => workspaceEdits.current.revision} loaded={loadedSession} input={{ title: planning.review.title.slice(0, 100), summaryVersion: 1, summary: supportingSummary(planning.review.summary), origin: planning.review.origin, provenance: loadedSession ? loadedSession.payload.provenance.filter((source) => planning.review!.summary.facts.some((fact) => fact.sourceIds.includes(source.sourceId))) : excerptProvenance(supportingSummary(planning.review.summary), summaryTranscript) }} onSignIn={() => setView('groups')} onOpen={openSaved} onSaved={(saved, unchanged) => { setLoadedSession(saved); if (unchanged) setDirty(false); }} />
+          }} key={reviewVersion} focusOuting={view === 'workspace' && loadedSession?.id === outingTarget} getEditRevision={() => workspaceEdits.current.revision} loaded={loadedSession} input={{ title: planning.review.title.slice(0, 100), summaryVersion: 1, summary: supportingSummary(planning.review.summary), origin: planning.review.origin, provenance: loadedSession ? loadedSession.payload.provenance.filter((source) => planning.review!.summary.facts.some((fact) => fact.sourceIds.includes(source.sourceId))) : excerptProvenance(supportingSummary(planning.review.summary), summaryTranscript) }} onSignIn={() => setView('groups')} onOpen={openSaved} onSaved={(saved, unchanged) => { setLoadedSession(saved); if (unchanged) setDirty(false); }} />
         </section>}
         <details className="development-details"><summary>Development & details</summary><section className="connection-panel" aria-labelledby="connection-title"><div><h2 id="connection-title">API connection</h2><div className="connection-status" role="status" aria-live="polite" aria-atomic="true">
           {connection.status === 'idle' && <p>Not checked.</p>}{connection.status === 'checking' && <p>Checking the local API…</p>}{connection.status === 'connected' && <p>API reachable. This does not verify AI, sign-in, or saved storage.</p>}{connection.status === 'error' && <p className="validation-error">{connection.message}</p>}

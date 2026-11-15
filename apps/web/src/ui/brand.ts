@@ -11,7 +11,6 @@ export const logoVariants = [
   { id: 'spark', name: 'Spark', description: 'A short diagonal fuse and a visible rounded attachment. The growing dots lead directly into the cap.', src: '/brand/fuzl-spark.svg', favicon: '/brand/favicon-spark.svg' },
   { id: 'arc', name: 'Arc', description: 'A curved fuse approaching from the right, with a softer cap and a round, low-centered body.', src: '/brand/fuzl-arc.svg', favicon: '/brand/favicon-arc.svg' },
 ] as const;
-export const faviconVersion = '11a2';
 export const activeLogo: MascotVariant = 'spark';
 export const selectedLogo = logoVariants.find((variant) => variant.id === activeLogo)!;
 

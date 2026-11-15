@@ -1,5 +1,7 @@
 # Section 11A — workspace motion & mobile decisions
 
+This pass was checkpointed and pushed at `7d06749`. The newer local [focused polish](DESIGN_11A_POLISH.md) supersedes its layout/ribbon/favicon details and carries forward its pending browser/hosted checks.
+
 November 15, 2026. Local design delta on pushed `38172be` (Section 10.7). No deployment, migration, authentication change, email or live provider request. The initial pass used the written brief. The follow-up includes the supplied Uber and portfolio screenshots: strong type/space hierarchy, a much clearer side-by-side opening, and separately delayed ribbon strands. Charcoal, ivory, amber and the existing system type/logo remain. The already-approved dot geometry/motion is unchanged in this follow-up.
 
 ## What changed

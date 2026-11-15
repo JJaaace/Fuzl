@@ -1,6 +1,6 @@
 # Local design review
 
-**Current: Section 11A (November 15, 2026), local on pushed `38172be`.** See [DESIGN_11A.md](DESIGN_11A.md) for the orbit/ribbon, native-scroll presentation, guest layouts, transparent favicon work, actual checks and exact pending browser replay. No deployment or provider calls. The notes below describe historical design checkpoints.
+**Current: Section 11A continuous journey/ribbon continuity (November 15, 2026), local on the existing gallery/polish above pushed `7d06749`.** See [DESIGN_11A_JOURNEY.md](DESIGN_11A_JOURNEY.md) for the shorter animated scenery, reproduced reset defects/fixes, actual checks and pending browser captures. [Artwork sources/provenance](GALLERY_ARTWORK.md). Earlier gallery and design notes below are historical.
 
 November 7, 2026. This is a visual and usability milestone between Sections 5 and 6, based on checkpoint `77b5638`. The initial design checkpoint was pushed as `083d78b`; the current ripple/crescent refinement is included in the requested follow-up checkpoint. Local preview remains available; there is no deployment. Section 6 has not started. No provider request, sign-in email, billing change, migration or deployment was made for this milestone.
 

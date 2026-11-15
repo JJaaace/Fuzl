@@ -33,3 +33,12 @@ test('section entrances run once, never hide content initially, cancel on reduce
   stop(); assert.equal(disconnected, 2); assert.equal(cancelled, 1);
   const staticStop = sectionEntrances(root as unknown as HTMLElement, environment as unknown as Window & typeof globalThis); assert.equal(scans, 1); staticStop();
 });
+
+test('one favicon element follows light/dark preference using fresh paths and releases its listener', async () => {
+  const { installTabIcon, tabIconPaths } = await import('../ui/tabIcon');
+  const events=new EventTarget(),media={matches:false,addEventListener:events.addEventListener.bind(events),removeEventListener:events.removeEventListener.bind(events)};
+  let href='';const icon={setAttribute:(name:string,value:string)=>{assert.equal(name,'href');href=value;}};
+  const stop=installTabIcon(icon as unknown as HTMLLinkElement,media as unknown as MediaQueryList);
+  assert.equal(href,tabIconPaths.light);media.matches=true;events.dispatchEvent(new Event('change'));assert.equal(href,tabIconPaths.dark);
+  stop();media.matches=false;events.dispatchEvent(new Event('change'));assert.equal(href,tabIconPaths.dark);
+});

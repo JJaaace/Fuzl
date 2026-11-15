@@ -20,6 +20,7 @@ export function startDotField(canvas: HTMLCanvasElement, environment = window): 
   const trail = new PointerRibbon();
   let active = true, dimmed = false, inView = !environment.IntersectionObserver, disposed = false;
   let width = 0, height = 0, ratio = 1, seconds = 0, inHero = false;
+  let origin = { left: 0, top: 0 };
   let weight = .7, targetWeight = 1, drift = 0, targetDrift = 0;
   let dots = allDots, colors = fieldColors;
   let frame: number | null = null, previous: number | null = null, lastPaint = -Infinity;
@@ -30,10 +31,11 @@ export function startDotField(canvas: HTMLCanvasElement, environment = window): 
   }
   function paint(timestamp = now()) {
     const ribbon = trail.sample(timestamp);
+    const reaction = Math.max(0, 1 - Math.max(0, timestamp - (ribbon.points.at(-1)?.at ?? timestamp)) / 360) ** 1.4;
     const interactive = !motion.matches && !coarse.matches && !dimmed;
     drawDotField(context!, width, height, dots, motion.matches ? 0 : seconds, colors, {
       points: interactive ? ribbon.points.slice(-10) : [],
-      strength: interactive ? ribbon.alpha * weight : 0,
+      strength: interactive ? reaction * weight : 0,
       drift: motion.matches ? 0 : drift,
       light: coarse.matches || width < 600,
     });
@@ -66,7 +68,7 @@ export function startDotField(canvas: HTMLCanvasElement, environment = window): 
     const w = Math.round(bounds.width), h = Math.round(bounds.height);
     const d = Math.min(1.5, environment.devicePixelRatio || 1);
     if (width === w && height === h && ratio === d) return;
-    width = w; height = h; ratio = d; clearPointer();
+    width = w; height = h; ratio = d; clearPointer(); origin = bounds;
     canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
     context!.setTransform(ratio, 0, 0, ratio, 0, 0);
     dots = allDots.slice(0, coarse.matches || width < 600 ? phoneDotCount : desktopDotCount);
@@ -82,15 +84,20 @@ export function startDotField(canvas: HTMLCanvasElement, environment = window): 
   function pointer(event: PointerEvent) {
     if (event.pointerType !== 'mouse' || !fine.matches || coarse.matches || motion.matches || dimmed || !visible()) return;
     const bounds = canvas.getBoundingClientRect();
+    trail.translate(origin.left - bounds.left, origin.top - bounds.top); origin = bounds;
     const x = event.clientX - bounds.left, y = event.clientY - bounds.top;
-    if (x < 0 || x > width || y < 0 || y > height) { inHero = false; targetWeight = 0; return; }
+    if (x < 0 || x > width || y < 0 || y > height) { clearPointer(); return; }
     if (!inHero) { clearPointer(); inHero = true; }
     const target = event.target as Element | null;
-    targetWeight = event.buttons ? 0 : (target?.closest?.('.conversation-composer,button,summary,a,input,select,textarea,[contenteditable="true"],.fact-form') ? .08 : 1);
+    targetWeight = event.buttons ? 0 : (target?.closest?.('.conversation-composer,.intro,.sample-gallery,p,label,button,summary,a,input,select,textarea,[contenteditable="true"],.fact-form') ? .08 : 1);
     trail.add(x, y, now());
   }
-  const leave = () => { inHero = false; targetWeight = 0; };
-  const scroll = () => { clearPointer(); targetDrift = Math.min(8, Math.max(0, environment.scrollY || 0) * .012); };
+  const leave = clearPointer;
+  const scroll = () => {
+    const bounds = canvas.getBoundingClientRect();
+    trail.translate(origin.left - bounds.left, origin.top - bounds.top); origin = bounds;
+    targetDrift = Math.min(8, Math.max(0, environment.scrollY || 0) * .012);
+  };
   const visibility = () => { clearPointer(); synchronize(); };
   const preferences = () => {
     clearPointer();

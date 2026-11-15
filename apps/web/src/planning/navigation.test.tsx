@@ -152,7 +152,7 @@ test('Light the fuse is one-shot, uses exactly three dots, and typing or mode ch
 });
 
 test('reduced-motion preference uses a static header immediately', async (t) => {
-  t.mock.method(window, 'matchMedia', () => ({ matches: true }) as MediaQueryList);
+  t.mock.method(window, 'matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList);
   await mount(t);
   assert.equal(document.querySelectorAll('.app-header .is-lighting').length, 0);
 });
@@ -379,4 +379,45 @@ test('the single composer keeps mode/example controls together, date and disclos
   await click(next); assert.equal(document.activeElement, summary.querySelector('.save-session'));
   assert.ok(summary.querySelector('.facts-details')); assert.ok(summary.querySelector('.review-section'));
   assert.equal(calls.filter(url => url !== '/api/ai-config').length, 0, 'navigation/shortcut never saves, analyzes, or publishes');
+});
+
+for (const reduced of [false, true]) for (const [index, example] of examples.entries()) test(`sample gallery opens ${example.title} through the replacement guard without AI (reduced motion: ${reduced})`, async t => {
+  t.mock.method(window, 'matchMedia', () => ({ matches: reduced, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList);
+  const { calls } = await mount(t);
+  assert.deepEqual([...document.querySelectorAll('.headline-line')].map(e=>e.textContent),['Turn your group chat','into a plan.']);
+  const gallery=document.querySelector('.sample-gallery')!, original=gallery.textContent;
+  assert.equal(gallery.querySelector('h2')?.textContent,'Try a sample plan.');assert.equal(gallery.querySelectorAll('.sample-card').length,examples.length);
+  assert.ok(original?.includes('Try a sample plan.'));assert.equal(document.querySelector('.sample-gallery-heading .eyebrow'),null);assert.equal(document.querySelector('.development-details'),null);assert.ok(!document.body.textContent?.includes('Development & details'));
+  const draft=document.querySelector<HTMLTextAreaElement>('#draft')!;await enter(draft,'Synthetic unsaved draft.');assert.equal(gallery.textContent,original);
+  let replace=false;t.mock.method(window,'confirm',()=>replace);const card=gallery.querySelectorAll('.sample-card')[index];assert.ok(card.getAttribute('aria-label')?.startsWith('Open sample:'));
+  await click(card);assert.equal(draft.value,'Synthetic unsaved draft.');assert.equal(document.querySelector('.summary-panel'),null);
+  replace=true;await click(card);assert.equal(draft.value,example.conversation);assert.equal(document.querySelector('#summary-title')?.textContent,'Sample summary');
+  const order=[...document.querySelectorAll('.summary-overview, [aria-labelledby="questions-title"], .summary-next')].map(e=>e.classList[0]);assert.deepEqual(order,['summary-overview','review-section','summary-next']);
+  assert.equal(calls.filter(url=>url!=='/api/ai-config').length,0);
+});
+
+
+test('returning to the gallery and declining another card preserves an unapplied summary editor',async t=>{
+  await mount(t);await click(document.querySelector('.sample-card'));await reviewFacts();await click(button('Edit fact'));
+  const form=document.querySelector('.summary-panel .fact-form')!,field=form.querySelector<HTMLInputElement>('input')!;await enter(field,'Unapplied synthetic correction');
+  await stage('Conversation');t.mock.method(window,'confirm',()=>false);await click(document.querySelectorAll('.sample-card')[2]);
+  assert.equal(document.querySelector('.summary-panel .fact-form'),form);assert.equal(field.value,'Unapplied synthetic correction');
+  assert.equal(document.querySelector<HTMLTextAreaElement>('#draft')!.value,examples[0].conversation);await stage('Understanding');assert.ok(visible(form));
+});
+
+test('scenery pause keeps the mounted artwork, draft, focus and sample cards intact', async t => {
+  const { calls } = await mount(t);
+  const draft = document.querySelector<HTMLTextAreaElement>('#draft')!;
+  await enter(draft, 'Synthetic unsaved draft');
+  const artwork = document.querySelector('.journey-track svg');
+  const cards = [...document.querySelectorAll('.sample-card')];
+  const pause = button('Ⅱ Pause scenery'); pause.focus(); await click(pause);
+  assert.equal(pause.getAttribute('aria-pressed'), 'true');
+  assert.equal(document.querySelector<HTMLElement>('.gallery-landscape')!.dataset.running, 'false');
+  assert.equal(document.activeElement, pause); await click(button('▶ Resume scenery'));
+  assert.equal(pause.getAttribute('aria-pressed'), 'false');
+  assert.equal(document.querySelector('.journey-track svg'), artwork);
+  assert.deepEqual([...document.querySelectorAll('.sample-card')], cards);
+  assert.equal(draft.value, 'Synthetic unsaved draft');
+  assert.equal(calls.filter(url => url !== '/api/ai-config').length, 0);
 });

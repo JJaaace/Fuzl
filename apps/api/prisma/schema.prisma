@@ -48,6 +48,7 @@ model PlanningSession {
   groupId String @db.Uuid
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   title String @db.VarChar(100)
+  travelReview Json?
   participation SessionScope?
   invites GuestInvite[]
   shortlist BallotShortlist?
@@ -238,6 +239,7 @@ model Outing {
   actual Json
   actualVersion Int @default(1)
   sameListing Boolean @default(false)
+  travelReview Json?
   confirmedAttendees Json
   revision Int @default(1)
   feedbackVersion Int @default(0)

@@ -1,3 +1,4 @@
+import TravelDemo from './travel/TravelDemo';
 import ParticipationDemo from './participation/ParticipationDemo';
 import DiscoveryDemo from './discovery/DiscoveryDemo';
 import IdeasDemo from './ideas/IdeasDemo';
@@ -21,6 +22,7 @@ function AccountWorkspace() {
   return <App key={privacyEpoch} />;
 }
 
+const travelPreview = import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'travel';
 const participationPreview = import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'participation';
 const discoveryPreview = import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'discovery';
 const ideasPreview = import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'ideas';
@@ -39,5 +41,5 @@ const magicLink = guest || voting || sharedPlan ? null : captureMagicLink(window
 const favicon = document.getElementById('fuzl-favicon');
 if (favicon instanceof HTMLLinkElement) favicon.href = selectedLogo.favicon;
 createRoot(document.getElementById('root')!).render(
-  participationPreview && !sharedPlan && !guest && !voting ? <StrictMode><ParticipationDemo/></StrictMode> : discoveryPreview && !sharedPlan && !guest && !voting ? <StrictMode><DiscoveryDemo/></StrictMode> : sharedPlan ? <StrictMode><GuestPlan inviteToken={planToken}/></StrictMode> : ideasPreview ? <StrictMode><IdeasDemo/></StrictMode> : adjustmentPreview ? <StrictMode><AdjustmentDemo/></StrictMode> : outingPreview ? <StrictMode><BallotDemo withPlans withOutings/></StrictMode> : planPreview ? <StrictMode><BallotDemo withPlans/></StrictMode> : ballotPreview ? <StrictMode><BallotDemo/></StrictMode> : voting ? <StrictMode><GuestBallot inviteToken={votingToken}/></StrictMode> : guest ? <StrictMode><GuestPage inviteToken={inviteToken} /></StrictMode> : placesPreview ? <StrictMode><PlaceDemo /></StrictMode> : <StrictMode><AccountProvider magicLink={magicLink}><AccountWorkspace /></AccountProvider></StrictMode>,
+  travelPreview && !sharedPlan && !guest && !voting ? <StrictMode><TravelDemo/></StrictMode> : participationPreview && !sharedPlan && !guest && !voting ? <StrictMode><ParticipationDemo/></StrictMode> : discoveryPreview && !sharedPlan && !guest && !voting ? <StrictMode><DiscoveryDemo/></StrictMode> : sharedPlan ? <StrictMode><GuestPlan inviteToken={planToken}/></StrictMode> : ideasPreview ? <StrictMode><IdeasDemo/></StrictMode> : adjustmentPreview ? <StrictMode><AdjustmentDemo/></StrictMode> : outingPreview ? <StrictMode><BallotDemo withPlans withOutings/></StrictMode> : planPreview ? <StrictMode><BallotDemo withPlans/></StrictMode> : ballotPreview ? <StrictMode><BallotDemo/></StrictMode> : voting ? <StrictMode><GuestBallot inviteToken={votingToken}/></StrictMode> : guest ? <StrictMode><GuestPage inviteToken={inviteToken} /></StrictMode> : placesPreview ? <StrictMode><PlaceDemo /></StrictMode> : <StrictMode><AccountProvider magicLink={magicLink}><AccountWorkspace /></AccountProvider></StrictMode>,
 );

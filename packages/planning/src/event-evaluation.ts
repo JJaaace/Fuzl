@@ -1,3 +1,6 @@
+import { balanceTravel, travelLimitChecks } from './travel-balance.js';
+import type { TravelContext } from './travel-balance.js';
+import { workKey } from './adjustments.js';
 import { participationChecks } from './participation.js';
 import type { ParticipationScope } from './participation-contract.js';
 import { discoveryEvidence } from './discovery.js';
@@ -12,7 +15,7 @@ import type { PlanningSummary } from './model.js';
 import type { PlaceArea } from './places.js';
 import type { AssessedEvent, EventCheck, EventQuery, EventResults, ScheduledEvent } from './events.js';
 
-export function evaluateEvents(events: ScheduledEvent[], area: PlaceArea, query: EventQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = [], history?: GroupVisitHistory, participation?: ParticipationScope): Pick<EventResults, 'ranked' | 'verified' | 'promising' | 'excluded' | 'notices'> {
+export function evaluateEvents(events: ScheduledEvent[], area: PlaceArea, query: EventQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = [], history?: GroupVisitHistory, participation?: ParticipationScope, travel?: TravelContext): Pick<EventResults, 'ranked' | 'verified' | 'promising' | 'excluded' | 'notices'> {
   const facts = summary.facts.filter(current), budgets = facts.filter(f => f.kind === 'budget');
   const seen = new Set<string>(), urls = new Set<string>(), ranked: AssessedEvent[] = [];
   for (const raw of events) {
@@ -65,11 +68,13 @@ export function evaluateEvents(events: ScheduledEvent[], area: PlaceArea, query:
     if (summary.questions.some(q => q.resolution === null)) check('constraint', 'needs-checking', 'Open planning questions remain unresolved.');
     checks.push(bookingCheck(event.visit, { date: s.date, start: s.time, end: s.endTime, timeZone: s.timeZone }, event.venue.address, participation ? participation.roster.filter(p => p.selected).map(p => p.id) : summary.participants.length ? summary.participants.map(p => p.id) : undefined));
     if (!facts.some(f => f.kind === 'travel')) check('travel', 'needs-checking', 'Travel time unknown; no duration limit was supplied.', false);
+    checks.push(...travelLimitChecks(travel, workKey(event), event.venue.address, { date: s.date, start: s.time, end: s.endTime, timeZone: s.timeZone }, summary));
     const status = checks.some(c => c.blocking !== false && c.status === 'does-not-fit') ? 'does-not-fit' : checks.some(c => c.blocking !== false && c.status === 'needs-checking') ? 'needs-checking' : 'fits';
     const memory = memoryInfluence(event.sourceUrl, memories);
     ranked.push({ event, discovery: discoveryEvidence(event.sourceUrl, memory, history, !!event.savedIdea), ...(memory ? { memory } : {}), status, checks, distanceKm, reason: status === 'fits' ? 'Fits the checked planning constraints; ticket availability still needs checking.' : status === 'does-not-fit' ? 'Excluded by a known status, boundary or firm constraint.' : 'A scheduled option with unresolved checks; it is not a confirmed plan.', nextStep: checks.find(c => c.blocking !== false && c.status !== 'fits')?.detail ?? 'Check tickets, current status and group capacity on the specific listing.' });
   }
   ranked.sort((a, b) => (a.status === 'fits' ? 0 : a.status === 'needs-checking' ? 1 : 2) - (b.status === 'fits' ? 0 : b.status === 'needs-checking' ? 1 : 2) || Number(!['scheduled', 'onsale', 'offsale'].includes(a.event.providerStatus ?? '')) - Number(!['scheduled', 'onsale', 'offsale'].includes(b.event.providerStatus ?? '')) || (b.checks.filter(c => c.status === 'fits').length + (b.memory?.boost ?? 0)) - (a.checks.filter(c => c.status === 'fits').length + (a.memory?.boost ?? 0)) || (a.event.schedule.date ?? '').localeCompare(b.event.schedule.date ?? '') || a.event.id.localeCompare(b.event.id));
-  const useful = ranked.filter(e => e.status !== 'does-not-fit').slice(0, 3);
-  return { ranked, verified: useful.filter(e => e.status === 'fits'), promising: useful.filter(e => e.status === 'needs-checking'), excluded: ranked.filter(e => e.status === 'does-not-fit'), notices: ['Up to three useful options from one provider page; this is not a complete local events calendar.', 'Starting price, fees, total cost and ticket availability are separate. Suggestions are never reservations.', ...(facts.some(f => !reviewed(f)) ? ['AI claims remain unreviewed and do not verify or exclude events.'] : [])] };
+  const balanced = balanceTravel(ranked, travel, r => ({ key: workKey(r.event), address: r.event.venue.address, window: { date: r.event.schedule.date, start: r.event.schedule.time, end: r.event.schedule.endTime, timeZone: r.event.schedule.timeZone } }));
+  const useful = balanced.filter(e => e.status !== 'does-not-fit').slice(0, 3);
+  return { ranked: balanced, verified: useful.filter(e => e.status === 'fits'), promising: useful.filter(e => e.status === 'needs-checking'), excluded: balanced.filter(e => e.status === 'does-not-fit'), notices: ['Up to three useful options from one provider page; this is not a complete local events calendar.', 'Starting price, fees, total cost and ticket availability are separate. Suggestions are never reservations.', ...(facts.some(f => !reviewed(f)) ? ['AI claims remain unreviewed and do not verify or exclude events.'] : [])] };
 }

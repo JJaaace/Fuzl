@@ -1,3 +1,4 @@
+import TravelPanel from '../travel/TravelPanel';
 import Preference from '../discovery/Preference';
 import { preferredPlaces } from '../discovery/ranking';
 import type { DiscoveryPreference } from '@fuzl/planning';
@@ -12,9 +13,11 @@ import type { PlaceQuery, PlaceResults, PlanningSummary, SavedSession, PlaceSear
 import { privateRequest, SavedWorkError } from '../accounts/api';
 import PlaceCard from './PlaceCard';
 import ManualPlace from './ManualPlace';
-export interface FinderProps { demoScope?: import('@fuzl/planning').ParticipationScope; participationVersion?: number; participationBlocked?: boolean; demoRanking?: Pick<ReturnType<typeof import('@fuzl/planning').discoveryFixture>, 'found' | 'history' | 'memories'>; token?: string; loaded?: SavedSession; summary: PlanningSummary; getEditRevision: () => number; initialQuery?: PlaceQuery; previewOnly?: boolean; onApplyAdjustment?: ApplyAdjustment; ideasVersion?: number; onSaveIdea?: (v: CardIdeaSelection) => void }
+export interface FinderProps { demoTravel?: import('@fuzl/planning').TravelContext; demoScope?: import('@fuzl/planning').ParticipationScope; participationVersion?: number; participationBlocked?: boolean; demoRanking?: Pick<ReturnType<typeof import('@fuzl/planning').discoveryFixture>, 'found' | 'history' | 'memories'>; token?: string; loaded?: SavedSession; summary: PlanningSummary; getEditRevision: () => number; initialQuery?: PlaceQuery; previewOnly?: boolean; onApplyAdjustment?: ApplyAdjustment; ideasVersion?: number; onSaveIdea?: (v: CardIdeaSelection) => void }
 const initial: PlaceQuery = { area: '', radiusKm: 5, category: 'any', date: null, start: null, end: null, timeZone: null };
-export default function PlaceFinder({ token, loaded, summary, getEditRevision, initialQuery = initial, previewOnly = false, onApplyAdjustment, ideasVersion, onSaveIdea, demoRanking, participationVersion, participationBlocked = false, demoScope }: FinderProps) {
+export default function PlaceFinder({ token, loaded, summary, getEditRevision, initialQuery = initial, previewOnly = false, onApplyAdjustment, ideasVersion, onSaveIdea, demoRanking, participationVersion, participationBlocked = false, demoScope, demoTravel }: FinderProps) {
+  const [balance, setBalance] = useState(false), [travelVersion, setTravelVersion] = useState(0);
+  useEffect(() => { const invalidate = () => setTravelVersion(v => v + 1); window.addEventListener('fuzl-travel-history-change', invalidate); return () => window.removeEventListener('fuzl-travel-history-change', invalidate); }, []);
   const [preference, setPreference] = useState<DiscoveryPreference>('balanced');
   const [open, setOpen] = useState(previewOnly);
   const [discovery, setDiscovery] = useState<'places' | 'events'>('places');
@@ -30,7 +33,7 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
   const [outdated, setOutdated] = useState(false);
   const pending = useRef<AbortController | null>(null);
   const sequence = useRef(0), sending = useRef(false);
-  const fingerprintFor = (q: PlaceQuery, m = manual, c = corrections, saved = savedIdeas) => JSON.stringify([q, m, c, saved, participationVersion, demoScope?.key, summary, loaded?.id, loaded?.revision]);
+  const fingerprintFor = (q: PlaceQuery, m = manual, c = corrections, saved = savedIdeas) => JSON.stringify([q, m, c, saved, travelVersion, participationVersion, demoScope?.key, demoTravel, summary, loaded?.id, loaded?.revision]);
   const fingerprint = fingerprintFor(query);
   const boundary = (q: PlaceQuery) => JSON.stringify([q.area, q.resolutionId ?? null, q.radiusKm, q.category]);
   const latest = useRef(fingerprint);
@@ -62,7 +65,7 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
         else {
           previewCache.current = { found, boundary: boundary(activeQuery) };
           const candidates = [...found.candidates, ...manualPlaces(manual, new Date().toISOString())].map(c => correctedPlace(c, nextCorrections));
-          data = { mode: 'demo', coverage: found.candidates.length === 0 ? 'empty' : found.candidates.length < 3 ? 'sparse' : 'available', retrievedAt: new Date().toISOString(), ...(demoScope ? { participation: demoScope } : {}), ...evaluatePlaces(candidates, found.area, activeQuery, summaryForScope(summary, demoScope), [], demoRanking?.memories, demoRanking?.history, demoScope) };
+          data = { mode: 'demo', coverage: found.candidates.length === 0 ? 'empty' : found.candidates.length < 3 ? 'sparse' : 'available', retrievedAt: new Date().toISOString(), ...(demoScope ? { participation: demoScope } : {}), ...evaluatePlaces(candidates, found.area, activeQuery, summaryForScope(summary, demoScope), [], demoRanking?.memories, demoRanking?.history, demoScope, demoTravel) };
         }
       } else {
         if (recheck && !result?.data.searchId) throw Error('Run a search before rechecking recorded details.');
@@ -85,9 +88,9 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
     if (next.length > 23) { setError('The temporary detail limit is reached. Clear recorded details before adding another place.'); return false; }
     latest.current = fingerprintFor(query, manual, next); setCorrections(next); void search(result?.data.mode ?? 'demo', undefined, true, next, key); return true;
   }
-  const card = (r: PlaceResults['promising'][number]) => <PlaceCard key={r.candidate.id} place={r} busy={busy} onReview={review} onSaveLater={onSaveIdea && result?.data.workId ? () => onSaveIdea({ snapshotId: result.data.workId!, candidateKey: workKey(r.candidate), kind: 'place', hint: r.candidate.name, provider: r.candidate.savedIdea?.origin ?? r.candidate.source }) : undefined} />;
+  const card = (r: PlaceResults['promising'][number]) => <PlaceCard key={r.candidate.id} place={r} balanceReason={preferred?.moved.has(workKey(r.candidate))} busy={busy} onReview={review} onSaveLater={onSaveIdea && result?.data.workId ? () => onSaveIdea({ snapshotId: result.data.workId!, candidateKey: workKey(r.candidate), kind: 'place', hint: r.candidate.name, provider: r.candidate.savedIdea?.origin ?? r.candidate.source }) : undefined} />;
   const stale = outdated || !!result && result.fingerprint !== fingerprint;
-  const preferred = result && !stale ? preferredPlaces(result.data, preference) : null;
+  const preferred = result && !stale ? preferredPlaces(result.data, preference, balance) : null;
   const visible = preferred?.result ?? null;
   return <section className="place-finder review-section">
     {!previewOnly && <button aria-expanded={open} onClick={() => setOpen(v => !v)}>Find places</button>}
@@ -104,7 +107,7 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
       <div className="places-actions">{result && <button disabled={busy || result.boundary !== boundary(query)} onClick={() => void search(result.data.mode, undefined, true)}>Recheck current places (no provider call)</button>}<button disabled={busy} onClick={() => void search('demo')}>Show demo results</button>{!previewOnly && <button className="primary" disabled={busy} onClick={() => void search('live')}>Search real places</button>}{busy && <button onClick={() => { sequence.current++; pending.current?.abort(); sending.current = false; setBusy(false); setError('Search cancelled. Your planning summary was kept.'); }}>Cancel search</button>}</div>
       {busy && <p role="status">Looking for places…</p>}{error && <p role="alert" className="validation-error">{error}</p>}{stale && <p role="status" className="notice">Previous results are out of date and hidden. Review your changes, then search again.</p>}
       {clarification && clarification.fingerprint === fingerprint && <section className="area-clarification" aria-label="Choose resolved area"><h4>Which area did you mean?</h4><p>{clarification.data.message}</p><label className="field"><span>Resolved area choices</span><select value={choice} onChange={e => setChoice(e.target.value)}><option value="">Choose an area</option>{clarification.data.choices.map(area => <option key={area.id} value={area.id}>{area.label} · {area.lat.toFixed(3)}, {area.lon.toFixed(3)} · {area.timeZone ?? 'zone unknown'}</option>)}</select></label><button disabled={busy || !choice} onClick={() => void search(clarification.data.mode, choice)}>Search selected area</button></section>}
-      <Preference value={preference} onChange={next => { if (allowDraftReplacement()) setPreference(next); }}/><h3 ref={heading} tabIndex={-1}>{visible ? visible.mode === 'demo' ? 'Demo results' : 'Places to consider' : 'Your shortlist'}</h3>
+      <label className="check-label"><input type="checkbox" checked={balance} onChange={e => { if (allowDraftReplacement()) setBalance(e.target.checked); }}/>Balance travel</label><p className="note">Optional · this session only. Uses loaded, reviewed estimates and recent explicit attendance; no provider request when toggled.</p>{token && loaded && !previewOnly && <TravelPanel token={token} loaded={loaded} scopeVersion={participationVersion} onChanged={() => setTravelVersion(v => v + 1)} candidates={(result?.data.ranked ?? []).map(r => ({ key: workKey(r.candidate), name: r.candidate.name, address: r.effectiveAddress ?? r.candidate.address, window: { date: query.date, start: query.start, end: query.end, timeZone: query.timeZone ?? r.candidate.timeZone ?? null } }))}/>}<Preference value={preference} onChange={next => { if (allowDraftReplacement()) setPreference(next); }}/><h3 ref={heading} tabIndex={-1}>{visible ? visible.mode === 'demo' ? 'Demo results' : 'Places to consider' : 'Your shortlist'}</h3>
       {visible && <>{visible.participation && <p className="notice">{visible.participation.mode === 'everyone' ? 'Everyone together' : 'Who’s available?'} · {visible.participation.attendeeCount} intended attendees · Scope checked with this result.</p>}<p className="note discovery-order" role="status">{preferred?.notice}</p>{(visible.coverage === 'empty' || visible.coverage === 'sparse') && <section className="notice"><strong>{visible.coverage === 'empty' ? 'No venue listings returned for these filters.' : 'Sparse coverage: fewer than three venue listings returned.'}</strong><p>Try a different radius or category deliberately. Firm planning constraints stay unchanged.</p><button disabled={busy || query.radiusKm >= 30} onClick={() => change({ ...query, radiusKm: Math.min(30, query.radiusKm + 5) })}>Increase radius by 5 km (search when ready)</button><button disabled={busy || query.category === 'any'} onClick={() => change({ ...query, category: 'any' })}>Show all categories (search when ready)</button></section>}<p className="note">Resolved area: {visible.area.label} · Retrieved {new Date(visible.retrievedAt).toLocaleString()}{visible.mode === 'demo' && ' · Synthetic venues and details, not real recommendations'}</p>
         <h4>Fits the verified constraints</h4>{!visible.verified.length && <p>No returned option is verified to fit all checked constraints. Your limits were kept.</p>}{visible.verified.map(card)}{!visible.verified.length && <MakeThisWork key={visible.workId ?? result?.fingerprint} snapshotId={visible.workId} token={token} loaded={loaded} summary={summary} getEditRevision={getEditRevision} active={open && discovery === 'places'} window={{ date: query.date, start: query.start, end: query.end, timeZone: query.timeZone }} onApply={onApplyAdjustment ? (reply, revision, expected) => { if (!onApplyAdjustment(reply, revision, expected)) return false; latest.current = ''; if (reply.query) setQuery(reply.query); setOutdated(true); return true; } : undefined}/>}
         {!!visible.promising.length && <><h4>Promising — needs checking</h4>{visible.promising.map(card)}</>}
@@ -114,7 +117,7 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
         <ul className="note">{visible.notices.map(n => <li key={n}>{n}</li>)}</ul>{visible.mode === 'live' && <p className="places-attribution">Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors (ODbL)</a></p>}
       </>}
       </div>
-      <EventFinder participationVersion={participationVersion} participationBlocked={participationBlocked} preference={preference} onPreference={next => { if (allowDraftReplacement()) setPreference(next); }} active={open && discovery === 'events'} query={query} onQuery={change} summary={summary} token={token} loaded={loaded} previewOnly={previewOnly} getEditRevision={getEditRevision} onApplyAdjustment={onApplyAdjustment} ideasVersion={ideasVersion} onSaveIdea={onSaveIdea} />
+      <EventFinder balance={balance} onBalance={setBalance} travelVersion={travelVersion} onTravelChange={() => setTravelVersion(v => v + 1)} participationVersion={participationVersion} participationBlocked={participationBlocked} preference={preference} onPreference={next => { if (allowDraftReplacement()) setPreference(next); }} active={open && discovery === 'events'} query={query} onQuery={change} summary={summary} token={token} loaded={loaded} previewOnly={previewOnly} getEditRevision={getEditRevision} onApplyAdjustment={onApplyAdjustment} ideasVersion={ideasVersion} onSaveIdea={onSaveIdea} />
     </div>
   </section>;
 }

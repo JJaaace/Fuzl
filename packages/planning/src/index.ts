@@ -26,3 +26,6 @@ export * from './discovery-fixtures.js';
 export * from './participation-contract.js';
 export * from './participation.js';
 export * from './participation-fixtures.js';
+
+export * from './travel-balance.js';
+export * from './travel-fixtures.js';

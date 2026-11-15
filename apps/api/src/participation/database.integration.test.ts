@@ -91,6 +91,6 @@ test('10.4 real disposable six-person scope → credential opt-ins → explicit 
   });
   await t.test('new tables deny direct public roles and group deletion cascades only this group’s opt-ins', async () => {
     await assert.rejects(db.$transaction(async tx => { await tx.$executeRawUnsafe('SET LOCAL ROLE anon'); await tx.$queryRawUnsafe('SELECT * FROM fuzl.fuzl_scope_opt_ins'); }));
-    await organizers.deleteGroup(owner, group.id); assert.equal(await db.sessionScope.count({ where: { sessionId: saved.id } }), 0); assert.equal(await db.scopeOptIn.count(), 0); assert.equal((await organizers.getSession(owner, foreign.id)).id, foreign.id); await organizers.deleteGroup(owner, otherGroup.id);
+    await organizers.deleteGroup(owner, group.id); assert.equal(await db.sessionScope.count({ where: { sessionId: saved.id } }), 0); assert.equal(await db.scopeOptIn.count({ where: { invite: { sessionId: saved.id } } }), 0); assert.equal((await organizers.getSession(owner, foreign.id)).id, foreign.id); await organizers.deleteGroup(owner, otherGroup.id);
   });
 });

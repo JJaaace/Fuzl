@@ -1,3 +1,6 @@
+import { balanceTravel, travelLimitChecks } from './travel-balance.js';
+import type { TravelContext } from './travel-balance.js';
+import { workKey } from './adjustments.js';
 import { participationChecks } from './participation.js';
 import type { ParticipationScope } from './participation-contract.js';
 import { discoveryEvidence } from './discovery.js';
@@ -35,7 +38,7 @@ export function budgetCheck(candidate: Pick<PlaceCandidate, 'price'>, limit: { a
         : 'Affordability needs checking: match total cost, per-person basis, currency and a settled limit. Admission alone or a price tier is insufficient.';
   return { kind, status, detail };
 }
-export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, query: PlaceQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = [], history?: GroupVisitHistory, participation?: ParticipationScope): Omit<PlaceResults, 'mode' | 'retrievedAt'> {
+export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, query: PlaceQuery, summary: PlanningSummary, privateSpending: PrivateSpending[] = [], memories: GroupMemory[] = [], history?: GroupVisitHistory, participation?: ParticipationScope, travel?: TravelContext): Omit<PlaceResults, 'mode' | 'retrievedAt'> {
   const facts = summary.facts.filter(current);
   const budgets = facts.filter(f => f.kind === 'budget');
   const seenIds = new Set<string>(), seenUrls = new Set<string>();
@@ -89,6 +92,7 @@ export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, qu
         checks.push({ kind: 'constraint', status: settled(fact) && exactCategory && ['park', 'museum', 'restaurant', 'cafe', 'bowling'].includes(exactCategory) && candidate.category !== 'any' ? exactCategory === candidate.category ? 'fits' : 'does-not-fit' : 'needs-checking', detail: 'Firm activity or other requirements need matching evidence. Free-text accessibility, age, diet, capacity and other requirements are not inferred from categories.' });
       }
     }
+    checks.push(...travelLimitChecks(travel, workKey(listing), candidate.address, { date: query.date, start: query.start, end: query.end, timeZone: query.timeZone ?? candidate.timeZone ?? null }, summary));
     const status = checks.some(c => c.blocking !== false && c.status === 'does-not-fit') ? 'does-not-fit' : checks.some(c => c.blocking !== false && c.status === 'needs-checking') ? 'needs-checking' : 'fits';
     const matches = facts.filter(f => settled(f) && attributed(f, summary) && f.strength === 'flexible' && f.kind === 'activity' && f.description?.trim().toLowerCase() === candidate.category).length;
     const flexibleBudgetFits = budgets.filter(b => settled(b) && attributed(b, summary) && b.strength === 'flexible' && budgetCheck(candidate, b, 'budget', false).status === 'fits').length;
@@ -101,6 +105,7 @@ export function evaluatePlaces(candidates: PlaceCandidate[], area: PlaceArea, qu
     ranked.push({ result: { candidate: listing, discovery: discoveryEvidence(listing.sourceUrl, memory, history, !!listing.savedIdea), ...(memory ? { memory } : {}), status, checks, reason, nextStep, distanceKm, ranking, effectiveAddress: candidate.address, localWindow: window ? `${window.date} ${window.start}–${window.end} ${window.timeZone}` : null }, score: (memory?.boost ?? 0) + matches * 10 + flexibleBudgetFits * 3 + known - (distanceKm ?? query.radiusKm) / 100 });
   }
   ranked.sort((a, b) => (a.result.status === 'fits' ? 0 : a.result.status === 'needs-checking' ? 1 : 2) - (b.result.status === 'fits' ? 0 : b.result.status === 'needs-checking' ? 1 : 2) || b.score - a.score || a.result.candidate.id.localeCompare(b.result.candidate.id));
-  const useful = ranked.filter(r => r.result.status !== 'does-not-fit').slice(0, 3).map(r => r.result);
-  return { ranked: ranked.map(r => r.result), area, verified: useful.filter(r => r.status === 'fits'), promising: useful.filter(r => r.status === 'needs-checking'), excluded: ranked.filter(r => r.result.status === 'does-not-fit').map(r => r.result), notices: ['Results cover only the returned candidates, not every place in the area.', 'Hours do not establish seats, tickets, group capacity or reservations. Suggestions are not confirmed plans.', ...(facts.some(f => !reviewed(f)) ? ['Unreviewed AI claims remain unreviewed and were not used as verified constraints or ranking preferences.'] : []), ...(summary.questions.some(q => !q.resolution) ? ['Open questions remain unresolved; check them before deciding.'] : [])] };
+  const balanced = balanceTravel(ranked.map(r => r.result), travel, r => ({ key: workKey(r.candidate), address: r.effectiveAddress ?? r.candidate.address, window: { date: query.date, start: query.start, end: query.end, timeZone: query.timeZone ?? r.candidate.timeZone ?? null } }));
+  const useful = balanced.filter(r => r.status !== 'does-not-fit').slice(0, 3);
+  return { ranked: balanced, area, verified: useful.filter(r => r.status === 'fits'), promising: useful.filter(r => r.status === 'needs-checking'), excluded: balanced.filter(r => r.status === 'does-not-fit'), notices: ['Results cover only the returned candidates, not every place in the area.', 'Hours do not establish seats, tickets, group capacity or reservations. Suggestions are not confirmed plans.', ...(facts.some(f => !reviewed(f)) ? ['Unreviewed AI claims remain unreviewed and were not used as verified constraints or ranking preferences.'] : []), ...(summary.questions.some(q => !q.resolution) ? ['Open questions remain unresolved; check them before deciding.'] : [])] };
 }

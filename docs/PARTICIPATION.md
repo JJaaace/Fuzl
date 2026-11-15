@@ -1,6 +1,6 @@
 # Section 10.4 — Everyone together or Who’s available?
 
-Section 10.3 was committed and normally pushed to `origin/main` as **`635cf163882ab4101c21cdb3c1625a8fc8f83bb4` — Add session discovery preferences for favorites and new ideas** before this work. Section 10.4 is a separate local diff. No hosted migration, real account/guest interaction, provider request, email, billing change or deployment was performed.
+Section 10.3 was committed and normally pushed to `origin/main` as **`635cf163882ab4101c21cdb3c1625a8fc8f83bb4` — Add session discovery preferences for favorites and new ideas** before this work. Section 10.4 is preserved in pushed `50f88e9`; separately authorized 10.5 stays local. No hosted migration, real account/guest interaction, provider request, email, billing change or deployment was performed.
 
 ## Exact six-person demo
 
@@ -80,4 +80,4 @@ Manual checks still pending:
 3. Create a ballot/shared plan with those synthetic records. Explicitly copy the reviewed scope, preview and publish; submit an RSVP. Change/review the working scope and verify the existing publication stays stable, then copy/preview/publish the update and reconfirm the RSVP. Verify neither votes nor opt-ins become RSVP/attendance evidence. Hosted tests are not passed from disposable SQL.
 4. Carry forward real original-tab edit preservation, save/reopen/edit/delete/conflict/sign-out/two-account checks, controlled guest/feedback/memory privacy and intended reachable HTTPS/restricted redirects. Localhost links are for this computer; friends need a separately authorized reachable deployment. No deployment was performed.
 
-Stop after Section 10.4. Fairness scoring, backup plans, continuous monitoring, reviews/trends and later features remain deferred. Changes stay local for review.
+This milestone stopped after Section 10.4 and is preserved in pushed `50f88e9`. The separately authorized [10.5 travel balancing](TRAVEL_BALANCE.md) reuses its reviewed scope and remains local. Backup plans, continuous monitoring, reviews/trends and later features remain deferred.

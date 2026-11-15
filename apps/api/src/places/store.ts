@@ -1,3 +1,5 @@
+import { groupTravelContext } from '../travel/store.js';
+import type { TravelContext } from '@fuzl/planning';
 import { participationContext } from '../participation/store.js';
 import { scopeWindowSchema, summaryForScope } from '@fuzl/planning';
 import type { ParticipationScope, PlanningSummary } from '@fuzl/planning';
@@ -10,7 +12,7 @@ import type { PlaceSearch, PrivateSpending } from '@fuzl/planning';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { validateGuestOrigins } from '../guests/store.js';
 import { ExtractionError } from '../extraction/errors.js';
-export interface SearchContext { participation?: ParticipationScope; checkingSummary?: PlanningSummary; visitHistory?: GroupVisitHistory; privateSpending: PrivateSpending[]; memories?: GroupMemory[]; baselineVersion?: string; version: string }
+export interface SearchContext { travel?: TravelContext; participation?: ParticipationScope; checkingSummary?: PlanningSummary; visitHistory?: GroupVisitHistory; privateSpending: PrivateSpending[]; memories?: GroupMemory[]; baselineVersion?: string; version: string }
 export interface PlaceContextStore { context(subject: string, sessionId: string, request: Pick<PlaceSearch, 'summary' | 'sessionRevision'> & { query?: unknown }): Promise<SearchContext> }
 export class PlaceStore implements PlaceContextStore {
   constructor(private db: PrismaClient, private now = Date.now) {}
@@ -34,7 +36,8 @@ export class PlaceStore implements PlaceContextStore {
       const ideas = await ideaVersions(tx, session.groupId);
       const memory = await groupMemories(tx, session.groupId);
       const visits = await groupVisitHistory(tx, session.groupId);
-      return { participation: participation.scope, checkingSummary: summaryForScope(request.summary, participation.scope), baselineVersion: createHash('sha256').update(JSON.stringify([session.revision, rows, memory.fingerprint, visits.fingerprint])).digest('hex'), visitHistory: visits.history, memories: memory.memories, privateSpending: retained.map(r => ({ state: r.state, amount: r.amount === null ? null : Number(r.amount), currency: r.currency })), version: createHash('sha256').update(JSON.stringify([session.revision, rows, participation.scope.key, memory.fingerprint, visits.fingerprint, ideas])).digest('hex') };
+      const travel = await groupTravelContext(tx, session.groupId, session.travelReview, participation.scope, session.revision, this.now());
+      return { travel: travel.context, participation: participation.scope, checkingSummary: summaryForScope(request.summary, participation.scope), baselineVersion: createHash('sha256').update(JSON.stringify([session.revision, rows, memory.fingerprint, visits.fingerprint])).digest('hex'), visitHistory: visits.history, memories: memory.memories, privateSpending: retained.map(r => ({ state: r.state, amount: r.amount === null ? null : Number(r.amount), currency: r.currency })), version: createHash('sha256').update(JSON.stringify([session.revision, rows, participation.scope.key, memory.fingerprint, visits.fingerprint, travel.fingerprint, ideas])).digest('hex') };
     });
   }
 }

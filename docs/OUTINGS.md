@@ -56,3 +56,7 @@ See PROGRESS for actual counts. Offline UI simulations and disposable SQL/HTTP c
 5. Browser discovery returned no connected browser. Desktop, 320–360px mobile, Safari, actual focus/keyboard/screen-reader/scroll and external navigation are **unverified**. Run the exact synthetic demo above locally, checking wrapped fields/notes, explicit optional consent, visible errors/unsaved warnings, original-vs-actual clarity and memory separation. Static markup/DOM simulations and HTTP 200 do not establish visual acceptance.
 
 Only Section 9 is implemented here. No scheduled reminders, automatic messages, reviews, trends, personal profiling or later milestone work was added.
+
+## Optional reviewed travel (Section 10.5)
+
+[Balance travel](TRAVEL_BALANCE.md) adds organizer-only one-way minutes for explicitly confirmed saved-group attendees after completion. Discovery → Private travel records & current estimates → Completed outings supports record/correct/delete. Display names, votes, RSVPs and old feedback never auto-match a person or supply minutes. Actual-outing corrections clear the travel review. Public outing/feedback DTOs stay unchanged; the private history is used only for the current reviewed roster after firm checks. New migration `202611140005_travel_balance` remains disposable-only; real hosted/browser checks are pending.

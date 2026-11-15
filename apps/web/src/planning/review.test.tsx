@@ -6,6 +6,9 @@ import FactEditor from './FactEditor';
 import { examples } from './examples';
 import AnalysisPanel from './AnalysisPanel';
 import App from '../App';
+import { supportingSummary } from '@fuzl/planning';
+import { validateLoadedSession } from '../accounts/api';
+import { summaryNextStep } from './summaryNextStep';
 
 // Static rendering verifies labels/content, not browser interaction or layout.
 test('all three reviews render with explicit status, provenance, mapping, and manual controls', () => {
@@ -54,4 +57,29 @@ test('AI provenance renders unreviewed claims, historical scope, and submitted q
   assert.match(html, /AI claim — unreviewed/);
   assert.match(html, /historical/);
   assert.match(html, /Supporting submitted text/);
+});
+
+test('a validated synthetic saved payload uses the same review layout without losing unknowns, excerpts or save/share entry', () => {
+  // Component/content check only, not a hosted sign-in/save/reopen observation.
+  const saved = validateLoadedSession({ id: 'synthetic-saved', groupId: 'synthetic-group', title: 'Saved Friday fixture', revision: 3,
+    createdAt: '2026-11-01T12:00:00Z', updatedAt: '2026-11-02T12:00:00Z',
+    payload: { title: 'Saved Friday fixture', origin: 'sample', summaryVersion: 1, summary: supportingSummary(structuredClone(examples[1].summary)), provenance: [] },
+  });
+  const before = JSON.stringify(saved.payload);
+  const html = renderToStaticMarkup(<SummaryReview summary={saved.payload.summary} sourceKind={saved.payload.origin} provenance={saved.payload.provenance} onChange={() => {}} saveAction={{ label: 'Save & sharing', onClick() {} }}/>);
+  for (const text of ['What’s the plan?', 'What’s still open?', 'What can I do next?', 'Review the date', 'Save &amp; sharing', 'Exact date unresolved', 'Sam: tentative availability', 'Amount unknown', 'Supporting sample text']) assert.ok(html.includes(text), text);
+  assert.equal(JSON.stringify(saved.payload), before);
+});
+
+test('next action ignores superseded evidence, treats zero as known, and never manufactures missing dates or activities', () => {
+  const summary = structuredClone(examples[0].summary);
+  summary.facts = summary.facts.map(fact => fact.kind === 'budget' ? { ...fact, amount: 0 } : fact);
+  assert.equal(summaryNextStep(summary).kind, 'save', 'zero is a known amount');
+  summary.facts.unshift({ id: 'old-date', kind: 'schedule', subject: {kind:'group'}, description: 'Old unresolved date', exactDate: null, startTime: null, endTime: null, status: 'proposed', strength: 'unknown', sourceIds: ['a1'], extraction: { reviewed: true, scope: 'historical', reportedStatus: 'tentative', uncertainty: 'Superseded', supersedes: [] } });
+  assert.equal(summaryNextStep(summary).kind, 'save', 'old availability cannot drive the current shortcut');
+  summary.facts = summary.facts.filter(fact => fact.kind !== 'schedule');
+  assert.deepEqual(summaryNextStep(summary), {kind:'add',factKind:'schedule',label:'Add availability',hint:'Date and time are unknown. Add only what you know.'});
+  const unknownActivity = structuredClone(examples[0].summary); const activity = unknownActivity.facts.find(fact => fact.kind === 'activity')!;
+  if (activity.kind === 'activity') activity.description = null;
+  const next = summaryNextStep(unknownActivity); assert.equal(next.kind, 'fact'); assert.equal(next.label, 'Review the activity');
 });

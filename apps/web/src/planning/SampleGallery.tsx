@@ -15,7 +15,7 @@ export default function SampleGallery({ onOpen }: { onOpen: (id: string) => void
     <ul className="sample-cards">{sampleCards.filter(card => examples.some(example => example.id === card.id)).map(card => <li key={card.id}>
       <button type="button" className="sample-card" onClick={() => onOpen(card.id)} aria-label={`Open sample: ${card.name}`} aria-describedby={`sample-detail-${card.id}`}>
         <img src={`/gallery/${card.image}`} width="88" height="88" alt="" loading="lazy"/>
-        <span className="sample-card-copy"><span className="sample-card-name">{card.name}</span><span id={`sample-detail-${card.id}`} className="sample-card-detail">{card.detail}</span></span><span aria-hidden="true" className="sample-card-arrow">↗</span>
+        <span className="sample-card-copy"><span className="sample-card-name">{card.name}</span><span id={`sample-detail-${card.id}`} className="sample-card-detail">{card.detail}</span></span><span aria-hidden="true" className="sample-card-arrow">→</span>
       </button>
     </li>)}</ul>
   </section>;

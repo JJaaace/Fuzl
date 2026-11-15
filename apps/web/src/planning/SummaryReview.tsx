@@ -1,14 +1,15 @@
-import type { ReactNode } from 'react';
 import SavedSource from '../accounts/SavedSource';
 import type { SavedProvenance } from '@fuzl/planning';
 import type { TranscriptSnapshot } from '@fuzl/planning';
 import SourceTrace from '../screenshots/SourceTrace';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import FactEditor, { Field } from './FactEditor';
 import Questions from './Questions';
 import SummaryOverview from './SummaryOverview';
 import { blankFact, factKinds, factStatuses, factValue, kindLabels, subjectLabel } from './model';
 import type { FactKind, PlanningFact, PlanningSummary } from './model';
+import { summaryNextStep } from './summaryNextStep';
+import { focusAndReveal } from '../ui/presentation';
 
 function FactCard({ fact, summary, sourceKind, transcript, provenance, availableScreenshots, onApply, onRemove }: {
   fact: PlanningFact; summary: PlanningSummary;
@@ -18,7 +19,7 @@ function FactCard({ fact, summary, sourceKind, transcript, provenance, available
   const [editing, setEditing] = useState(false);
   const editButton = useRef<HTMLButtonElement>(null);
   function closeEditor() { setEditing(false); editButton.current?.focus(); }
-  return <article className="fact-card">
+  return <article className="fact-card" data-fact-id={fact.id}>
     <div className="fact-heading">
       <h4>{kindLabels[fact.kind]} · {subjectLabel(fact.subject, summary)}</h4>
       <span className={`fact-status status-${fact.status}`}>{fact.status}</span>
@@ -46,18 +47,63 @@ function FactCard({ fact, summary, sourceKind, transcript, provenance, available
   </article>;
 }
 
-export default function SummaryReview({ summary, sourceKind = 'sample', transcript, active = true, provenance = [], availableScreenshots = [], onChange, nextAction }: {
-  nextAction?: ReactNode; summary: PlanningSummary; active?: boolean; onChange: (summary: PlanningSummary) => void;
+export default function SummaryReview({ summary, sourceKind = 'sample', transcript, active = true, provenance = [], availableScreenshots = [], onChange, saveAction }: {
+  saveAction?: { label: string; onClick: () => void }; summary: PlanningSummary; active?: boolean; onChange: (summary: PlanningSummary) => void;
   sourceKind?: 'sample' | 'manual' | 'ai'; transcript?: TranscriptSnapshot | null; provenance?: SavedProvenance; availableScreenshots?: string[];
 }) {
   const [newKind, setNewKind] = useState<FactKind>('schedule');
   const [newFact, setNewFact] = useState<PlanningFact | null>(null);
-  return <>
-    <SummaryOverview summary={summary} active={active} />
+  const [shortcutNotice, setShortcutNotice] = useState('');
+  const root = useRef<HTMLDivElement>(null), facts = useRef<HTMLDetailsElement>(null), people = useRef<HTMLDetailsElement>(null);
+  const focusFrame = useRef<number | null>(null);
+  useEffect(() => () => { if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current); }, []);
+  const next = summaryNextStep(summary);
+  function revealDetails(details: HTMLDetailsElement | null) {
+    if (details) { details.open = true; focusAndReveal(details.querySelector('summary')); }
+  }
+  function takeNextStep() {
+    if (next.kind === 'save') { if (saveAction) saveAction.onClick(); else revealDetails(facts.current); return; }
+    let card: HTMLElement | undefined;
+    if (next.kind === 'fact' || next.kind === 'question') {
+      const attribute = next.kind === 'fact' ? 'factId' : 'questionId';
+      card = [...(root.current?.querySelectorAll<HTMLElement>(next.kind === 'fact' ? '.fact-card' : '.question-card') ?? [])].find(element => element.dataset[attribute] === next.id);
+    }
+    const pending = root.current?.querySelector<HTMLFormElement>('.fact-form');
+    if (pending && !card?.contains(pending) && !(next.kind === 'add' && pending.closest('.new-fact'))) {
+      setShortcutNotice('Apply or cancel the open edit first. Your fields were kept.');
+      focusAndReveal(pending.querySelector('input')); return;
+    }
+    setShortcutNotice('');
+    if (next.kind !== 'question' && facts.current) facts.current.open = true;
+    if (next.kind === 'fact' || next.kind === 'question') {
+      const edit = card?.querySelector<HTMLButtonElement>(next.kind === 'fact' ? '.fact-actions button' : '[data-edit-question]');
+      if (edit?.getAttribute('aria-expanded') !== 'true') edit?.click();
+    } else if (next.kind === 'add' && !newFact) {
+      setNewKind(next.factKind); setNewFact(blankFact(next.factKind, crypto.randomUUID()));
+    }
+    if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
+    focusFrame.current = requestAnimationFrame(() => {
+      focusFrame.current = null;
+      const container = card ?? root.current?.querySelector<HTMLElement>('.new-fact');
+      const date = next.kind === 'fact' && next.field === 'date';
+      focusAndReveal(container?.querySelector<HTMLElement>(date ? '.fact-form input[type=date]' : '.fact-form input') ?? null);
+    });
+  }
+  return <div className="summary-review" ref={root} onClickCapture={() => { if (shortcutNotice) setShortcutNotice(''); }}>
+    <SummaryOverview summary={summary} active={active} nextAction={<>
+      <button type="button" data-workspace-navigation className="primary summary-primary" onClick={takeNextStep}>{next.kind === 'save' && !saveAction ? 'Review all facts' : next.label}</button>
+      <p className="note">{next.hint}</p>
+      {shortcutNotice && <p className="note" role="status">{shortcutNotice}</p>}
+      {saveAction && next.kind !== 'save' && <button type="button" data-workspace-navigation className="quiet summary-save-shortcut" onClick={saveAction.onClick}>{saveAction.label}</button>}
+    </>}/>
+    <div className="summary-tools" role="group" aria-label="Summary details" data-workspace-navigation>
+      <button className="quiet" onClick={() => focusAndReveal(root.current?.querySelector<HTMLElement>('#questions-title') ?? null)}>Open questions ({summary.questions.filter(question => question.resolution === null).length})</button>
+      <button className="quiet" onClick={() => revealDetails(people.current)}>People &amp; attribution</button>
+      <button className="quiet" onClick={() => revealDetails(facts.current)}>All facts &amp; sources</button>
+    </div>
     <Questions summary={summary} onChange={onChange} />
-    {nextAction}
     {!!summary.organizerDecisions?.length && <details className="review-section organizer-decisions"><summary>Organizer decisions ({summary.organizerDecisions.length})</summary><p className="note">Explicit working-session decisions, separate from original conversation evidence. They do not change a published plan or any RSVP.</p><ul>{summary.organizerDecisions.map(d => <li key={d.id}><strong>{d.before} → {d.after}</strong><p>{d.reason}</p><p className="note">{new Date(d.recordedAt).toLocaleString()} · Original source references: {d.sourceIds.join(', ') || 'Manual fact'}</p>{d.checks?.flatMap(c => [c.evidence.travel, c.evidence.booking].filter(Boolean).map((e, i) => <p key={`${c.key}:${i}`}><a href={e!.sourceUrl} target="_blank" rel="noreferrer">Organizer-recorded check source</a> · Checked {e!.checkedOn} · {e!.destination}</p>))}</li>)}</ul></details>}
-    <details data-section-entry className="people-details review-section">
+    <details ref={people} data-section-entry className="people-details review-section">
       <summary><span>Participants &amp; speaker mappings</span><span className="muted">Edit names &amp; attribution</span></summary>
       <p className="note">Names are editable aliases. Speaker mappings update the attribution of linked facts; original quotes stay unchanged.</p>
       <div className="form-grid participant-fields">
@@ -80,7 +126,7 @@ export default function SummaryReview({ summary, sourceKind = 'sample', transcri
     </details>
 
 
-    <details data-section-entry className="facts-details review-section">
+    <details ref={facts} data-section-entry className="facts-details review-section">
       <summary><span id="facts-title">Planning facts</span><span className="muted">{summary.facts.length} facts · review &amp; edit</span></summary>
       <p className="note">Unknown isn’t zero. A fact’s status is separate from whether you’ve reviewed it.</p>
       <ul className="status-overview" aria-label="Fact statuses">{factStatuses.map((status) => <li key={status}>{status}: {summary.facts.filter((fact) => fact.status === status).length}</li>)}</ul>
@@ -91,7 +137,7 @@ export default function SummaryReview({ summary, sourceKind = 'sample', transcri
         ...summary, facts: summary.facts.filter((item) => item.id !== fact.id),
         questions: summary.questions.map((question) => ({ ...question, relatedFactIds: question.relatedFactIds.filter((id) => id !== fact.id) })),
       })} />)}</div>
-      {newFact ? <div className="fact-card"><h4>Add {kindLabels[newFact.kind].toLowerCase()}</h4>
+      {newFact ? <div className="fact-card new-fact"><h4>Add {kindLabels[newFact.kind].toLowerCase()}</h4>
         <FactEditor key={newFact.id} fact={newFact} summary={summary} onApply={(fact) => {
           onChange({ ...summary, facts: [...summary.facts, fact] }); setNewFact(null);
         }} onCancel={() => setNewFact(null)} />
@@ -103,5 +149,5 @@ export default function SummaryReview({ summary, sourceKind = 'sample', transcri
         <button onClick={() => setNewFact(blankFact(newKind, crypto.randomUUID()))}>Add information</button>
       </div>}
     </details>
-  </>;
+  </div>;
 }

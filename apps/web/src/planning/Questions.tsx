@@ -40,10 +40,10 @@ export default function Questions({ summary, onChange }: { summary: PlanningSumm
   const [editing, setEditing] = useState<string | null>(null);
   const [newQuestion, setNewQuestion] = useState<OpenQuestion | null>(null);
   return <section data-section-entry className="review-section" aria-labelledby="questions-title">
-    <h3 id="questions-title">Missing answers & conflicts</h3>
+    <h3 id="questions-title" tabIndex={-1}>Missing answers & conflicts</h3>
     <p className="note">Add an answer or record a conflict. Related facts stay unchanged until you edit them.</p>
     {summary.questions.length === 0 && <p>No questions recorded. This does not establish that the plan is complete.</p>}
-    {summary.questions.map((question) => <article className="question-card" key={question.id}>
+    {summary.questions.map((question) => <article className="question-card" key={question.id} data-question-id={question.id}>
       <span className="fact-status">{question.resolution === null ? 'Open' : 'Resolved manually'} · {question.kind === 'conflict' ? 'Conflict' : 'Missing answer'}</span>
       <p>{question.text}</p>{question.guest && <div><p className="note">Guest answer · applied by you · {question.guest.alias}, revision {question.guest.revision}</p><details><summary>Original guest answer</summary><blockquote>{question.guest.sourceText}</blockquote></details></div>}
       {question.relatedFactIds.length > 0 && <details className="related-details"><summary>Related facts</summary><ul className="related-facts" aria-label="Related facts">{question.relatedFactIds.map((id) => {
@@ -54,7 +54,7 @@ export default function Questions({ summary, onChange }: { summary: PlanningSumm
       {editing === question.id ? <QuestionForm question={question} onApply={(next) => {
         onChange({ ...summary, questions: summary.questions.map((item) => item.id === next.id ? next : item) });
         setEditing(null);
-      }} onCancel={() => setEditing(null)} /> : <button onClick={() => { setEditing(question.id); setNewQuestion(null); }}>Edit question</button>}
+      }} onCancel={() => setEditing(null)} /> : <button data-edit-question aria-expanded={editing === question.id} aria-label={`Edit question: ${question.text}`} onClick={() => { setEditing(question.id); setNewQuestion(null); }}>Edit question</button>}
     </article>)}
     {newQuestion ? <QuestionForm key={newQuestion.id} question={newQuestion} onApply={(question) => {
       onChange({ ...summary, questions: [...summary.questions, question] });

@@ -9,9 +9,9 @@ import Icon from '../ui/Icon';
 import SummaryOverview from './SummaryOverview';
 import { factValue, kindLabels, subjectLabel } from './model';
 
-export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, onAccept, controlsVisible = true, previewVisible = true, onPreview, onPreviewCleared, onDismiss }: {
+export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, onAccept, controlsVisible = true, previewVisible = true, onPreview, onPreviewCleared, onDismiss, showCharacterCount = true }: {
   draft: string; sourceVersion?: number; draftIssue?: string | null; onAccept: (result: AnalysisResponse, request: AnalysisRequest) => boolean | void;
-  controlsVisible?: boolean; previewVisible?: boolean; onPreview?: (activation: 'auto' | 'open' | 'stale') => void; onPreviewCleared?: () => void; onDismiss?: () => void;
+  showCharacterCount?: boolean; controlsVisible?: boolean; previewVisible?: boolean; onPreview?: (activation: 'auto' | 'open' | 'stale') => void; onPreviewCleared?: () => void; onDismiss?: () => void;
 }) {
   const [referenceDate, setReferenceDate] = useState('');
   const [accepted, setAccepted] = useState(false);
@@ -84,7 +84,7 @@ export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, on
         <div className="analysis-action-row"><div className="actions"><button ref={submitButton} className="primary analyze-button" type="submit" aria-busy={status === 'loading'} disabled={!configuration || configurationLoading || status === 'loading' || !!draftIssue || !draft.trim() || tooLong}>{status === 'loading' ? <FuseDots /> : <Icon name="spark" />}{status === 'loading' ? 'Analyzing…' : 'Analyze conversation'}<Icon name="arrow" className={status === 'loading' ? 'loading-arrow' : ''} /></button>
           {status === 'loading' && <button type="button" onClick={() => { pending.current?.abort(); pending.current = null; setStatus('cancelled'); setResult(null); onPreviewCleared?.(); }}>Cancel analysis</button>}
           {result && <button type="button" className="quiet" onClick={() => onPreview?.('open')}>Review last AI result</button>}
-        </div><p className={tooLong ? 'validation-error' : 'character-count'}>{draft.length} / {MAX_CONVERSATION_LENGTH} characters</p></div>
+        </div>{showCharacterCount && <p className={tooLong ? 'validation-error' : 'character-count'}>{draft.length} / {MAX_CONVERSATION_LENGTH} characters</p>}</div>
 
         {draftIssue && <p className="validation-error">{draftIssue}</p>}
       </form>

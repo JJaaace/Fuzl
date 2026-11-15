@@ -100,7 +100,7 @@ test('the opening composer is empty and explicit; samples reveal three useful ti
   await sample();
   assert.equal(document.querySelector('#summary-title')!.textContent, 'Sample summary');
   assert.equal(document.querySelectorAll('.summary-panel .overview-grid > div').length, 3);
-  assert.deepEqual([...document.querySelectorAll('.summary-panel .overview-grid dt')].map((item) => item.textContent), ['Availability', 'Budgets', 'Open questions']);
+  assert.deepEqual([...document.querySelectorAll('.summary-panel .overview-grid dt')].map((item) => item.textContent), ['What’s the plan?', 'What’s still open?', 'What can I do next?']);
   assert.equal([...document.querySelectorAll('.stage-nav button')].filter(visible).length, 2);
   assert.ok(![...document.querySelectorAll('.stage-nav button')].filter(visible).some((item) => item.textContent?.includes('Transcript')));
   await reviewFacts(); await click(button('Edit fact'));
@@ -175,7 +175,7 @@ test('mode, stage and saved-group navigation preserve draft nodes, unapplied fac
   await enter(field, 'Unapplied detail');
   await stage('Conversation'); await click(button('Saved groups'));
   const email = input('Email'); await enter(email, 'controlled@example.invalid');
-  await click(button('Workspace')); await stage('Understanding');
+  await click(button('Workspace')); await stage('Review summary');
   assert.equal(document.querySelector('.summary-panel .fact-form'), form); assert.equal(field.value, 'Unapplied detail');
   assert.equal(input('Participant 1 name').value, 'Renamed person');
   assert.equal(document.querySelector('.dot-field canvas'), fieldCanvas, 'typing and navigation keep the same canvas');
@@ -189,7 +189,7 @@ test('the summary entrance settles once and does not restart after editing or a 
   await mount(t); await sample();
   assert.ok(document.querySelector('.summary-panel .summary-overview')!.classList.contains('is-revealing'));
   await act(async () => { t.mock.timers.tick(100); }); await stage('Conversation');
-  await act(async () => { t.mock.timers.tick(240); }); await stage('Understanding');
+  await act(async () => { t.mock.timers.tick(240); }); await stage('Review summary');
   const overview = document.querySelector('.summary-panel .summary-overview')!;
   assert.ok(!overview.classList.contains('is-revealing'));
   await click(document.querySelector('.people-details > summary')); await enter(input('Participant 1 name'), 'Still editing');
@@ -233,7 +233,7 @@ test('late AI results cannot replace newer text or switch away from screenshot i
   assert.equal(draft.value, 'Alex: Newer work.'); assert.equal(document.querySelector('.summary-panel'), null);
   assert.equal(document.querySelector('.stage-nav [aria-current=step]')?.textContent?.includes('Conversation'), true);
   assert.equal(button('Upload screenshots').getAttribute('aria-pressed'), 'true');
-  await stage('Understanding'); assert.equal(button('Use extracted summary').disabled, true);
+  await stage('Review summary'); assert.equal(button('Use extracted summary').disabled, true);
 });
 
 test('a current AI result focuses its visible preview after rendering, while keeping acceptance explicit', async (t) => {
@@ -359,8 +359,8 @@ test('explicit stage navigation restores the prior native scroll when returning 
   assert.deepEqual(restored.at(-1), { top: 210, behavior: 'instant' });
   assert.equal(document.activeElement?.id, 'intro-title');
   assert.ok(document.querySelector('.stage-nav button[aria-current=step]')?.textContent?.includes('Conversation'));
-  await stage('Understanding'); await act(async () => { await new Promise(r => setTimeout(r, 25)); });
-  assert.equal(document.activeElement?.id, 'intro-title');
+  await stage('Review summary'); await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+  assert.equal(document.activeElement?.id, 'summary-title');
 });
 
 
@@ -374,8 +374,8 @@ test('the single composer keeps mode/example controls together, date and disclos
   const draft = composer.querySelector('#draft'); await click(button('Upload screenshots')); await click(button('Paste conversation')); assert.equal(document.querySelector('#draft'), draft);
   await sample();
   const summary = document.querySelector('.summary-panel')!;
-  const next = summary.querySelector('.summary-next button') as HTMLButtonElement;
-  assert.equal(next.textContent?.trim(), 'Continue to saving');
+  const next = summary.querySelector('.summary-save-shortcut') as HTMLButtonElement;
+  assert.equal(next.textContent?.trim(), 'Save options');
   await click(next); assert.equal(document.activeElement, summary.querySelector('.save-session'));
   assert.ok(summary.querySelector('.facts-details')); assert.ok(summary.querySelector('.review-section'));
   assert.equal(calls.filter(url => url !== '/api/ai-config').length, 0, 'navigation/shortcut never saves, analyzes, or publishes');
@@ -392,7 +392,7 @@ for (const reduced of [false, true]) for (const [index, example] of examples.ent
   let replace=false;t.mock.method(window,'confirm',()=>replace);const card=gallery.querySelectorAll('.sample-card')[index];assert.ok(card.getAttribute('aria-label')?.startsWith('Open sample:'));
   await click(card);assert.equal(draft.value,'Synthetic unsaved draft.');assert.equal(document.querySelector('.summary-panel'),null);
   replace=true;await click(card);assert.equal(draft.value,example.conversation);assert.equal(document.querySelector('#summary-title')?.textContent,'Sample summary');
-  const order=[...document.querySelectorAll('.summary-overview, [aria-labelledby="questions-title"], .summary-next')].map(e=>e.classList[0]);assert.deepEqual(order,['summary-overview','review-section','summary-next']);
+  const order=[...document.querySelectorAll('.summary-overview, [aria-labelledby="questions-title"], .summary-next')].map(e=>e.classList[0]);assert.deepEqual(order,['summary-overview','summary-next','review-section']);
   assert.equal(calls.filter(url=>url!=='/api/ai-config').length,0);
 });
 
@@ -402,7 +402,7 @@ test('returning to the gallery and declining another card preserves an unapplied
   const form=document.querySelector('.summary-panel .fact-form')!,field=form.querySelector<HTMLInputElement>('input')!;await enter(field,'Unapplied synthetic correction');
   await stage('Conversation');t.mock.method(window,'confirm',()=>false);await click(document.querySelectorAll('.sample-card')[2]);
   assert.equal(document.querySelector('.summary-panel .fact-form'),form);assert.equal(field.value,'Unapplied synthetic correction');
-  assert.equal(document.querySelector<HTMLTextAreaElement>('#draft')!.value,examples[0].conversation);await stage('Understanding');assert.ok(visible(form));
+  assert.equal(document.querySelector<HTMLTextAreaElement>('#draft')!.value,examples[0].conversation);await stage('Review summary');assert.ok(visible(form));
 });
 
 test('scenery pause keeps the mounted artwork, draft, focus and sample cards intact', async t => {
@@ -411,13 +411,93 @@ test('scenery pause keeps the mounted artwork, draft, focus and sample cards int
   await enter(draft, 'Synthetic unsaved draft');
   const artwork = document.querySelector('.journey-track svg');
   const cards = [...document.querySelectorAll('.sample-card')];
-  const pause = button('Ⅱ Pause scenery'); pause.focus(); await click(pause);
+  const pause = document.querySelector<HTMLButtonElement>('.journey-control')!;
+  assert.equal(pause.getAttribute('aria-label'), 'Pause scenery'); assert.equal(pause.title, 'Pause scenery');
+  assert.equal(pause.tabIndex, 0); pause.focus(); await click(pause);
   assert.equal(pause.getAttribute('aria-pressed'), 'true');
   assert.equal(document.querySelector<HTMLElement>('.gallery-landscape')!.dataset.running, 'false');
-  assert.equal(document.activeElement, pause); await click(button('▶ Resume scenery'));
+  assert.equal(document.activeElement, pause); assert.equal(pause.getAttribute('aria-label'), 'Resume scenery'); assert.equal(pause.title, 'Resume scenery'); await click(pause);
   assert.equal(pause.getAttribute('aria-pressed'), 'false');
   assert.equal(document.querySelector('.journey-track svg'), artwork);
   assert.deepEqual([...document.querySelectorAll('.sample-card')], cards);
   assert.equal(draft.value, 'Synthetic unsaved draft');
+  assert.equal(calls.filter(url => url !== '/api/ai-config').length, 0);
+});
+
+test('Friday, maybe focuses its summary and opens the unknown exact date without inventing or confirming it', async t => {
+  const { calls } = await mount(t);
+  await click(document.querySelector('[aria-label="Open sample: Friday, maybe"]'));
+  await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+  assert.equal(document.activeElement?.id, 'summary-title');
+  const overview = document.querySelector('.summary-overview')!;
+  assert.ok(overview.textContent?.includes('This Friday evening; reference date unknown'));
+  assert.ok(overview.textContent?.includes('Exact date unresolved'));
+  assert.ok(overview.textContent?.includes('Sam: tentative availability'));
+  assert.equal(overview.querySelectorAll('button.primary').length, 1);
+  assert.ok(!document.querySelector('.intro')?.textContent?.includes('Bring the chat'));
+  assert.ok(!document.body.textContent?.includes('A little closer to a plan'));
+  await click(button('Review the date'));
+  await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+  const card = document.querySelector<HTMLElement>('[data-fact-id="b-date"]')!;
+  const date = card.querySelector<HTMLInputElement>('input[type=date]')!;
+  assert.equal(date.value, ''); assert.equal(document.activeElement, date);
+  assert.equal(document.querySelector<HTMLDetailsElement>('.facts-details')!.open, true);
+  assert.equal(card.querySelector('.fact-status')?.textContent, 'proposed');
+  const quotes = [...document.querySelectorAll('.supporting-text blockquote')].map(e => e.textContent);
+  await enter(date, '2026-11-20'); await click(button('Apply changes'));
+  assert.ok(card.textContent?.includes('2026-11-20')); assert.equal(card.querySelector('.fact-status')?.textContent, 'proposed');
+  assert.deepEqual([...document.querySelectorAll('.supporting-text blockquote')].map(e => e.textContent), quotes);
+  assert.ok(document.querySelector('[data-fact-id="b-time"]')?.textContent?.includes('tentative'));
+  assert.ok(document.querySelector('[data-fact-id="b-abudget"]')?.textContent?.includes('Amount unknown'));
+  assert.ok(document.querySelector('[data-question-id="bq1"]')?.textContent?.includes('Open'));
+  assert.equal(calls.filter(url => url !== '/api/ai-config').length, 0);
+});
+
+test('conflict shortcut opens its existing question and never resolves requirements automatically', async t => {
+  await mount(t); await click(document.querySelector('[aria-label="Open sample: Indoors or outdoors?"]'));
+  await click(button('Review the conflict'));
+  await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+  const question = document.querySelector('[data-question-id="cq1"]')!;
+  const field = question.querySelector<HTMLInputElement>('input')!;
+  assert.equal(field.value, examples[2].summary.questions[0].text); assert.equal(document.activeElement, field);
+  assert.ok(question.textContent?.includes('Open'));
+  assert.equal(document.querySelectorAll('.fact-status.status-conflicting').length, 2);
+});
+
+test('blank summary has an immediate manual-entry action and keeps its unapplied fields on repeated navigation', async t => {
+  const { calls } = await mount(t); await click(button('Start blank summary'));
+  assert.ok(document.querySelector('.summary-overview')?.textContent?.includes('Activity not chosen yet'));
+  await click(button('Add planning details'));
+  await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+  const form = document.querySelector('.new-fact .fact-form')!;
+  assert.equal(form.querySelector<HTMLInputElement>('input[type=date]')?.value, '');
+  const description = form.querySelector<HTMLInputElement>('input')!;
+  await enter(description, 'Unapplied availability'); await click(button('Add planning details'));
+  assert.equal(document.querySelector('.new-fact .fact-form'), form); assert.equal(description.value, 'Unapplied availability');
+  assert.equal(calls.filter(url => url !== '/api/ai-config').length, 0);
+});
+
+test('date shortcut preserves another unapplied editor and explains how to continue', async t => {
+  await mount(t); await click(document.querySelector('[aria-label="Open sample: Friday, maybe"]'));
+  await reviewFacts(); await click(document.querySelector('[data-fact-id="b-abudget"] .fact-actions button'));
+  const form = document.querySelector('[data-fact-id="b-abudget"] .fact-form')!;
+  const field = form.querySelector<HTMLInputElement>('input')!; await enter(field, '12');
+  await click(button('Review the date'));
+  assert.equal(document.querySelector('[data-fact-id="b-abudget"] .fact-form'), form); assert.equal(field.value, '12');
+  assert.equal(document.activeElement, field);
+  assert.ok(document.querySelector('.summary-next [role=status]')?.textContent?.includes('Your fields were kept'));
+  assert.equal(document.querySelector('[data-fact-id="b-date"] .fact-form'), null);
+});
+
+test('draft count and save status stay beside the input; invalid length disables analysis without a request', async t => {
+  const { calls } = await mount(t); const draft = document.querySelector<HTMLTextAreaElement>('#draft')!;
+  assert.equal(document.querySelectorAll('.character-count').length, 1);
+  assert.equal(document.querySelector('#draft-count')?.parentElement, document.querySelector('.composer-foot'));
+  assert.equal(document.querySelector('#draft-note')?.textContent, 'Draft not saved');
+  assert.equal(button('Clear draft').disabled, true); assert.equal(button('Analyze conversation').disabled, true);
+  await enter(draft, 'a'.repeat(6001));
+  assert.equal(draft.getAttribute('aria-invalid'), 'true'); assert.ok(document.querySelector('#draft-count')?.textContent?.includes('6001 / 6000'));
+  assert.equal(button('Analyze conversation').disabled, true);
+  await click(button('Clear draft')); assert.equal(draft.value, ''); assert.equal(draft.hasAttribute('aria-invalid'), false);
   assert.equal(calls.filter(url => url !== '/api/ai-config').length, 0);
 });

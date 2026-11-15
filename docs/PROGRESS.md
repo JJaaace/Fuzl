@@ -1,6 +1,26 @@
 # Fuzl progress
 
-Updated November 15, 2026. Active authorization: **Section 11A — continuous landscape and ribbon continuity**, local on pushed visual checkpoint `7d06749` and preserved local gallery/polish. The specification is unchanged. Deployment, reviews/trends and later features remain deferred; hosted/browser acceptance gaps remain open.
+Updated November 15, 2026. Active authorization: **Section 11A — compact scenery control and checkpoint**, building on `19dc3bf` and the local summary-first pass. The specification is unchanged. Deployment, reviews/trends and later features remain deferred; hosted/browser acceptance gaps remain open.
+
+## Section 11A — compact scenery control (checkpoint)
+
+The supplied screenshot showed the pause label's dark rectangle competing with the landscape. Replaced it with a **28px round pause/play mark inside a transparent 44×44px button**. No full rectangle, no extra gallery height. A small translucent backing keeps the ivory symbol legible across the scenes; a two-color keyboard focus ring stays distinct against light and dark scenery. The native button retains its dynamic **Pause scenery / Resume scenery** accessible name, hover title, pressed state and existing pause/resume behavior. Reduced-motion, offscreen/tab pause and stationary cards remain.
+
+**Verification:** **329 tests passed**, 13 intentional DB skips (342 total), zero failures. Existing pause test now verifies the accessible name/title, tab stop, retained focus, pause/resume state, unchanged artwork/cards and no requests; summary/sample/guard checks also pass. Types, lint and production builds passed with the existing Vite chunk advisory. No new test suite, dependency, migration or provider/email request. Browser connection again unavailable; actual Safari/phone appearance, keyboard/touch and prior motion/account checks remain pending.
+
+This refinement and the previously local summary-first changes are included in the authorized checkpoint/push. Private files and configured secret values are checked before staging; final commit ID and pushed branch are reported in the handoff. No deployment is authorized or performed.
+
+## Section 11A — summary-first workspace
+
+**Checkpoint first:** reviewed the prior 43 project files, reused applicable 322-pass/type/lint/build evidence, scanned configured secrets/private paths, confirmed `.env` ignored/untracked, and committed **`19dc3bfda68c9991d6763fcc43d3fce0161aa439` — Polish the sample gallery, continuous scenery, and ribbon motion**. Pushed normally to verified `https://github.com/JJaaace/Fuzl.git` `main`; remote/local HEAD matched and the tree was clean before this new pass. Browser/hosted checks were not marked passed.
+
+Attempted the requested Friday sample walkthrough first, but browser selection again returned no available browser, discovery `[]`. Source/DOM review informed the change: compact **What’s the plan? / What’s still open? / What can I do next?** overview with specific unresolved details and one primary next action. Friday stays proposed/date-unknown with Sam's tentative availability visible; **Review the date** opens/focuses the existing blank-date editor without applying or confirming anything. Conflicts open their question; blank/manual entry works. Secondary evidence/mapping/question and save/sharing navigation remains, guarding other unapplied edits. The existing planning schema, source evidence, AI acceptance, unknowns, save/ownership and revision protections are retained.
+
+Active heading/spacing is smaller; repeated tagline/“A little closer” removed; visible stage renamed **Review summary**. Count, Clear and one draft-not-saved status now sit beside the draft. Optional date/Gemini disclosure remain before Analyze with existing states/limits. Cards use internal arrows, pause styling is quieter with its 44px target. Existing scenery/dots/ribbon/branding are unchanged; no actual new Safari flash was reproduced.
+
+**Actual checks:** **329 passed**, **13 intentional DB skips** (342 total), zero failures; full types/lint/build passed, with existing bundle-size advisory. All sample guards/motion modes and new focus/direct-editor/preserved-status/excerpt/unknown/manual/validation checks pass. A validated synthetic saved payload renders correctly; this is not a real saved-account workflow observation. An initial shared-dist build/test race and transient dev health restart were isolated; the final sequential suite passed and direct/proxied health returned 200. No new live provider request, email, database work, deployment or push.
+
+**Pending:** no desktop Safari, real phone or rendered/emulated viewport walkthrough; actual opened-sample screenshots, full app-loop/S-stop-resume recordings, real keyboard/touch/scroll and real saved-account reopen are unverified. Prior hosted account/guest/ballot/plan/migration gaps remain. The first-time-visitor acceptance criterion needs rendered review. Initially left local; now included with the authorized compact-control checkpoint above. [Exact demo/capture checklist and evidence](DESIGN_11A_SUMMARY.md).
 
 ## Section 11A — continuous journey & ribbon continuity (local)
 

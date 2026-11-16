@@ -34,7 +34,7 @@ test('Places → Events fixture flow requires explicit date, preserves drafts, l
   assert.equal(document.querySelectorAll('.event-card').length, 5, 'three useful and two excluded fixture cards');
   assert.equal(document.querySelectorAll('.event-card.fit-fits').length, 1);
   assert.equal(document.querySelectorAll('.event-card:not(.fit-does-not-fit)').length, 3);
-  assert.ok(document.querySelector('.event-finder')?.textContent?.includes('Starting at 8 USD'));
+  assert.ok(document.querySelector('.event-finder')?.textContent?.includes('Starting at $8'));
   assert.ok(document.querySelector('.event-finder')?.textContent?.includes('Fees and total cost unresolved'));
   assert.ok(document.querySelector('.event-finder')?.textContent?.includes('Date-only listing'));
   assert.ok(document.querySelector('.event-finder')?.textContent?.includes('Resolved area: Demo Boston'));

@@ -818,6 +818,53 @@ button.sample-card:focus-visible { outline: 3px solid #6f472a; outline-offset: 3
 .composer-foot { gap: 8px 12px; flex-wrap: wrap; }
 .composer-foot .character-count { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .composer-foot .character-count.validation-error { color: var(--danger); }
+.analysis-error { margin-top: 12px; padding: 14px; border-left: 2px solid var(--warning-border); background: var(--warning-surface); color: var(--ink); font-size: 13px; }
+.analysis-error p { margin: 6px 0; }
+.analysis-error button { margin-top: 6px; }
+.analysis-error .error-reference { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.plan-overview { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 22px; margin-top: 14px; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.1fr); gap: 24px; }
+.plan-overview h3 { font-size: 26px; letter-spacing: -.035em; line-height: 1.2; }
+.plan-window { font-size: 15px; margin: 12px 0 6px; }
+.plan-open-question { font-size: 13px; color: var(--warning); margin-bottom: 0; }
+.plan-overview .review-notice { grid-column: 1/-1; margin: 0; }
+.plan-suggestions .provider-disclosure { font-size: 12px; margin-top: 0; line-height: 1.55; }
+.plan-secondary-actions { display: flex; flex-wrap: wrap; gap: 0 8px; margin-top: 6px; }
+.plan-secondary-actions button { font-size: 12px; padding: 8px 0; text-decoration: underline; text-underline-offset: 4px; }
+.proposal-candidates { margin-top: 10px; font-size: 12px; }
+.proposal-option { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-block: 10px; }
+.proposal-option h4 { display:flex; gap:8px; flex-wrap:wrap; }
+.proposal-option p, .proposal-option li { font-size: 13px; }
+.proposal-option.fit-does-not-fit { border-color: var(--danger); }
+.people-section { margin-top: 24px; }
+.people-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.people-heading h3 { font-size: 21px; margin: 0; }
+.people-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,270px),1fr)); gap: 14px; align-items: start; }
+.person-card { position: relative; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--surface); animation: person-reveal 240ms ease-out backwards; transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+.person-card > header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.person-card h4 { font-size: 18px; letter-spacing: -.02em; }
+.person-avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-wash); color: var(--accent); font-weight: 600; font-size: 13px; flex-shrink: 0; }
+.person-card:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px #ffbe6926, 0 0 22px #ffbe6910; }
+.person-card:active { border-color: var(--accent); background: #24211b; }
+.person-edit { margin-left: auto; position: relative; }
+.person-edit > summary { display: flex; align-items: center; min-height: 44px; padding: 8px; font-size: 12px; cursor: pointer; color: var(--accent); }
+.person-edit > div { position: absolute; right: 0; top: 100%; display: grid; min-width: 195px; z-index: 2; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 8px; padding: 6px; box-shadow: 0 12px 24px #0006; }
+.person-edit button { text-align: left; justify-content: flex-start; background: transparent; border: 0; font-size: 12px; }
+.person-fact-row { position: relative; display: grid; grid-template-columns: 76px minmax(0,1fr); gap: 4px 10px; padding: 11px 0; border-top: 1px solid var(--border-soft); font-size: 14px; scroll-margin-top: 24px; }
+.person-row-label { color: var(--muted); font-size: 12px; }
+.person-row-value { font-weight: 550; overflow-wrap: anywhere; }
+.person-labels { grid-column: 2; display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 10px; color: var(--muted); }
+.person-labels .status-tentative, .person-labels .status-conflicting { color: var(--warning); }
+.person-more > summary, .person-card .supporting-text > summary { min-height: 44px; display: flex; align-items: center; font-size: 12px; color: var(--accent); cursor:pointer; }
+.person-card .supporting-text { margin: 0; }
+.person-card blockquote { font-size: 12px; }
+.plan-details { border-top: 1px solid var(--border-soft); margin-top: 22px; padding-top: 12px; }
+.plan-details > summary { min-height: 44px; display:flex; align-items:center; cursor:pointer; font-size:13px; color:var(--muted); }
+.row-update-flash { position:absolute; inset: 2px -8px; border:1px solid #ffbe6977; border-radius:6px; background:#ffbe6919; pointer-events:none; opacity:.6; animation: row-updated 1100ms ease-out forwards; }
+@keyframes person-reveal { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@keyframes row-updated { from { opacity:1; } to { opacity:0; } }
+@media (hover:hover) and (pointer:fine) { .person-card:hover { transform:translateY(-2px); border-color:#ad8756; box-shadow: 0 0 22px #ffbe6910; } }
+@media (max-width:760px) { .plan-overview { grid-template-columns:1fr; padding:16px; gap:16px; } .plan-overview h3 { font-size:23px; } .people-grid { grid-template-columns:1fr; } .people-heading { align-items:flex-start; } .people-heading .note { font-size:11px; max-width:150px; text-align:right; } }
+@media (prefers-reduced-motion:reduce) { .person-card:hover { transform:none; } .row-update-flash { opacity:.6; } }
 .reference-details > summary { min-height: 44px; }
 @media (max-width: 760px) {
   .summary-overview .overview-grid { grid-template-columns: 1fr; gap: 0; }
@@ -837,3 +884,5 @@ button.sample-card:focus-visible { outline: 3px solid #6f472a; outline-offset: 3
   .composer-foot .character-count { grid-column: 1; grid-row: 2; margin: 0; font-size: 11px; }
   .composer-foot button { grid-column: 2; grid-row: 1 / span 2; }
 }
+
+.people-demo main { max-width: 960px; margin-inline: auto; }

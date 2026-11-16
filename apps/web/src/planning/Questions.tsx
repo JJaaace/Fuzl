@@ -36,13 +36,13 @@ function QuestionForm({ question, onApply, onCancel }: {
   </form>;
 }
 
-export default function Questions({ summary, onChange }: { summary: PlanningSummary; onChange: (summary: PlanningSummary) => void }) {
+export default function Questions({ summary, onChange, showEmptyNotice = true }: { showEmptyNotice?: boolean; summary: PlanningSummary; onChange: (summary: PlanningSummary) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [newQuestion, setNewQuestion] = useState<OpenQuestion | null>(null);
   return <section data-section-entry className="review-section" aria-labelledby="questions-title">
     <h3 id="questions-title" tabIndex={-1}>Missing answers & conflicts</h3>
     <p className="note">Add an answer or record a conflict. Related facts stay unchanged until you edit them.</p>
-    {summary.questions.length === 0 && <p>No questions recorded. This does not establish that the plan is complete.</p>}
+    {showEmptyNotice && summary.questions.length === 0 && <p>No open questions recorded. This does not establish that the plan is complete.</p>}
     {summary.questions.map((question) => <article className="question-card" key={question.id} data-question-id={question.id}>
       <span className="fact-status">{question.resolution === null ? 'Open' : 'Resolved manually'} · {question.kind === 'conflict' ? 'Conflict' : 'Missing answer'}</span>
       <p>{question.text}</p>{question.guest && <div><p className="note">Guest answer · applied by you · {question.guest.alias}, revision {question.guest.revision}</p><details><summary>Original guest answer</summary><blockquote>{question.guest.sourceText}</blockquote></details></div>}

@@ -3,15 +3,15 @@ import FuseDots from '../ui/FuseDots';
 import { useEffect, useRef, useState } from 'react';
 import { MAX_CONVERSATION_LENGTH } from '@fuzl/planning';
 import type { AIConfiguration, AnalysisRequest, AnalysisResponse } from '@fuzl/planning';
-import { analyzeConversation, fetchAIConfiguration, sameAnalysisSource } from '../lib/analysis';
+import { AnalysisRequestError, analyzeConversation, fetchAIConfiguration, sameAnalysisSource } from '../lib/analysis';
 import { Field } from './FactEditor';
 import Icon from '../ui/Icon';
 import SummaryOverview from './SummaryOverview';
 import { factValue, kindLabels, subjectLabel } from './model';
 
-export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, onAccept, controlsVisible = true, previewVisible = true, onPreview, onPreviewCleared, onDismiss, showCharacterCount = true }: {
+export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, onAccept, controlsVisible = true, previewVisible = true, onPreview, onPreviewCleared, onDismiss, showCharacterCount = true, onReviewSummary }: {
   draft: string; sourceVersion?: number; draftIssue?: string | null; onAccept: (result: AnalysisResponse, request: AnalysisRequest) => boolean | void;
-  showCharacterCount?: boolean; controlsVisible?: boolean; previewVisible?: boolean; onPreview?: (activation: 'auto' | 'open' | 'stale') => void; onPreviewCleared?: () => void; onDismiss?: () => void;
+  onReviewSummary?: () => void; showCharacterCount?: boolean; controlsVisible?: boolean; previewVisible?: boolean; onPreview?: (activation: 'auto' | 'open' | 'stale') => void; onPreviewCleared?: () => void; onDismiss?: () => void;
 }) {
   const [referenceDate, setReferenceDate] = useState('');
   const [accepted, setAccepted] = useState(false);
@@ -19,7 +19,7 @@ export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, on
   const [submitted, setSubmitted] = useState<AnalysisRequest | null>(null);
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'cancelled'>('idle');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<{ message: string; reference: string | null; localOnly: boolean } | null>(null);
   const [configuration, setConfiguration] = useState<AIConfiguration | null>(null);
   const [configurationError, setConfigurationError] = useState('');
   const [configurationLoading, setConfigurationLoading] = useState(true);
@@ -58,7 +58,7 @@ export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, on
     const controller = new AbortController();
     pending.current = controller;
     const request = { conversation: draft, referenceDate: referenceDate || null, expectedProvider: configuration.provider };
-    setSubmitted(request); setSubmittedVersion(sourceVersion); setResult(null); setAccepted(false); onPreviewCleared?.(); setError(''); setStatus('loading');
+    setSubmitted(request); setSubmittedVersion(sourceVersion); setResult(null); setAccepted(false); onPreviewCleared?.(); setError(null); setStatus('loading');
     try {
       const response = await analyzeConversation(request, controller.signal);
       if (pending.current !== controller || controller.signal.aborted) return;
@@ -69,12 +69,18 @@ export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, on
     } catch (failure) {
       if (pending.current !== controller || controller.signal.aborted) return;
       setStatus('error');
-      setError(failure instanceof DOMException && failure.name === 'TimeoutError' ? 'Analysis timed out. Retry explicitly or use manual entry.'
+      const message = failure instanceof AnalysisRequestError ? failure.userMessage : failure instanceof DOMException && failure.name === 'TimeoutError' ? 'Analysis timed out. Retry explicitly or use manual entry.'
         : failure instanceof TypeError ? 'Could not reach the API. Check the connection, then retry.'
-          : failure instanceof Error ? failure.message : 'Analysis failed. Try again or use manual entry.');
+          : failure instanceof Error ? failure.message : 'Analysis failed. Try again or use manual entry.';
+      setError({ message, reference: failure instanceof AnalysisRequestError ? failure.reference : null, localOnly: failure instanceof AnalysisRequestError && failure.status === 403 && failure.code === 'origin_rejected' });
     } finally { if (pending.current === controller) pending.current = null; }
   }
 
+  const errorNotice = status === 'error' && error && <div className="analysis-error" role="alert">
+    {error.localOnly ? <><strong>This address can’t run analysis.</strong><p>On the Mac running Fuzl, open <a href="http://127.0.0.1:5173" target="_blank" rel="noreferrer">http://127.0.0.1:5173</a>. Keep this tab open; drafts do not transfer between addresses.</p><p>Your draft is intact. Nothing was sent to the AI provider. The built-in samples work in this preview.</p></> : <p>{error.message}</p>}
+    {onReviewSummary && controlsVisible && <button type="button" data-workspace-navigation onClick={onReviewSummary}>Open Plan</button>}
+    {error.reference && <p className="error-reference">Error reference: <code>{error.reference}</code></p>}
+  </div>;
   return <section className="analysis-panel" aria-label="AI understanding">
     <div className="analysis-controls" hidden={!controlsVisible}>
       <p id="analysis-disclosure" className="provider-disclosure"><Icon name="spark" /><span>Sends this draft and the optional date to <strong>{configuration?.provider === 'gemini' ? 'Google Gemini' : configuration?.provider === 'openai' ? 'OpenAI' : 'the selected provider (OpenAI or Google Gemini)'}</strong>. {configuration?.provider === 'gemini' ? 'Synthetic data only; unpaid Google content may be used for improvement and human review.' : 'Your provider may retain content under its data policy.'}</span></p>
@@ -86,6 +92,8 @@ export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, on
           {result && <button type="button" className="quiet" onClick={() => onPreview?.('open')}>Review last AI result</button>}
         </div>{showCharacterCount && <p className={tooLong ? 'validation-error' : 'character-count'}>{draft.length} / {MAX_CONVERSATION_LENGTH} characters</p>}</div>
 
+        {errorNotice}
+
         {draftIssue && <p className="validation-error">{draftIssue}</p>}
       </form>
       <details className="privacy-details"><summary>Privacy & provider details</summary><p className="note">The full draft and reference-date input are not saved by Fuzl. Save session separately stores the summary and supporting excerpts. {configuration?.provider === 'gemini' ? 'Do not send personal, sensitive, or confidential information to unpaid Google services. Check Free Tier eligibility and quotas in Google AI Studio.' : 'Share only content you intend to send. Review the provider’s data handling before use.'} No automatic provider fallback.</p>{configuration && <p className="note">Selected provider: {configuration.provider} · {configuration.model}</p>}</details>
@@ -95,7 +103,7 @@ export default function AnalysisPanel({ draft, sourceVersion = 0, draftIssue, on
       {configurationError && <><p className="validation-error">{configurationError}</p><button onClick={() => { setConfiguration(null); setConfigurationError(''); setConfigurationLoading(true); setConfigurationVersion((value) => value + 1); }}>Reload provider configuration</button></>}
       {status === 'loading' && <p className="notice">Analyzing the submitted draft. Your existing summary is kept.</p>}
       {status === 'cancelled' && <p className="notice">Analysis cancelled locally. Your summary was kept. A provider request already started may still use quota.</p>}
-      {status === 'error' && <p className="validation-error">{error}</p>}
+      {!controlsVisible && errorNotice}
       {mismatch && (status === 'loading' || status === 'done') && <p className="source-warning">The draft, linked transcript, or reference date changed after submission. This result cannot replace your summary. Analyze the current draft again.</p>}
       {status === 'done' && !mismatch && previewVisible && <p className="sr-only">{accepted ? 'Previous AI preview. Current summary edits are kept.' : 'AI preview ready. Claims need review and have not been applied.'}</p>}
       {status === 'done' && !mismatch && !previewVisible && !accepted && <p className="notice">An unreviewed AI preview is ready. <button className="quiet" onClick={() => onPreview?.('open')}>Review AI preview</button></p>}

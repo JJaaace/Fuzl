@@ -1,0 +1,47 @@
+# Plan and People workspace
+
+November 15, 2026. Builds on pushed 03c9e9d, carrying forward the local origin-recovery and summary-label fixes. Commit/push is authorized for this pass. No database migration, dependency, credential change, deployment or hosted record changes.
+
+## Result and corrections
+
+The workspace step is **Plan**. Its compact panel shows the activity, common availability when established, unresolved question and next action. **People** follows immediately. Gallery titles remain **Saturday bowling**, **Friday, maybe** and **Indoors or outdoors?**, labelled **Sample plan**. Gallery/example loading is offline and retains replacement guards. Friday stays tentative/date-unknown; confirmed availability stays separate from a proposed activity or booking.
+
+PeopleCards reads the same PlanningSummary used by saving and fit checks. personFacts joins direct participant IDs and explicit speaker mappings, never display names. Duplicate names stay separate; unmapped details and original speaker labels remain under **Unassigned details**. Each card leads with availability, budget, travel and firm requirements, plus the first flexible preference. Additional/historical details sit behind **More details**; historical facts cannot become current preferences. Sources are available on each card. **Details** retains the complete fact editors and participant/speaker mappings. Manual entry remains available.
+
+**Edit → Edit budget per person** opens the existing validated editor for that fact. Unapplied forms block a different edit/proposal. Applying updates the canonical fact, retains original quotes, highlights the changed row and returns focus there. Stable participant/fact keys avoid a card remount on each edit. Cards use a short initial stagger, amber focus/hover edge and touch press feedback; reduced motion uses color/border feedback without movement. USD displays as **$20/person**, zero as **$0/person**, and unknown amount/currency stays explicit; other currencies retain their code. Source quotes are not reformatted.
+
+SupportingText reuses the existing screenshot and saved-excerpt provenance components. Organizer People cards are not mounted on guest routes. No guest response contract was expanded.
+
+## Explicit proposal and independent checks
+
+1. **Suggest a plan** POSTs the latest applied summary and up to three organizer-entered candidates to **/api/suggest-plan**. **Check fit without AI** uses **/api/check-plan**. Neither runs automatically on sample loading, editing, hover or navigation. Candidate entry reuses ManualPlace and its schema. Without supplied candidates, up to three current, reviewed, explicitly attributed activity ideas become candidates with unknown venue details.
+2. The strict shared contract is in **packages/planning/src/plan-proposals.ts**. The backend reuses the local-origin guard, body bounds, one-in-flight limit, timeout and cancellation. AI attempts share the existing three/minute and ten/process bounds. Offline checks do not consume provider attempts. Both routes stay local-development-only; LAN previews can use samples.
+3. Saved work requires bearer-session verification and the existing PlaceStore.context ownership/revision checks. It validates applied guest provenance and reloads retained private budgets, reviewed attendee scope, approved memory and travel data. Guest-origin facts require their owned saved-session context. Private limits are never returned as values/owners. Context is checked again before returning; changes during the request yield a conflict.
+4. The existing deterministic assessPlaces pipeline checks candidates first. A known organizer-entered total can **rule an option out** against a firm budget even when its address is unverified; it cannot upgrade incomplete evidence to a fit. Confirmed firm disjoint availability excludes an option. Ambiguous weekdays, multiple alternative windows, tentative or incomplete availability stay unknown. Accessibility, hours, travel, private limits and booking evidence retain the conservative checks. Memory cannot override firm failures.
+5. **apps/api/src/extraction/propose.ts** uses the existing server-side Gemini generateGeminiJson adapter and configured **gemini-3.5-flash-lite** model. Only eligible candidate IDs/names/categories and the derived group window reach Gemini. Participant records, budget fields, source quotes, private answers, personal history and credentials are excluded. Organizer-supplied labels are sent and should not contain private notes. This is a field allowlist, not a promise that arbitrary candidate names cannot contain personal information.
+6. Output is a strict **single supplied option ID**. Google’s [structured-output documentation](https://aistudio.google.com/docs/structured-output) supports object schemas and enum-constrained strings. The app rejects malformed/extra fields and unsupported or excluded IDs. Gemini cannot create venues, dates, prices, bookings or supporting evidence through this contract. Its choice stays **Gemini proposal · unreviewed**; fit comes from deterministic checks. No adoption, fact change, saving, shortlisting or publication follows automatically.
+7. The client retains a facts/candidates/session snapshot and workspace edit revision. Changed facts, opened/unapplied editors, changed saved revisions, cancellation and late responses cannot replace current work. Previous results become out of date. Errors require deliberate retries. There are no provider retries or fallback. Missing Gemini configuration, quota and schema failures use existing sanitized errors/references. No raw conversation or credential logging was added.
+
+This proposal chooses among supplied ideas, rather than performing venue search or inventing an itinerary. Unknown price, hours, travel and booking details stay **Still needs checking**. Existing Places/Events discovery, saving, ballots, plan revisions and RSVPs remain separate. Temporary candidates/proposals are not persisted; facts save only through the existing explicit save action.
+
+Gemini needs the existing private **apps/api/.env** settings: **AI_PROVIDER=gemini**, **AI_ENABLED=true**, and **GEMINI_API_KEY**. No frontend key or paid fallback. OpenAI conversation extraction remains supported. Unpaid Google content may be used for improvement/human review; use synthetic candidates for development. No key or billing configuration changed.
+
+## Exact local demo
+
+On the Mac running Fuzl, open **http://127.0.0.1:5173/**:
+
+1. **Try a sample plan → Saturday bowling → Plan** opens directly. Alex: **$25/person**, **20 min max drive**, **Somewhere quiet · Flexible**. Sam: **$20/person**, **20 min max drive**. Inspect sources, Edit and Details. Try **Friday, maybe → Review the date** and **Indoors or outdoors? → Review the conflict**; neither silently resolves the issue.
+2. Open **http://127.0.0.1:5173/?design=people** (development-only). It starts with six synthetic people and one organizer-entered **$25/person** candidate. Choose **2 people** or **6 people**.
+3. Click **Check fit without AI**. The $25 option is **Excluded by firm checks** because Sam’s firm budget is $20. No provider request.
+4. On Sam’s card: **Edit → Edit budget per person**. Set **Maximum amount per person** to **30**, then **Apply changes**. Confirm **$30/person**, row feedback and focused row. The original quote still says USD 20. Previous checks become out of date.
+5. Click **Check fit without AI** again. Price no longer fails; unknown venue/hours/travel/booking details still prevent a verified fit.
+6. **Suggest a plan** is a separate, quota-using Gemini action when configured. It was exercised with mocked responses only in this pass. No live call was authorized with a numeric request budget or performed. The fixture demo is not live verification.
+
+The LAN preview **http://192.168.1.105:5174/** supports same-Wi-Fi viewing. On a phone, 127.0.0.1 means the phone; use the Mac URL for server checks/proposals. Refresh discards temporary work.
+
+## Evidence and remaining checks
+
+- **npm test: 350 passed, 13 intentional disposable-DB skips, 363 total, zero failures.** Includes all sample/replacement paths, blank and synthetic saved summary content, stable attribution, six-person content, unknown/zero/currency, validation/row feedback/focus, $25 vs $20 and applied correction, stale/duplicate/cancel/malformed requests, private-budget redaction, owned-session conflicts, missing credentials and mock Gemini schema/quota behavior. DOM tests are not rendered viewport checks.
+- Full typecheck, lint and production builds pass; existing large Vite chunk advisory remains. No new migration/reset. Hosted migrations/account/guest acceptance gaps remain pending.
+- Actual running-server HTTP: homepage/title and health **200**; loopback **/api/check-plan 200**, synthetic $25 option excluded, metrics null; LAN equivalent **403** before Gemini. **Zero live AI requests**; provider latency/usage/cost unmeasured.
+- Browser discovery returned **[]**. No rendered desktop/phone screenshots, edit recording or Safari observation could be captured. At **1440×900**, **1024×768**, **390×844** and 320px, manually check all samples, two/six cards, no overflow, keyboard Edit/source/details and row focus, reduced motion and touch feedback. Check paste/upload preservation and reopen a controlled saved session. These rendered, hosted and real-device checks remain **unverified**.

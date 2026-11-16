@@ -1,4 +1,8 @@
+The current Plan workspace adds explicit **Suggest a plan** and **Check fit without AI** routes, documented in [PLAN_PEOPLE.md](PLAN_PEOPLE.md). Suggestions reuse the configured backend Gemini adapter with ID-only structured output and independent fit checks. They send an allowlist of eligible candidate labels/window, not conversation quotes, participant records or budget fields; private answers remain server-side. Output remains an unreviewed proposal and is not automatically adopted. No live provider call was performed for this refinement. Existing extraction below remains separate.
+
 # Section 3 integration
+
+**Current local entry:** use **http://127.0.0.1:5173 on the Mac running Fuzl** for analysis. The LAN preview is for offline samples; its Origin is rejected before Gemini by the existing development-only guard. The proxy does not change that Origin. The inline error preserves the draft/reference and can reopen an existing summary. Drafts do not transfer between addresses; keep the original tab open. [Diagnosis, real HTTP versus mock results and exact recovery](DESIGN_11A_RECOVERY.md). No live Gemini request was made for that usability pass; the historical live checks below are separate.
 
 Implemented November 6, 2026. One complete Gemini synthetic extraction passed through the API; browser acceptance and OpenAI live verification remain unverified. Section 2 checkpoint: `f22e040`. The original Section 3 OpenAI work was subsequently committed/pushed as `1b8754f`, and the Gemini option as `0f15422`, at Jace's request. Section 3 diagnosis changes were checkpointed locally as `9e9383a` without pushing; Section 4 was committed/pushed as a3dc405; Section 5 is checkpointed with manual verification pending. No deployment.
 

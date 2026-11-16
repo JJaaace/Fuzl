@@ -112,6 +112,27 @@ test('HTTP health and extraction contract; validation and body limits precede pr
   assert.equal(calls, 1);
 });
 
+test('loopback origins reach extraction; LAN/untrusted origins stop before configuration or provider and log only a safe reference', async t => {
+  let providerCalls=0,configurationChecks=0;
+  const logs:string[]=[];t.mock.method(console,'error',(line:string)=>logs.push(line));
+  const api=await server(t,{checkConfiguration:()=>{configurationChecks++;},extract:async()=>{providerCalls++;return response();}});
+  for(const origin of ['http://192.168.1.105:5174','https://example.com','http://localhost.evil:5173','https://127.0.0.1:5173','null']) {
+    const result=await fetch(`${api.origin}/api/analyze`,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({conversation:'Alex: private synthetic sentinel',referenceDate:null})});
+    const body=await result.json() as {error:{code:string;message:string;reference:string}};assert.equal(result.status,403);assert.equal(body.error.code,'origin_rejected');
+    assert.ok(body.error.message.includes('http://127.0.0.1:5173'));assert.equal(providerCalls,0);assert.equal(configurationChecks,0);
+    const log=JSON.parse(logs.at(-1)!);assert.equal(log.reference,body.error.reference);assert.equal(log.providerCalled,false);
+    assert.deepEqual(Object.keys(log).sort(),['code','event','providerCalled','reference','status']);
+  }
+  assert.ok(!logs.join('').includes('private synthetic sentinel'));assert.ok(!logs.join('').includes('192.168.1.105'));
+  const upload=await fetch(`${api.origin}/api/transcribe`,{method:'POST',headers:{Origin:'http://192.168.1.105:5174','Content-Type':'application/json'},body:'{}'});
+  assert.equal(upload.status,403);assert.equal(providerCalls,0);assert.equal(configurationChecks,0);
+  for(const origin of ['http://127.0.0.1:5173','http://localhost:5173']) {
+    const result=await fetch(`${api.origin}/api/analyze`,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify(evaluationCases[1].request)});
+    assert.equal(result.status,200);assert.ok(analysisResponseSchema.safeParse(await result.json()).success);
+  }
+  assert.equal(providerCalls,2);assert.equal(configurationChecks,2); // Mock extractor only, no Gemini call.
+});
+
 test('missing credentials, malformed provider output, and internal errors are recoverable without fixture fallback', async (t) => {
   const missing = await server(t, { checkConfiguration: () => { throw new ExtractionError(503, 'ai_not_configured', 'Configure backend credentials.'); } });
   const unavailable = await missing.post();

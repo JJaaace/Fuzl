@@ -12,7 +12,7 @@ import { examples } from './planning/examples';
 import { loadExample, sourceChanged, startManualReview, updateDraft } from './planning/model';
 import type { ReviewState } from './planning/model';
 import SummaryReview from './planning/SummaryReview';
-import SampleGallery from './planning/SampleGallery';
+import SampleGallery, { sampleCards } from './planning/SampleGallery';
 import ConnectionPreview from './ui/ConnectionPreview';
 import AnalysisPanel from './planning/AnalysisPanel';
 import Icon from './ui/Icon';
@@ -21,10 +21,12 @@ import DotField from './ui/DotField';
 import { focusAndReveal, sectionEntrances } from './ui/presentation';
 import type { WorkspaceStage } from './planning/navigation';
 import LogoPreview from './ui/LogoPreview';
+import PeopleDemo from './planning/PeopleDemo';
 import { initialNavigation, navigateWorkspace } from './planning/navigation';
 import type { NavigationAction } from './planning/navigation';
 
 export default function App() {
+  if (import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'people') return <PeopleDemo/>;
   if (import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'health') return <ConnectionPreview/>;
   return import.meta.env?.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('design') === 'logos' ? <LogoPreview /> : <Workspace />;
 }
@@ -96,7 +98,7 @@ function Workspace() {
   const compact = !!planning.review || stage !== 'conversation';
   const screenshotJourney = mode === 'screenshots' || !!transcript;
   const canNavigateStages = transcriptReady && screenshotJourney || !!planning.review || previewReady || stage !== 'conversation';
-  const stages = screenshotJourney ? [['conversation', 'Conversation'], ['transcript', 'Transcript'], ['understanding', 'Review summary']] as const : [['conversation', 'Conversation'], ['understanding', 'Review summary']] as const;
+  const stages = screenshotJourney ? [['conversation', 'Conversation'], ['transcript', 'Transcript'], ['understanding', 'Plan']] as const : [['conversation', 'Conversation'], ['understanding', 'Plan']] as const;
   function focusSummary() {
     stageScroll.current[stage] = window.scrollY;
     afterStageRender(() => {
@@ -110,7 +112,7 @@ function Workspace() {
     if (!example) return;
     if ((planning.review || planning.draft.trim() || screenshotIds.length) && !window.confirm('Replace the current draft and summary, including unapplied edits, with this sample?')) return;
     setLoadedSession(null); setSourceVersion(value => value + 1); setTranscript(null); setSummaryTranscript(null);
-    setPlanning(loadExample(example)); setReviewVersion(value => value + 1);
+    setPlanning(loadExample({ ...example, title: sampleCards.find(card => card.id === id)?.name ?? example.title })); setReviewVersion(value => value + 1);
     transition({ type: 'mode', mode: 'paste' }); transition({ type: 'summary-opened' }); focusSummary();
   }
   const currentSaved = planning.review && loadedSession;
@@ -143,7 +145,7 @@ function Workspace() {
       }}>
         <div className="workspace-layout">
         <section data-section-entry className="intro" aria-labelledby="intro-title">
-          <h1 id="intro-title" tabIndex={-1}>{compact ? stage === 'understanding' ? 'Review summary' : stage === 'transcript' ? 'Review transcript' : 'Conversation' : <><span className="headline-line">Turn your group chat</span>{' '}<span className="headline-line">into a plan.</span></>}</h1>
+          <h1 id="intro-title" tabIndex={-1}>{compact ? stage === 'understanding' ? 'Plan' : stage === 'transcript' ? 'Review transcript' : 'Conversation' : <><span className="headline-line">Turn your group chat</span>{' '}<span className="headline-line">into a plan.</span></>}</h1>
           {!compact && <p>Bring the chat. Keep the final say.</p>}
         </section>
         <div className="workspace-content">
@@ -158,7 +160,7 @@ function Workspace() {
           <button aria-pressed={mode === 'screenshots'} onClick={() => transition({ type: 'mode', mode: 'screenshots' })}><Icon name="image" />Upload screenshots</button>
         </div>
         <details className="sample-tools composer-examples" onKeyDown={(event) => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}><summary><Icon name="spark" />Try an example<span className="muted"> · no AI request</span></summary><div className="sample-popover"><div className="sample-loader">
-          <label className="field"><span>Sample example</span><select value={exampleId} onChange={(event) => setExampleId(event.target.value)}>{examples.map((example) => <option key={example.id} value={example.id}>{example.title}</option>)}</select></label>
+          <label className="field"><span>Sample example</span><select value={exampleId} onChange={(event) => setExampleId(event.target.value)}>{examples.map((example) => <option key={example.id} value={example.id}>{sampleCards.find(card => card.id === example.id)?.name ?? example.title}</option>)}</select></label>
           <button onClick={() => openExample(exampleId)}>Load sample</button></div><p className="note">Synthetic conversation and manually authored summary, not AI analysis. Loading replaces your draft and summary.</p></div></details>
         </div>
         <ScreenshotPanel key={`screenshots-${workspaceVersion}`} inputVisible={stage === 'conversation' && mode === 'screenshots'} reviewVisible={stage === 'transcript'} onReady={() => transition({ type: 'transcript-ready' })} onShowInput={() => transition({ type: 'mode', mode: 'screenshots' })} onFilesChange={setScreenshotIds} onClear={() => { setTranscript(null); setSummaryTranscript(null); setSourceVersion((value) => value + 1); transition({ type: 'transcript-cleared' }); }} onTranscriptChange={(next) => {
@@ -174,7 +176,7 @@ function Workspace() {
           <div className="composer-foot"><p id="draft-note" className="composer-note"><span className="state-dot" />Draft not saved</p><p id="draft-count" className={`character-count ${planning.draft.length > MAX_CONVERSATION_LENGTH ? 'validation-error' : ''}`}>{planning.draft.length} / {MAX_CONVERSATION_LENGTH} characters</p><button className="quiet" disabled={!planning.draft} onClick={() => { setSourceVersion((value) => value + 1); setTranscript(null); setPlanning((current) => updateDraft(current, '')); }}>Clear draft</button></div>
           {transcript && <p className="note">Linked to your reviewed screenshot transcript. Message edits update this draft; typing here detaches screenshot traceability.</p>}
         </section>
-        <AnalysisPanel key={`analysis-${workspaceVersion}`} showCharacterCount={false} controlsVisible={stage === 'conversation' && mode === 'paste'} previewVisible={stage === 'understanding' && previewReady} onPreview={(activation) => transition(activation === 'open' ? { type: 'preview-opened' } : { type: 'preview-ready', activate: activation === 'auto' })} onPreviewCleared={() => transition({ type: 'preview-cleared' })} onDismiss={() => { transition({ type: 'preview-cleared' }); if (!planning.review) transition({ type: 'stage', stage: 'conversation' }); }} draft={planning.draft} sourceVersion={sourceVersion} draftIssue={transcript?.draft === planning.draft ? transcriptInputError(transcript.messages) : null} onAccept={(result, request) => {
+        <AnalysisPanel key={`analysis-${workspaceVersion}`} onReviewSummary={planning.review ? () => { transition({ type: 'stage', stage: 'understanding' }); focusSummary(); } : undefined} showCharacterCount={false} controlsVisible={stage === 'conversation' && mode === 'paste'} previewVisible={stage === 'understanding' && previewReady} onPreview={(activation) => transition(activation === 'open' ? { type: 'preview-opened' } : { type: 'preview-ready', activate: activation === 'auto' })} onPreviewCleared={() => transition({ type: 'preview-cleared' })} onDismiss={() => { transition({ type: 'preview-cleared' }); if (!planning.review) transition({ type: 'stage', stage: 'conversation' }); }} draft={planning.draft} sourceVersion={sourceVersion} draftIssue={transcript?.draft === planning.draft ? transcriptInputError(transcript.messages) : null} onAccept={(result, request) => {
           if (planning.draft !== request.conversation) return false;
           if (planning.review && !window.confirm('Replace the current summary, including unapplied edits, with unreviewed AI claims?')) return false;
           setLoadedSession(null); setSummaryTranscript(transcript?.draft === request.conversation ? structuredClone(transcript) : null);
@@ -189,9 +191,9 @@ function Workspace() {
           }}>Start blank summary <Icon name="arrow" /></button>
         </div>
         {planning.review && <section className="summary-panel" hidden={stage !== 'understanding' || previewReady} aria-labelledby="summary-title" key={`summary-${reviewVersion}`}>
-          <div className="draft-heading"><div><p className="eyebrow">{planning.review.origin === 'sample' ? 'Manually authored sample data' : planning.review.origin === 'ai' ? 'AI-extracted claims · review required' : 'Entered manually'}</p><h2 id="summary-title" tabIndex={-1}>{planning.review.origin === 'sample' ? 'Sample summary' : 'Your planning summary'}</h2></div><details className="summary-options"><summary>Summary options</summary><p className="note">{planning.review.title}</p><button className="danger quiet" onClick={() => { if (window.confirm('Remove this summary, including unapplied edits? Your draft will stay.')) { setPlanning((current) => ({ ...current, review: null })); setLoadedSession(null); transition({ type: 'stage', stage: 'conversation' }); } }}>Remove summary</button></details></div>
+          <div className="draft-heading"><div><p className="eyebrow">{planning.review.origin === 'sample' ? 'Sample plan · manually authored' : planning.review.origin === 'ai' ? 'AI-extracted claims · review required' : 'Entered manually'}</p><h2 id="summary-title" tabIndex={-1}>{planning.review.title}</h2></div><details className="summary-options"><summary>Summary options</summary><button className="danger quiet" onClick={() => { if (window.confirm('Remove this summary, including unapplied edits? Your draft will stay.')) { setPlanning((current) => ({ ...current, review: null })); setLoadedSession(null); transition({ type: 'stage', stage: 'conversation' }); } }}>Remove summary</button></details></div>
           <p className="note">A working summary, not a booking.</p>
-          <SummaryReview active={stage === 'understanding' && !previewReady} summary={planning.review.summary} sourceKind={planning.review.origin} transcript={summaryTranscript} provenance={loadedSession?.payload.provenance} availableScreenshots={screenshotIds} onChange={(summary) => setPlanning((current) => current.review ? { ...current, review: { ...current.review, summary } } : current)} saveAction={{ label: loadedSession ? 'Save & sharing' : 'Save options', onClick: () => focusAndReveal(document.querySelector<HTMLElement>('.save-session')) }} />
+          <SummaryReview active={stage === 'understanding' && !previewReady} summary={planning.review.summary} sourceKind={planning.review.origin} transcript={summaryTranscript} provenance={loadedSession?.payload.provenance} availableScreenshots={screenshotIds} onChange={(summary) => setPlanning((current) => current.review ? { ...current, review: { ...current.review, summary } } : current)} proposal={{ saved: loadedSession ? { id: loadedSession.id, revision: loadedSession.revision } : undefined, token: session?.access_token, getEditRevision: () => workspaceEdits.current.revision }} saveAction={{ label: 'Review save options', onClick: () => focusAndReveal(document.querySelector<HTMLElement>('.save-session')) }} />
           <SaveSession onApplyAdjustment={(reply, revision, expected) => {
             if (!planning.review || revision !== workspaceEdits.current.revision || JSON.stringify(supportingSummary(planning.review.summary)) !== expected || document.querySelector('.summary-panel .fact-form')) return false;
             setPlanning(current => current.review ? { ...current, review: { ...current.review, summary: { ...reply.summary, sources: current.review.summary.sources } } } : current); workspaceEdits.current.change(); setDirty(true); return true;

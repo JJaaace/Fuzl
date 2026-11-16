@@ -16,9 +16,13 @@ import { ExtractionError, schemaFailure } from './extraction/errors.js';
 import { getAIConfiguration } from './extraction/configuration.js';
 import { readScreenshots } from './extraction/transcribe.js';
 import { exceptionFailure } from './extraction/provider-diagnostics.js';
+import { proposePlan } from './extraction/propose.js';
+import type { ProposalOptions } from './extraction/propose.js';
+import { planProposalRequestSchema, planProposalResponseSchema } from '@fuzl/planning';
+import type { PlanProposalRequest } from '@fuzl/planning';
 
 type Extractor = (request: AnalysisRequest, signal: AbortSignal) => Promise<AnalysisResponse>;
-export function createApp(options: { outings?: OutingOptions; plans?: PlanOptions; ballots?: BallotOptions; guests?: GuestOptions; accounts?: Parameters<typeof accountRouter>[0]; transcribe?: (request: ScreenshotReadRequest, signal: AbortSignal) => Promise<TranscriptionResponse>; extract?: Extractor; checkConfiguration?: () => void; now?: () => number; timeoutMs?: number } = {}) {
+export function createApp(options: { proposals?: ProposalOptions; outings?: OutingOptions; plans?: PlanOptions; ballots?: BallotOptions; guests?: GuestOptions; accounts?: Parameters<typeof accountRouter>[0]; transcribe?: (request: ScreenshotReadRequest, signal: AbortSignal) => Promise<TranscriptionResponse>; extract?: Extractor; checkConfiguration?: () => void; now?: () => number; timeoutMs?: number } = {}) {
   const app = express();
   app.disable('x-powered-by');
   const extract = options.extract ?? extractConversation;
@@ -38,11 +42,14 @@ export function createApp(options: { outings?: OutingOptions; plans?: PlanOption
     response.json(getAIConfiguration()); // Public allowlist: provider/model only.
   });
 
-  app.post(['/api/analyze', '/api/transcribe'], (request, response, next) => {
+  app.post(['/api/analyze', '/api/transcribe', '/api/suggest-plan', '/api/check-plan'], (request, response, next) => {
     response.set('Cache-Control', 'no-store');
     const origin = request.get('origin');
     if (origin && !/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin)) {
-      throw new ExtractionError(403, 'origin_rejected', 'Analysis is available only from this local development app.');
+      const error = new ExtractionError(403, 'origin_rejected', 'Analysis requires the local Fuzl app. On the Mac running Fuzl, open http://127.0.0.1:5173. LAN previews can use offline samples. Your draft was kept; no AI provider was called.');
+      // Log only this pre-provider guard, never unrelated private-route errors.
+      console.error(JSON.stringify({ event: 'analysis_origin_rejected', reference: error.reference, code: error.code, status: error.status, providerCalled: false }));
+      throw error;
     }
     if (!request.is('application/json')) throw new ExtractionError(415, 'json_required', 'Send the conversation as JSON.');
     next();
@@ -52,31 +59,31 @@ export function createApp(options: { outings?: OutingOptions; plans?: PlanOption
     receivingImages = true;
     response.once('close', () => { receivingImages = false; });
     next();
-  }, (request, response, next) => express.json({ limit: request.path === '/api/transcribe' ? '21mb' : '32kb', inflate: false })(request, response, next), async (request, response, next) => {
+  }, (request, response, next) => express.json({ limit: request.path === '/api/transcribe' ? '21mb' : ['/api/suggest-plan', '/api/check-plan'].includes(request.path) ? '128kb' : '32kb', inflate: false })(request, response, next), async (request, response, next) => {
     const isTranscription = request.path === '/api/transcribe';
-    const parsed = isTranscription ? screenshotReadRequestSchema.safeParse(request.body) : analysisRequestSchema.safeParse(request.body);
+    const isProposal = ['/api/suggest-plan', '/api/check-plan'].includes(request.path), checksOnly = request.path === '/api/check-plan';
+    const parsed = isProposal ? planProposalRequestSchema.safeParse(request.body) : isTranscription ? screenshotReadRequestSchema.safeParse(request.body) : analysisRequestSchema.safeParse(request.body);
     if (!parsed.success) { request.body = undefined; return next(new ExtractionError(400, 'invalid_input', isTranscription
       ? 'Select 1–5 PNG/JPEG screenshots, up to 5 MiB each and 15 MiB total, with distinct references. Screenshot reading requires Gemini.'
-      : 'Enter 1–6000 characters and an optional valid reference date (YYYY-MM-DD).')); }
+      : isProposal ? 'Use applied planning facts and up to three valid organizer candidates.' : 'Enter 1–6000 characters and an optional valid reference date (YYYY-MM-DD).')); }
     let controller: AbortController | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let acquired = false;
     const disconnected = () => { if (!response.writableEnded) controller?.abort(); };
     try {
-      if (parsed.data.expectedProvider && parsed.data.expectedProvider !== getAIConfiguration().provider) {
+      if (!checksOnly && parsed.data.expectedProvider && parsed.data.expectedProvider !== getAIConfiguration().provider) {
         throw new ExtractionError(409, 'provider_changed', 'The configured AI provider changed. Reload the page and read its disclosure before submitting again. No provider was called.');
       }
-      checkConfiguration();
+      if (!checksOnly && !isProposal) checkConfiguration();
       recentAttempts = recentAttempts.filter((time) => time > now() - 60_000);
       if (active) throw new ExtractionError(429, 'analysis_busy', 'An analysis is already running. Wait for it to finish before retrying.');
-      if (attempts >= 10) throw new ExtractionError(429, 'session_limit', 'The 10-attempt development limit was reached. Review usage and budget before restarting the API.');
-      if (recentAttempts.length >= 3) {
+      if (!checksOnly && attempts >= 10) throw new ExtractionError(429, 'session_limit', 'The 10-attempt development limit was reached. Review usage and budget before restarting the API.');
+      if (!checksOnly && recentAttempts.length >= 3) {
         response.set('Retry-After', '60');
         throw new ExtractionError(429, 'rate_limit', 'The local limit is three analyses per minute. Wait one minute before retrying.');
       }
       active = acquired = true;
-      attempts += 1;
-      recentAttempts.push(now());
+      if (!checksOnly) { attempts += 1; recentAttempts.push(now()); }
       controller = new AbortController();
       response.once('close', disconnected);
       const abort = new Promise<never>((_resolve, reject) => {
@@ -88,8 +95,8 @@ export function createApp(options: { outings?: OutingOptions; plans?: PlanOption
         }, { once: true });
       });
       timer = setTimeout(() => controller!.abort(new DOMException('Analysis deadline exceeded', 'TimeoutError')), options.timeoutMs ?? PROVIDER_TIMEOUT_MS);
-      const result = await Promise.race([isTranscription ? (options.transcribe ?? readScreenshots)(parsed.data as ScreenshotReadRequest, controller.signal) : extract(parsed.data as AnalysisRequest, controller.signal), abort]);
-      const valid = isTranscription ? transcriptionResponseSchema.safeParse(result) : analysisResponseSchema.safeParse(result);
+      const result = await Promise.race([isProposal ? proposePlan(parsed.data as PlanProposalRequest, controller.signal, { authorization: request.get('authorization'), origin: request.get('origin') }, checksOnly, options.proposals) : isTranscription ? (options.transcribe ?? readScreenshots)(parsed.data as ScreenshotReadRequest, controller.signal) : extract(parsed.data as AnalysisRequest, controller.signal), abort]);
+      const valid = isProposal ? planProposalResponseSchema.safeParse(result) : isTranscription ? transcriptionResponseSchema.safeParse(result) : analysisResponseSchema.safeParse(result);
       if (!valid.success) schemaFailure('response_contract', valid.error);
       if (!response.destroyed) response.json(valid.data);
     } catch (error) { if (!response.destroyed) next(error); }

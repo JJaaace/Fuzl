@@ -32,3 +32,5 @@ export * from './travel-fixtures.js';
 export * from './backups.js';
 export * from './backup-fixtures.js';
 export * from './group-history-fixtures.js';
+export * from './plan-proposals.js';
+export * from './people-fixtures.js';

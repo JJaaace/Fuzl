@@ -67,7 +67,7 @@ test('a validated synthetic saved payload uses the same review layout without lo
   });
   const before = JSON.stringify(saved.payload);
   const html = renderToStaticMarkup(<SummaryReview summary={saved.payload.summary} sourceKind={saved.payload.origin} provenance={saved.payload.provenance} onChange={() => {}} saveAction={{ label: 'Save & sharing', onClick() {} }}/>);
-  for (const text of ['What’s the plan?', 'What’s still open?', 'What can I do next?', 'Review the date', 'Save &amp; sharing', 'Exact date unresolved', 'Sam: tentative availability', 'Amount unknown', 'Supporting sample text']) assert.ok(html.includes(text), text);
+  for (const text of ['The plan so far', 'People', 'Suggest a plan', 'Review the date', 'Save &amp; sharing', 'Exact date unresolved', 'Tentative', 'Amount unknown', 'Supporting sample text']) assert.ok(html.includes(text), text);
   assert.equal(JSON.stringify(saved.payload), before);
 });
 

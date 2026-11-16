@@ -1,6 +1,13 @@
 import { aiConfigurationSchema, analysisRequestSchema, analysisResponseSchema } from '@fuzl/planning';
 import type { AIConfiguration, AIProvider, AnalysisRequest, AnalysisResponse } from '@fuzl/planning';
 
+export class AnalysisRequestError extends Error {
+  constructor(readonly status: number, readonly code: string | null, readonly userMessage: string, readonly reference: string | null) {
+    super(userMessage + (reference ? ` Error reference: ${reference}.` : ''));
+    this.name = 'AnalysisRequestError';
+  }
+}
+
 export function sameAnalysisSource(request: AnalysisRequest, draft: string, referenceDate: string | null, provider?: AIProvider): boolean {
   return request.conversation === draft && request.referenceDate === referenceDate &&
     (provider === undefined || request.expectedProvider === undefined || request.expectedProvider === provider);
@@ -26,7 +33,9 @@ export async function analyzeConversation(request: AnalysisRequest, signal: Abor
       body.error !== null && 'message' in body.error && typeof body.error.message === 'string' ? body.error.message : `Analysis failed (HTTP ${response.status}). Retry later or use manual entry.`;
     const reference = typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'object' && body.error !== null &&
       'reference' in body.error && typeof body.error.reference === 'string' && /^[0-9a-f-]{36}$/.test(body.error.reference) ? body.error.reference : null;
-    throw new Error(message + (reference ? ` Error reference: ${reference}.` : ''));
+    const code = typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'object' && body.error !== null &&
+      'code' in body.error && typeof body.error.code === 'string' && /^[a-z_]{1,60}$/.test(body.error.code) ? body.error.code : null;
+    throw new AnalysisRequestError(response.status, code, message, reference);
   }
   const result = analysisResponseSchema.safeParse(body);
   if (!result.success) throw new Error('The API returned an invalid summary. Your existing work was kept.');

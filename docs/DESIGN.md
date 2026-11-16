@@ -1,6 +1,6 @@
 # Local design review
 
-**Current: Section 11A summary-first workspace and compact pause control (November 15, 2026), building on `19dc3bf`.** See [DESIGN_11A_SUMMARY.md](DESIGN_11A_SUMMARY.md) for the direct sample/date-review flow, compact overview/control, actual checks and pending Safari/phone captures. The earlier [continuous journey/ribbon](DESIGN_11A_JOURNEY.md) and [artwork provenance](GALLERY_ARTWORK.md) remain preserved. Older notes below are historical.
+**Current: Plan and People refinement (November 15, 2026).** See [PLAN_PEOPLE.md](PLAN_PEOPLE.md) for the compact result panel, ID-based person cards, applied-row feedback, validated Gemini proposal boundary, actual offline/HTTP evidence and pending device checks. Carries forward [origin recovery and sample/save labels](DESIGN_11A_RECOVERY.md), [summary/control](DESIGN_11A_SUMMARY.md), [journey/ribbon](DESIGN_11A_JOURNEY.md) and [artwork provenance](GALLERY_ARTWORK.md). Commit/push authorized for this pass; older notes below are historical.
 
 November 7, 2026. This is a visual and usability milestone between Sections 5 and 6, based on checkpoint `77b5638`. The initial design checkpoint was pushed as `083d78b`; the current ripple/crescent refinement is included in the requested follow-up checkpoint. Local preview remains available; there is no deployment. Section 6 has not started. No provider request, sign-in email, billing change, migration or deployment was made for this milestone.
 

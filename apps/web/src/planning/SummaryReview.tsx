@@ -1,13 +1,18 @@
-import SavedSource from '../accounts/SavedSource';
 import type { SavedProvenance } from '@fuzl/planning';
 import type { TranscriptSnapshot } from '@fuzl/planning';
-import SourceTrace from '../screenshots/SourceTrace';
 import { useEffect, useRef, useState } from 'react';
 import FactEditor, { Field } from './FactEditor';
 import Questions from './Questions';
 import SummaryOverview from './SummaryOverview';
 import { blankFact, factKinds, factStatuses, factValue, kindLabels, subjectLabel } from './model';
 import type { FactKind, PlanningFact, PlanningSummary } from './model';
+import type { SummaryNextStep } from './summaryNextStep';
+import PeopleCards from './PeopleCards';
+import type { FactChange } from './PeopleCards';
+import SupportingText from './SupportingText';
+import PlanSuggestions from './PlanSuggestions';
+import type { ProposalContext } from './PlanSuggestions';
+import { cardFactText } from '@fuzl/planning';
 import { summaryNextStep } from './summaryNextStep';
 import { focusAndReveal } from '../ui/presentation';
 
@@ -24,19 +29,13 @@ function FactCard({ fact, summary, sourceKind, transcript, provenance, available
       <h4>{kindLabels[fact.kind]} · {subjectLabel(fact.subject, summary)}</h4>
       <span className={`fact-status status-${fact.status}`}>{fact.status}</span>
     </div>
-    <p className="fact-value">{factValue(fact)}</p>
+    <p className="fact-value">{fact.kind === 'budget' ? cardFactText(fact) : factValue(fact)}</p>
     <div className="fact-meta"><span>{fact.strength === 'unknown' ? 'Firmness unknown' : fact.strength === 'firm' ? 'Firm constraint' : 'Flexible preference'}</span>{fact.extraction && <span className={`review-badge ${fact.extraction.reviewed ? 'reviewed' : ''}`}>{fact.extraction.reviewed ? 'Reviewed by you' : 'AI claim — unreviewed'}</span>}</div>
     {fact.guest && <p className="review-notice">Guest answer · explicitly applied by you · {fact.guest.alias}, revision {fact.guest.revision}. {fact.guest.supersedes && 'Replaces an earlier tentative interpretation.'}</p>}
     {fact.extraction && <><p className="uncertainty-note">{fact.extraction.uncertainty}</p><details className="claim-details"><summary>AI claim details</summary><p className="note">Scope: {fact.extraction.scope} · AI-reported status: {fact.extraction.reportedStatus}.{fact.extraction.supersedes.length > 0 && ` Replaces earlier claims: ${fact.extraction.supersedes.map((id) => {
       const previous = summary.facts.find((item) => item.id === id); return previous ? factValue(previous) : 'Earlier removed claim';
     }).join('; ')}.`}</p></details></>}
-    {fact.sourceIds.length > 0 ? <details className="supporting-text"><summary>{sourceKind === 'sample' ? 'Supporting sample text' : 'Supporting submitted text'}</summary>
-      <p className="note">Original quotes stay unchanged when you correct a fact. They may not support your edits.</p>
-      {fact.sourceIds.map((id) => {
-        const source = summary.sources.find((item) => item.id === id);
-        return source ? <div key={id}><blockquote>{source.text}</blockquote>{transcript && <SourceTrace snapshot={transcript} quote={source.text} available={availableScreenshots} />}{!transcript && <SavedSource provenance={provenance} sourceId={id} />}</div> : null;
-      })}
-    </details> : <p className="note">No supporting text linked. Entered manually or unknown in the sample.</p>}
+    <SupportingText sourceIds={fact.sourceIds} summary={summary} sourceKind={sourceKind} transcript={transcript} provenance={provenance} availableScreenshots={availableScreenshots}/>
     <div className="actions fact-actions">
       <button ref={editButton} aria-expanded={editing} aria-label={`${editing ? 'Cancel edit' : 'Edit'} ${kindLabels[fact.kind]} for ${subjectLabel(fact.subject, summary)}`} onClick={() => setEditing(!editing)}>{editing ? 'Cancel edit' : 'Edit fact'}</button>
       <button className="danger quiet" aria-label={`Remove ${kindLabels[fact.kind]} for ${subjectLabel(fact.subject, summary)}`} onClick={onRemove}>Remove fact</button>
@@ -47,62 +46,69 @@ function FactCard({ fact, summary, sourceKind, transcript, provenance, available
   </article>;
 }
 
-export default function SummaryReview({ summary, sourceKind = 'sample', transcript, active = true, provenance = [], availableScreenshots = [], onChange, saveAction }: {
-  saveAction?: { label: string; onClick: () => void }; summary: PlanningSummary; active?: boolean; onChange: (summary: PlanningSummary) => void;
+export default function SummaryReview({ summary, sourceKind = 'sample', transcript, active = true, provenance = [], availableScreenshots = [], onChange, saveAction, proposal }: {
+  proposal?: ProposalContext; saveAction?: { label: string; onClick: () => void }; summary: PlanningSummary; active?: boolean; onChange: (summary: PlanningSummary) => void;
   sourceKind?: 'sample' | 'manual' | 'ai'; transcript?: TranscriptSnapshot | null; provenance?: SavedProvenance; availableScreenshots?: string[];
 }) {
   const [newKind, setNewKind] = useState<FactKind>('schedule');
   const [newFact, setNewFact] = useState<PlanningFact | null>(null);
   const [shortcutNotice, setShortcutNotice] = useState('');
+  const [changed, setChanged] = useState<FactChange | null>(null);
+  const lastPerson = useRef<string | null>(null), localEdits = useRef(0), advanced = useRef<HTMLDetailsElement>(null);
   const root = useRef<HTMLDivElement>(null), facts = useRef<HTMLDetailsElement>(null), people = useRef<HTMLDetailsElement>(null);
   const focusFrame = useRef<number | null>(null);
   useEffect(() => () => { if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current); }, []);
   const next = summaryNextStep(summary);
   function revealDetails(details: HTMLDetailsElement | null) {
-    if (details) { details.open = true; focusAndReveal(details.querySelector('summary')); }
+    if (details) { if (advanced.current) advanced.current.open = true; details.open = true; focusAndReveal(details.querySelector('summary')); }
   }
-  function takeNextStep() {
-    if (next.kind === 'save') { if (saveAction) saveAction.onClick(); else revealDetails(facts.current); return; }
+  function takeNextStep(target: SummaryNextStep = next, personId?: string) {
+    if (target.kind === 'save') { if (saveAction) saveAction.onClick(); else revealDetails(facts.current); return; }
     let card: HTMLElement | undefined;
-    if (next.kind === 'fact' || next.kind === 'question') {
-      const attribute = next.kind === 'fact' ? 'factId' : 'questionId';
-      card = [...(root.current?.querySelectorAll<HTMLElement>(next.kind === 'fact' ? '.fact-card' : '.question-card') ?? [])].find(element => element.dataset[attribute] === next.id);
+    if (target.kind === 'fact' || target.kind === 'question') {
+      const attribute = target.kind === 'fact' ? 'factId' : 'questionId';
+      card = [...(root.current?.querySelectorAll<HTMLElement>(target.kind === 'fact' ? '.fact-card' : '.question-card') ?? [])].find(element => element.dataset[attribute] === target.id);
     }
     const pending = root.current?.querySelector<HTMLFormElement>('.fact-form');
-    if (pending && !card?.contains(pending) && !(next.kind === 'add' && pending.closest('.new-fact'))) {
+    if (pending && !card?.contains(pending) && !(target.kind === 'add' && pending.closest('.new-fact'))) {
       setShortcutNotice('Apply or cancel the open edit first. Your fields were kept.');
       focusAndReveal(pending.querySelector('input')); return;
     }
-    setShortcutNotice('');
-    if (next.kind !== 'question' && facts.current) facts.current.open = true;
-    if (next.kind === 'fact' || next.kind === 'question') {
-      const edit = card?.querySelector<HTMLButtonElement>(next.kind === 'fact' ? '.fact-actions button' : '[data-edit-question]');
+    setShortcutNotice(''); lastPerson.current = personId ?? null;
+    if (target.kind !== 'question' && advanced.current) advanced.current.open = true;
+    if (target.kind !== 'question' && facts.current) facts.current.open = true;
+    if (target.kind === 'fact' || target.kind === 'question') {
+      const edit = card?.querySelector<HTMLButtonElement>(target.kind === 'fact' ? '.fact-actions button' : '[data-edit-question]');
       if (edit?.getAttribute('aria-expanded') !== 'true') edit?.click();
-    } else if (next.kind === 'add' && !newFact) {
-      setNewKind(next.factKind); setNewFact(blankFact(next.factKind, crypto.randomUUID()));
+    } else if (target.kind === 'add' && !newFact) {
+      setNewKind(target.factKind); setNewFact(blankFact(target.factKind, crypto.randomUUID()));
     }
     if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
     focusFrame.current = requestAnimationFrame(() => {
       focusFrame.current = null;
       const container = card ?? root.current?.querySelector<HTMLElement>('.new-fact');
-      const date = next.kind === 'fact' && next.field === 'date';
+      const date = target.kind === 'fact' && target.field === 'date';
       focusAndReveal(container?.querySelector<HTMLElement>(date ? '.fact-form input[type=date]' : '.fact-form input') ?? null);
     });
   }
-  return <div className="summary-review" ref={root} onClickCapture={() => { if (shortcutNotice) setShortcutNotice(''); }}>
+  return <div className="summary-review" ref={root} onInputCapture={() => {localEdits.current++;}} onClickCapture={() => { if (shortcutNotice) setShortcutNotice(''); }}>
     <SummaryOverview summary={summary} active={active} nextAction={<>
-      <button type="button" data-workspace-navigation className="primary summary-primary" onClick={takeNextStep}>{next.kind === 'save' && !saveAction ? 'Review all facts' : next.label}</button>
-      <p className="note">{next.hint}</p>
-      {shortcutNotice && <p className="note" role="status">{shortcutNotice}</p>}
-      {saveAction && next.kind !== 'save' && <button type="button" data-workspace-navigation className="quiet summary-save-shortcut" onClick={saveAction.onClick}>{saveAction.label}</button>}
+      <PlanSuggestions {...proposal} summary={summary} getEditRevision={() => (proposal?.getEditRevision?.() ?? 0) + localEdits.current}/>
+      <div className="plan-secondary-actions"><button type="button" data-workspace-navigation className="quiet summary-primary" onClick={() => takeNextStep()}>{next.kind === 'save' ? saveAction?.label ?? 'Review all facts' : next.label}</button>
+      {saveAction && next.kind !== 'save' && <button type="button" data-workspace-navigation className="quiet summary-save-shortcut" onClick={saveAction.onClick}>{saveAction.label}</button>}</div>
+      <p className="note">{next.hint}</p>{shortcutNotice && <p className="note" role="status">{shortcutNotice}</p>}
     </>}/>
+    <PeopleCards summary={summary} sourceKind={sourceKind} transcript={transcript} provenance={provenance} availableScreenshots={availableScreenshots} changed={changed}
+      onEditFact={(id,personId) => takeNextStep({kind:'fact',id,label:'Edit fact',hint:''}, personId)}
+      onEditName={id => { if (root.current?.querySelector('.fact-form')) {setShortcutNotice('Apply or cancel the open edit first. Your fields were kept.');return;} revealDetails(people.current); focusAndReveal(people.current?.querySelectorAll<HTMLInputElement>('.participant-fields input')[summary.participants.findIndex(p=>p.id===id)] ?? null); }}/>
     <div className="summary-tools" role="group" aria-label="Summary details" data-workspace-navigation>
-      <button className="quiet" onClick={() => focusAndReveal(root.current?.querySelector<HTMLElement>('#questions-title') ?? null)}>Open questions ({summary.questions.filter(question => question.resolution === null).length})</button>
+      <button className="quiet" onClick={() => focusAndReveal(root.current?.querySelector<HTMLElement>('#questions-title') ?? null)}>Review questions</button>
       <button className="quiet" onClick={() => revealDetails(people.current)}>People &amp; attribution</button>
       <button className="quiet" onClick={() => revealDetails(facts.current)}>All facts &amp; sources</button>
     </div>
-    <Questions summary={summary} onChange={onChange} />
+    <Questions summary={summary} onChange={onChange} showEmptyNotice={false} />
     {!!summary.organizerDecisions?.length && <details className="review-section organizer-decisions"><summary>Organizer decisions ({summary.organizerDecisions.length})</summary><p className="note">Explicit working-session decisions, separate from original conversation evidence. They do not change a published plan or any RSVP.</p><ul>{summary.organizerDecisions.map(d => <li key={d.id}><strong>{d.before} → {d.after}</strong><p>{d.reason}</p><p className="note">{new Date(d.recordedAt).toLocaleString()} · Original source references: {d.sourceIds.join(', ') || 'Manual fact'}</p>{d.checks?.flatMap(c => [c.evidence.travel, c.evidence.booking].filter(Boolean).map((e, i) => <p key={`${c.key}:${i}`}><a href={e!.sourceUrl} target="_blank" rel="noreferrer">Organizer-recorded check source</a> · Checked {e!.checkedOn} · {e!.destination}</p>))}</li>)}</ul></details>}
+    <details className="plan-details" ref={advanced}><summary>Details · facts, sources &amp; speaker mappings</summary>
     <details ref={people} data-section-entry className="people-details review-section">
       <summary><span>Participants &amp; speaker mappings</span><span className="muted">Edit names &amp; attribution</span></summary>
       <p className="note">Names are editable aliases. Speaker mappings update the attribution of linked facts; original quotes stay unchanged.</p>
@@ -131,9 +137,20 @@ export default function SummaryReview({ summary, sourceKind = 'sample', transcri
       <p className="note">Unknown isn’t zero. A fact’s status is separate from whether you’ve reviewed it.</p>
       <ul className="status-overview" aria-label="Fact statuses">{factStatuses.map((status) => <li key={status}>{status}: {summary.facts.filter((fact) => fact.status === status).length}</li>)}</ul>
       {summary.facts.length === 0 && <p>No facts yet. Add information manually below.</p>}
-      <div className="facts-grid">{summary.facts.map((fact) => <FactCard key={fact.id} fact={fact} summary={summary} sourceKind={sourceKind} transcript={transcript} provenance={provenance} availableScreenshots={availableScreenshots} onApply={(next) => onChange({
-        ...summary, facts: summary.facts.map((item) => item.id === next.id ? next : item),
-      })} onRemove={() => onChange({
+      <div className="facts-grid">{summary.facts.map((fact) => <FactCard key={fact.id} fact={fact} summary={summary} sourceKind={sourceKind} transcript={transcript} provenance={provenance} availableScreenshots={availableScreenshots} onApply={(next) => {
+        onChange({ ...summary, facts: summary.facts.map(item => item.id === next.id ? next : item) });
+        setChanged(previous => ({id:next.id,sequence:(previous?.sequence ?? 0)+1}));
+        if (lastPerson.current) {
+          lastPerson.current = null;
+          if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
+          focusFrame.current = requestAnimationFrame(() => {
+            focusFrame.current = null;
+            const row = [...(root.current?.querySelectorAll<HTMLElement>('[data-person-fact]') ?? [])].find(element => element.dataset.personFact === next.id);
+            for (let parent = row?.parentElement; parent; parent=parent.parentElement) if(parent instanceof HTMLDetailsElement) parent.open=true;
+            focusAndReveal(row ?? null);
+          });
+        }
+      }} onRemove={() => onChange({
         ...summary, facts: summary.facts.filter((item) => item.id !== fact.id),
         questions: summary.questions.map((question) => ({ ...question, relatedFactIds: question.relatedFactIds.filter((id) => id !== fact.id) })),
       })} />)}</div>
@@ -148,6 +165,6 @@ export default function SummaryReview({ summary, sourceKind = 'sample', transcri
         }}>{factKinds.map((kind) => <option key={kind} value={kind}>{kindLabels[kind]}</option>)}</select></label>
         <button onClick={() => setNewFact(blankFact(newKind, crypto.randomUUID()))}>Add information</button>
       </div>}
-    </details>
+    </details></details>
   </div>;
 }

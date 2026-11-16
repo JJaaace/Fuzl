@@ -16,6 +16,8 @@ export function summaryNextStep(summary: PlanningSummary): SummaryNextStep {
       ? { kind: 'question', id: question.id, label: 'Review the conflict', hint: 'No compromise is assumed. Related facts stay unchanged.' }
       : { kind: 'fact', id: conflict.id, label: 'Review the conflict', hint: 'Keep firm requirements in view before choosing an option.' };
   }
+  const openConflict = summary.questions.find(question => question.kind === 'conflict' && question.resolution === null);
+  if (openConflict) return { kind: 'question', id: openConflict.id, label: 'Review the conflict', hint: 'No compromise is assumed. Related facts stay unchanged.' };
   const date = facts.find(fact => fact.kind === 'schedule' && fact.exactDate === null);
   if (date) return { kind: 'fact', id: date.id, field: 'date', label: 'Review the date', hint: 'Choose a date only if you know it. Blank stays unknown.' };
   const timing = facts.find(fact => fact.kind === 'schedule' && (fact.status === 'tentative' || fact.startTime === null || fact.endTime === null));
@@ -31,5 +33,5 @@ export function summaryNextStep(summary: PlanningSummary): SummaryNextStep {
   if (activity) return { kind: 'fact', id: activity.id, label: 'Review the activity', hint: 'The activity is unknown. Enter an idea only when known.' };
   const budget = facts.find(fact => fact.kind === 'budget' && (fact.amount === null || fact.currency === null));
   if (budget) return { kind: 'fact', id: budget.id, label: 'Review the budget', hint: 'An unknown amount is not zero.' };
-  return { kind: 'save', label: 'Continue to saving', hint: 'Saving is explicit. Nothing here establishes a booking.' };
+  return { kind: 'save', label: 'Review save options', hint: 'Saving is explicit. Nothing here establishes a booking.' };
 }

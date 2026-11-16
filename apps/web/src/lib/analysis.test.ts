@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { GEMINI_MODEL, MODEL } from '@fuzl/planning';
-import { analyzeConversation, fetchAIConfiguration, sameAnalysisSource } from './analysis';
+import { AnalysisRequestError, analyzeConversation, fetchAIConfiguration, sameAnalysisSource } from './analysis';
 
 test('analysis source checks prevent old drafts/reference dates being applied', () => {
   const submitted = { conversation: 'Sam: Maybe Friday', referenceDate: null };
@@ -19,6 +19,15 @@ test('error UI helper includes the safe reference and omits server-only detail',
   } }, { status: 503 }));
   await assert.rejects(analyzeConversation({ conversation: 'Alex: Maybe Friday', referenceDate: null }, new AbortController().signal),
     { message: `Google rejected access. Your summary was kept. Error reference: ${reference}.` });
+});
+
+test('origin rejection retains a typed safe code/status/reference without copying private diagnostics', async t => {
+  const reference='41d1870e-e760-4b06-9873-b9dc5c952303';
+  t.mock.method(globalThis,'fetch',async()=>Response.json({error:{code:'origin_rejected',message:'Use the local Fuzl app.',reference,serverFailure:{authorization:'private-test-token'}}},{status:403}));
+  await assert.rejects(analyzeConversation({conversation:'Sam: Synthetic Friday input',referenceDate:null},new AbortController().signal),(error:unknown)=>{
+    assert.ok(error instanceof AnalysisRequestError); assert.equal(error.status,403); assert.equal(error.code,'origin_rejected');
+    assert.equal(error.reference,reference); assert.ok(!JSON.stringify(error).includes('private-test-token')); return true;
+  });
 });
 
 test('configuration is public allowlisted metadata, and invalid/error responses do not enable analysis', async (t) => {

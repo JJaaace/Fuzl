@@ -54,7 +54,8 @@ async function enter(element: HTMLInputElement | HTMLTextAreaElement, value: str
   const prototype = element.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
   await act(async () => { Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(element, value); element.dispatchEvent(new Event('input', { bubbles: true })); await settle(); });
 }
-async function reviewFacts() { const details = document.querySelector<HTMLDetailsElement>('.facts-details'); if (details && !details.open) await click(details.querySelector('summary')); }
+async function reviewDetails() { const details = document.querySelector<HTMLDetailsElement>('.plan-details'); if (details && !details.open) await click(details.querySelector('summary')); }
+async function reviewFacts() { await reviewDetails(); const details = document.querySelector<HTMLDetailsElement>('.facts-details'); if (details && !details.open) await click(details.querySelector('summary')); }
 async function stage(text: string) { await click([...document.querySelectorAll('.stage-nav button')].find((item) => item.textContent?.includes(text)) ?? null); }
 async function sample() {
   const details = document.querySelector<HTMLDetailsElement>('.sample-tools')!;
@@ -87,7 +88,7 @@ test('stage navigation does not steal attention when a background result arrives
   assert.equal(navigateWorkspace(screens, { type: 'preview-opened' }).stage, 'understanding', 'deliberate review opens the preview from either input mode');
 });
 
-test('the opening composer is empty and explicit; samples reveal three useful tiles and pasted text skips transcript navigation', async (t) => {
+test('the opening composer is empty and explicit; samples reveal a compact plan with people and pasted text skips transcript navigation', async (t) => {
   const { calls } = await mount(t);
   const draft = document.querySelector<HTMLTextAreaElement>('#draft')!;
   assert.equal(draft.value, ''); assert.equal(draft.placeholder, 'Paste your group chat here.');
@@ -98,9 +99,9 @@ test('the opening composer is empty and explicit; samples reveal three useful ti
   assert.equal(button('Analyze conversation').disabled, false);
   assert.equal([...document.querySelectorAll('.stage-nav button')].filter(visible).length, 0, 'a disabled next step is not useful navigation yet');
   await sample();
-  assert.equal(document.querySelector('#summary-title')!.textContent, 'Sample summary');
-  assert.equal(document.querySelectorAll('.summary-panel .overview-grid > div').length, 3);
-  assert.deepEqual([...document.querySelectorAll('.summary-panel .overview-grid dt')].map((item) => item.textContent), ['What’s the plan?', 'What’s still open?', 'What can I do next?']);
+  assert.equal(document.querySelector('#summary-title')!.textContent, 'Friday, maybe');
+  assert.equal(document.querySelectorAll('.summary-panel .plan-overview').length, 1); assert.equal(document.querySelector('.plan-overview')?.nextElementSibling?.className, 'people-section');
+  assert.equal(document.querySelectorAll('.people-grid .person-card').length, examples[1].summary.participants.length); assert.ok(button('Suggest a plan'));
   assert.equal([...document.querySelectorAll('.stage-nav button')].filter(visible).length, 2);
   assert.ok(![...document.querySelectorAll('.stage-nav button')].filter(visible).some((item) => item.textContent?.includes('Transcript')));
   await reviewFacts(); await click(button('Edit fact'));
@@ -167,7 +168,7 @@ test('mode, stage and saved-group navigation preserve draft nodes, unapplied fac
   let approve = false; t.mock.method(window, 'confirm', () => approve);
   await sample(); assert.equal(draft.value, 'Sam: Keep my temporary work.'); assert.equal(document.querySelector('.summary-panel'), null);
   approve = true; await sample();
-  await click(document.querySelector('.people-details > summary'));
+  await reviewDetails(); await click(document.querySelector('.people-details > summary'));
   await enter(input('Participant 1 name'), 'Renamed person');
   await reviewFacts(); await click(button('Edit fact'));
   const form = document.querySelector('.summary-panel .fact-form')!;
@@ -175,7 +176,7 @@ test('mode, stage and saved-group navigation preserve draft nodes, unapplied fac
   await enter(field, 'Unapplied detail');
   await stage('Conversation'); await click(button('Saved groups'));
   const email = input('Email'); await enter(email, 'controlled@example.invalid');
-  await click(button('Workspace')); await stage('Review summary');
+  await click(button('Workspace')); await stage('Plan');
   assert.equal(document.querySelector('.summary-panel .fact-form'), form); assert.equal(field.value, 'Unapplied detail');
   assert.equal(input('Participant 1 name').value, 'Renamed person');
   assert.equal(document.querySelector('.dot-field canvas'), fieldCanvas, 'typing and navigation keep the same canvas');
@@ -189,10 +190,10 @@ test('the summary entrance settles once and does not restart after editing or a 
   await mount(t); await sample();
   assert.ok(document.querySelector('.summary-panel .summary-overview')!.classList.contains('is-revealing'));
   await act(async () => { t.mock.timers.tick(100); }); await stage('Conversation');
-  await act(async () => { t.mock.timers.tick(240); }); await stage('Review summary');
+  await act(async () => { t.mock.timers.tick(240); }); await stage('Plan');
   const overview = document.querySelector('.summary-panel .summary-overview')!;
   assert.ok(!overview.classList.contains('is-revealing'));
-  await click(document.querySelector('.people-details > summary')); await enter(input('Participant 1 name'), 'Still editing');
+  await reviewDetails(); await click(document.querySelector('.people-details > summary')); await enter(input('Participant 1 name'), 'Still editing');
   assert.equal(document.querySelector('.summary-panel .summary-overview'), overview); assert.ok(!overview.classList.contains('is-revealing'));
 });
 
@@ -233,7 +234,7 @@ test('late AI results cannot replace newer text or switch away from screenshot i
   assert.equal(draft.value, 'Alex: Newer work.'); assert.equal(document.querySelector('.summary-panel'), null);
   assert.equal(document.querySelector('.stage-nav [aria-current=step]')?.textContent?.includes('Conversation'), true);
   assert.equal(button('Upload screenshots').getAttribute('aria-pressed'), 'true');
-  await stage('Review summary'); assert.equal(button('Use extracted summary').disabled, true);
+  await stage('Plan'); assert.equal(button('Use extracted summary').disabled, true);
 });
 
 test('a current AI result focuses its visible preview after rendering, while keeping acceptance explicit', async (t) => {
@@ -264,7 +265,7 @@ test('failure stops the fuse immediately, shows the error, and leaves the draft 
   const draft = document.querySelector<HTMLTextAreaElement>('#draft')!;
   await enter(draft, examples[1].conversation); await click(button('Analyze conversation'));
   assert.equal(document.querySelectorAll('.fuse-waiting').length, 0);
-  assert.ok(document.querySelector('.analysis-panel .validation-error')!.textContent!.includes('Synthetic quota exhausted'));
+  assert.ok(document.querySelector('.analysis-panel .analysis-error')!.textContent!.includes('Synthetic quota exhausted'));
   assert.equal(button('Analyze conversation').disabled, false); assert.equal(draft.value, examples[1].conversation);
   assert.equal(calls.filter((url) => url === '/api/analyze').length, 1, 'no automatic retry');
 });
@@ -359,7 +360,7 @@ test('explicit stage navigation restores the prior native scroll when returning 
   assert.deepEqual(restored.at(-1), { top: 210, behavior: 'instant' });
   assert.equal(document.activeElement?.id, 'intro-title');
   assert.ok(document.querySelector('.stage-nav button[aria-current=step]')?.textContent?.includes('Conversation'));
-  await stage('Review summary'); await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+  await stage('Plan'); await act(async () => { await new Promise(r => setTimeout(r, 25)); });
   assert.equal(document.activeElement?.id, 'summary-title');
 });
 
@@ -375,7 +376,7 @@ test('the single composer keeps mode/example controls together, date and disclos
   await sample();
   const summary = document.querySelector('.summary-panel')!;
   const next = summary.querySelector('.summary-save-shortcut') as HTMLButtonElement;
-  assert.equal(next.textContent?.trim(), 'Save options');
+  assert.equal(next.textContent?.trim(), 'Review save options');
   await click(next); assert.equal(document.activeElement, summary.querySelector('.save-session'));
   assert.ok(summary.querySelector('.facts-details')); assert.ok(summary.querySelector('.review-section'));
   assert.equal(calls.filter(url => url !== '/api/ai-config').length, 0, 'navigation/shortcut never saves, analyzes, or publishes');
@@ -391,8 +392,8 @@ for (const reduced of [false, true]) for (const [index, example] of examples.ent
   const draft=document.querySelector<HTMLTextAreaElement>('#draft')!;await enter(draft,'Synthetic unsaved draft.');assert.equal(gallery.textContent,original);
   let replace=false;t.mock.method(window,'confirm',()=>replace);const card=gallery.querySelectorAll('.sample-card')[index];assert.ok(card.getAttribute('aria-label')?.startsWith('Open sample:'));
   await click(card);assert.equal(draft.value,'Synthetic unsaved draft.');assert.equal(document.querySelector('.summary-panel'),null);
-  replace=true;await click(card);assert.equal(draft.value,example.conversation);assert.equal(document.querySelector('#summary-title')?.textContent,'Sample summary');
-  const order=[...document.querySelectorAll('.summary-overview, [aria-labelledby="questions-title"], .summary-next')].map(e=>e.classList[0]);assert.deepEqual(order,['summary-overview','summary-next','review-section']);
+  replace=true;await click(card);assert.equal(draft.value,example.conversation);assert.equal(document.querySelector('#summary-title')?.textContent,card.querySelector('.sample-card-name')?.textContent);
+  const order=[...document.querySelectorAll('.summary-overview, .people-section, [aria-labelledby="questions-title"]')].map(e=>e.classList[0]);assert.deepEqual(order,['summary-overview','people-section','review-section']);
   assert.equal(calls.filter(url=>url!=='/api/ai-config').length,0);
 });
 
@@ -402,7 +403,7 @@ test('returning to the gallery and declining another card preserves an unapplied
   const form=document.querySelector('.summary-panel .fact-form')!,field=form.querySelector<HTMLInputElement>('input')!;await enter(field,'Unapplied synthetic correction');
   await stage('Conversation');t.mock.method(window,'confirm',()=>false);await click(document.querySelectorAll('.sample-card')[2]);
   assert.equal(document.querySelector('.summary-panel .fact-form'),form);assert.equal(field.value,'Unapplied synthetic correction');
-  assert.equal(document.querySelector<HTMLTextAreaElement>('#draft')!.value,examples[0].conversation);await stage('Review summary');assert.ok(visible(form));
+  assert.equal(document.querySelector<HTMLTextAreaElement>('#draft')!.value,examples[0].conversation);await stage('Plan');assert.ok(visible(form));
 });
 
 test('scenery pause keeps the mounted artwork, draft, focus and sample cards intact', async t => {
@@ -432,7 +433,7 @@ test('Friday, maybe focuses its summary and opens the unknown exact date without
   const overview = document.querySelector('.summary-overview')!;
   assert.ok(overview.textContent?.includes('This Friday evening; reference date unknown'));
   assert.ok(overview.textContent?.includes('Exact date unresolved'));
-  assert.ok(overview.textContent?.includes('Sam: tentative availability'));
+  assert.ok(document.querySelector('.people-section')?.textContent?.includes('Tentative'));
   assert.equal(overview.querySelectorAll('button.primary').length, 1);
   assert.ok(!document.querySelector('.intro')?.textContent?.includes('Bring the chat'));
   assert.ok(!document.body.textContent?.includes('A little closer to a plan'));
@@ -466,7 +467,7 @@ test('conflict shortcut opens its existing question and never resolves requireme
 
 test('blank summary has an immediate manual-entry action and keeps its unapplied fields on repeated navigation', async t => {
   const { calls } = await mount(t); await click(button('Start blank summary'));
-  assert.ok(document.querySelector('.summary-overview')?.textContent?.includes('Activity not chosen yet'));
+  assert.ok(document.querySelector('.summary-overview')?.textContent?.includes('Choose an activity together'));
   await click(button('Add planning details'));
   await act(async () => { await new Promise(r => setTimeout(r, 25)); });
   const form = document.querySelector('.new-fact .fact-form')!;
@@ -485,7 +486,7 @@ test('date shortcut preserves another unapplied editor and explains how to conti
   await click(button('Review the date'));
   assert.equal(document.querySelector('[data-fact-id="b-abudget"] .fact-form'), form); assert.equal(field.value, '12');
   assert.equal(document.activeElement, field);
-  assert.ok(document.querySelector('.summary-next [role=status]')?.textContent?.includes('Your fields were kept'));
+  assert.ok(document.querySelector('.plan-next-action [role=status]')?.textContent?.includes('Your fields were kept'));
   assert.equal(document.querySelector('[data-fact-id="b-date"] .fact-form'), null);
 });
 
@@ -500,4 +501,63 @@ test('draft count and save status stay beside the input; invalid length disables
   assert.equal(button('Analyze conversation').disabled, true);
   await click(button('Clear draft')); assert.equal(draft.value, ''); assert.equal(draft.hasAttribute('aria-invalid'), false);
   assert.equal(calls.filter(url => url !== '/api/ai-config').length, 0);
+});
+
+test('origin rejection keeps the draft and loaded sample, shows local recovery beside Analyze and preserves its reference', async t => {
+  const reference = '41d1870e-e760-4b06-9873-b9dc5c952303';
+  const { calls } = await mount(t, async url => {
+    assert.equal(url, '/api/analyze');
+    return Response.json({error:{code:'origin_rejected',message:'Analysis is available only from this local development app.',reference}},{status:403});
+  });
+  await click(document.querySelector('[aria-label="Open sample: Friday, maybe"]'));
+  const review = document.querySelector('.summary-panel');
+  await stage('Conversation');
+  const draft = document.querySelector<HTMLTextAreaElement>('#draft')!;
+  await enter(draft, 'Alex: A synthetic replacement draft. Maybe Friday.');
+  await click(button('Analyze conversation'));
+  const notice = document.querySelector('.analysis-controls .analysis-error')!;
+  assert.ok(visible(notice)); assert.ok(notice.textContent?.includes('On the Mac running Fuzl'));
+  assert.equal(notice.querySelector('a')?.getAttribute('href'),'http://127.0.0.1:5173');
+  assert.equal(notice.querySelector('a')?.getAttribute('target'),'_blank');
+  assert.ok(notice.textContent?.includes(reference)); assert.ok(notice.textContent?.includes('Nothing was sent to the AI provider'));
+  assert.ok(notice.textContent?.includes('drafts do not transfer'));
+  assert.equal(notice.closest('form')?.querySelector('.analyze-button'),button('Analyze conversation'));
+  assert.equal(draft.value,'Alex: A synthetic replacement draft. Maybe Friday.');
+  assert.equal(button('Analyze conversation').disabled,false);
+  await click(button('Open Plan')); await act(async()=>{await new Promise(r=>setTimeout(r,25));});
+  assert.equal(document.querySelector('.summary-panel'),review); assert.equal(document.activeElement?.id,'summary-title');
+  assert.equal(document.querySelector('#summary-title')?.textContent,'Friday, maybe');
+  assert.ok(document.querySelector('.source-warning')?.textContent?.includes('may no longer match'));
+  assert.equal(calls.filter(url=>url==='/api/analyze').length,1,'no retry, analysis on sample load or acceptance shortcut');
+});
+
+test('origin failure without a summary offers local instructions but no fake summary fallback', async t => {
+  await mount(t,async()=>Response.json({error:{code:'origin_rejected',message:'Local only'}},{status:403}));
+  await enter(document.querySelector<HTMLTextAreaElement>('#draft')!,'Sam: Synthetic Friday input.'); await click(button('Analyze conversation'));
+  assert.equal(document.querySelector('.analysis-error button'),null); assert.equal(document.querySelector('.summary-panel'),null);
+  assert.equal(document.querySelectorAll('.analysis-error').length,1);
+});
+
+test('Saturday title and save shortcut describe the real action, with one empty-question message and separate fact statuses', async t => {
+  const { calls }=await mount(t); await click(document.querySelector('[aria-label="Open sample: Saturday bowling"]'));
+  const panel=document.querySelector('.summary-panel')!;
+  assert.equal(panel.querySelector('#summary-title')?.textContent,'Saturday bowling');
+  assert.ok(panel.querySelector('.eyebrow')?.textContent?.includes('Sample plan'));
+  assert.equal((panel.textContent?.match(/No open questions recorded/g)||[]).length,1);
+  assert.ok(!panel.textContent?.includes('No missing details flagged here'));
+  const overview=panel.querySelector('.summary-overview')!;
+  assert.ok(overview.textContent?.includes('Bowling — idea only, not booked'));
+  assert.ok(overview.textContent?.includes('proposed')); assert.ok(overview.textContent?.includes('confirmed'));
+  await click(button('Review save options')); assert.equal(document.activeElement,panel.querySelector('.save-session'));
+  assert.ok(panel.querySelector('.save-session')?.textContent?.includes('supporting message excerpts'));
+  await click(button('Sign in to save session')); assert.ok(visible(document.querySelector('#groups-main')!));
+  assert.equal(calls.filter(url=>url!=='/api/ai-config').length,0,'save shortcut and sign-in navigation do not save or send an email');
+});
+
+test('open-question overview leads with the specific Friday issue and manual titles come from their own data', async t => {
+  await mount(t); await sample();
+  assert.equal(document.querySelector('.plan-open-question')?.textContent,examples[1].summary.questions[0].text);
+  await stage('Conversation'); await click(button('Start blank summary'));
+  assert.equal(document.querySelector('#summary-title')?.textContent,'Manual summary');
+  assert.ok(!document.querySelector('.summary-panel > .draft-heading')?.textContent?.includes('Sample plan'));
 });

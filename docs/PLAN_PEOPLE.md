@@ -1,3 +1,5 @@
+**Follow-up:** This work was pushed as **9297989**. Current compact overview/cards, collapsed tools and actual one-request Gemini verification are in [PLAN_POLISH.md](PLAN_POLISH.md). The previous pass’s counts and zero-live-call evidence below are historical. For the fit demo, open **Planning tools → Check fit without AI**.
+
 # Plan and People workspace
 
 November 15, 2026. Builds on pushed 03c9e9d, carrying forward the local origin-recovery and summary-label fixes. Commit/push is authorized for this pass. No database migration, dependency, credential change, deployment or hosted record changes.

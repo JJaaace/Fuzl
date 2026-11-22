@@ -1,3 +1,4 @@
+import { useDiscovered } from '../planning/DiscoveryContext';
 import TravelPanel from '../travel/TravelPanel';
 import Preference from '../discovery/Preference';
 import { preferredEvents } from '../discovery/ranking';
@@ -6,7 +7,7 @@ import IdeaPicker from '../ideas/IdeaPicker';
 import type { CardIdeaSelection } from '../ideas/SaveLater';
 import MakeThisWork from '../adjustments/MakeThisWork';
 import type { ApplyAdjustment } from '../adjustments/MakeThisWork';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { demoEvents, evaluateEvents, eventQuerySchema, eventResponseSchema, workKey } from '@fuzl/planning';
 import type { EventQuery, EventResponse, EventResults, ScheduledEvent, PlaceArea, PlaceQuery, PlanningSummary, SavedSession, IdeaReference } from '@fuzl/planning';
 import { privateRequest } from '../accounts/api';
@@ -14,6 +15,7 @@ import EventCard from './EventCard';
 interface Props { balance?: boolean; onBalance?: (v: boolean) => void; travelVersion?: number; onTravelChange?: () => void; participationVersion?: number; participationBlocked?: boolean; onPreference?: (v: DiscoveryPreference) => void; preference?: DiscoveryPreference; ideasVersion?: number; onSaveIdea?: (v: CardIdeaSelection) => void; onApplyAdjustment?: ApplyAdjustment; active: boolean; query: PlaceQuery; onQuery: (query: PlaceQuery) => boolean | void; summary: PlanningSummary; loaded?: SavedSession; token?: string; previewOnly: boolean; getEditRevision: () => number }
 export default function EventFinder({ balance = false, onBalance, travelVersion, onTravelChange, participationVersion, participationBlocked = false, preference = 'balanced', onPreference, active, query, onQuery, summary, loaded, token, previewOnly, getEditRevision, onApplyAdjustment, ideasVersion, onSaveIdea }: Props) {
   const previewCache = useRef<{ area: PlaceArea; events: ScheduledEvent[]; query: string } | null>(null);
+  const discovered=useDiscovered();
   const [savedIdeas, setSavedIdeas] = useState<IdeaReference[]>([]);
   const [from, setFrom] = useState(''), [to, setTo] = useState('');
   const [result, setResult] = useState<{ data: EventResults; fingerprint: string } | null>(null);
@@ -23,6 +25,8 @@ export default function EventFinder({ balance = false, onBalance, travelVersion,
   const key = (q: EventQuery) => JSON.stringify([travelVersion,q.area, q.radiusKm, q.resolutionId ?? null, q.from, q.to, savedIdeas, participationVersion, summary, loaded?.id, loaded?.revision, token]);
   const eventQuery: EventQuery = { area: query.area, radiusKm: query.radiusKm, ...(query.resolutionId ? { resolutionId: query.resolutionId } : {}), from, to: to || from };
   const fingerprint = key(eventQuery), latest = useRef(fingerprint);
+  const invalidateDiscovery=discovered.invalidate;
+  useEffect(()=>{if(result&&result.fingerprint!==fingerprint)invalidateDiscovery?.();},[fingerprint,result,invalidateDiscovery]);
   useEffect(() => { latest.current = fingerprint; }, [fingerprint]);
   // Mounted while switching tabs so dates/drafts survive. Leaving cancels work;
   // a response can never switch the user's active discovery mode.
@@ -57,7 +61,9 @@ export default function EventFinder({ balance = false, onBalance, travelVersion,
   }
   const allowEvidenceChange = () => !document.querySelector('.event-finder .make-work[data-places-dirty="true"]') || window.confirm('Change search dates and discard unsaved adjustment source checks? Applied organizer decisions remain in the working summary.');
   const stale = outdated || !!result && result.fingerprint !== fingerprint;
-  const preferred = result && !stale ? preferredEvents(result.data, preference, balance) : null;
+  const preferred = useMemo(()=>result && !stale ? preferredEvents(result.data, preference, balance) : null,[result,stale,preference,balance]);
+  const publishEvents=discovered.onEvents;
+  useEffect(()=>{if(preferred)publishEvents?.(preferred.result);},[preferred,publishEvents]);
   const visible = preferred?.result ?? null;
   const card = (r: EventResults['promising'][number]) => <EventCard balanceReason={preferred?.moved.has(workKey(r.event))} key={r.event.id} result={r} onSaveLater={onSaveIdea && result?.data.workId ? () => onSaveIdea({ snapshotId: result.data.workId!, candidateKey: workKey(r.event), kind: 'event', hint: r.event.title, provider: r.event.savedIdea?.origin ?? r.event.source }) : undefined} />;
   return <div hidden={!active} className="event-finder"><h4>Discover scheduled events</h4><p className="note">Choose specific search dates. These controls do not confirm availability or change tentative planning facts. Dates are inclusive and interpreted in each event’s local time. A blank end date searches one day.</p>

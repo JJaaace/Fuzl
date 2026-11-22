@@ -16,6 +16,9 @@ import { ExtractionError, schemaFailure } from './extraction/errors.js';
 import { getAIConfiguration } from './extraction/configuration.js';
 import { readScreenshots } from './extraction/transcribe.js';
 import { exceptionFailure } from './extraction/provider-diagnostics.js';
+import { askPlan } from './extraction/ask.js';
+import { planQuestionRequestSchema,planAnswerSchema } from '@fuzl/planning';
+import type { PlanQuestionRequest } from '@fuzl/planning';
 import { proposePlan } from './extraction/propose.js';
 import type { ProposalOptions } from './extraction/propose.js';
 import { planProposalRequestSchema, planProposalResponseSchema } from '@fuzl/planning';
@@ -42,7 +45,7 @@ export function createApp(options: { proposals?: ProposalOptions; outings?: Outi
     response.json(getAIConfiguration()); // Public allowlist: provider/model only.
   });
 
-  app.post(['/api/analyze', '/api/transcribe', '/api/suggest-plan', '/api/check-plan'], (request, response, next) => {
+  app.post(['/api/analyze', '/api/transcribe', '/api/suggest-plan', '/api/check-plan', '/api/ask-plan'], (request, response, next) => {
     response.set('Cache-Control', 'no-store');
     const origin = request.get('origin');
     if (origin && !/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin)) {
@@ -59,19 +62,20 @@ export function createApp(options: { proposals?: ProposalOptions; outings?: Outi
     receivingImages = true;
     response.once('close', () => { receivingImages = false; });
     next();
-  }, (request, response, next) => express.json({ limit: request.path === '/api/transcribe' ? '21mb' : ['/api/suggest-plan', '/api/check-plan'].includes(request.path) ? '128kb' : '32kb', inflate: false })(request, response, next), async (request, response, next) => {
+  }, (request, response, next) => express.json({ limit: request.path === '/api/transcribe' ? '21mb' : ['/api/suggest-plan', '/api/check-plan', '/api/ask-plan'].includes(request.path) ? '128kb' : '32kb', inflate: false })(request, response, next), async (request, response, next) => {
     const isTranscription = request.path === '/api/transcribe';
-    const isProposal = ['/api/suggest-plan', '/api/check-plan'].includes(request.path), checksOnly = request.path === '/api/check-plan';
-    const parsed = isProposal ? planProposalRequestSchema.safeParse(request.body) : isTranscription ? screenshotReadRequestSchema.safeParse(request.body) : analysisRequestSchema.safeParse(request.body);
+    const isAsk=request.path==='/api/ask-plan';
+    const isProposal = ['/api/suggest-plan', '/api/check-plan'].includes(request.path), checksOnly = request.path === '/api/check-plan'||isAsk;
+    const parsed = isAsk ? planQuestionRequestSchema.safeParse(request.body) : isProposal ? planProposalRequestSchema.safeParse(request.body) : isTranscription ? screenshotReadRequestSchema.safeParse(request.body) : analysisRequestSchema.safeParse(request.body);
     if (!parsed.success) { request.body = undefined; return next(new ExtractionError(400, 'invalid_input', isTranscription
       ? 'Select 1–5 PNG/JPEG screenshots, up to 5 MiB each and 15 MiB total, with distinct references. Screenshot reading requires Gemini.'
-      : isProposal ? 'Use applied planning facts and up to three valid organizer candidates.' : 'Enter 1–6000 characters and an optional valid reference date (YYYY-MM-DD).')); }
+      : isAsk ? 'Ask a question of 1–300 characters using the current planning summary and owned session context.' : isProposal ? 'Use applied planning facts and up to three valid organizer candidates.' : 'Enter 1–6000 characters and an optional valid reference date (YYYY-MM-DD).')); }
     let controller: AbortController | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let acquired = false;
     const disconnected = () => { if (!response.writableEnded) controller?.abort(); };
     try {
-      if (!checksOnly && parsed.data.expectedProvider && parsed.data.expectedProvider !== getAIConfiguration().provider) {
+      if (!checksOnly && 'expectedProvider' in parsed.data && parsed.data.expectedProvider && parsed.data.expectedProvider !== getAIConfiguration().provider) {
         throw new ExtractionError(409, 'provider_changed', 'The configured AI provider changed. Reload the page and read its disclosure before submitting again. No provider was called.');
       }
       if (!checksOnly && !isProposal) checkConfiguration();
@@ -95,8 +99,8 @@ export function createApp(options: { proposals?: ProposalOptions; outings?: Outi
         }, { once: true });
       });
       timer = setTimeout(() => controller!.abort(new DOMException('Analysis deadline exceeded', 'TimeoutError')), options.timeoutMs ?? PROVIDER_TIMEOUT_MS);
-      const result = await Promise.race([isProposal ? proposePlan(parsed.data as PlanProposalRequest, controller.signal, { authorization: request.get('authorization'), origin: request.get('origin') }, checksOnly, options.proposals) : isTranscription ? (options.transcribe ?? readScreenshots)(parsed.data as ScreenshotReadRequest, controller.signal) : extract(parsed.data as AnalysisRequest, controller.signal), abort]);
-      const valid = isProposal ? planProposalResponseSchema.safeParse(result) : isTranscription ? transcriptionResponseSchema.safeParse(result) : analysisResponseSchema.safeParse(result);
+      const result = await Promise.race([isAsk ? askPlan(parsed.data as PlanQuestionRequest,controller.signal,{authorization:request.get('authorization'),origin:request.get('origin')},options.proposals) : isProposal ? proposePlan(parsed.data as PlanProposalRequest, controller.signal, { authorization: request.get('authorization'), origin: request.get('origin') }, checksOnly, options.proposals) : isTranscription ? (options.transcribe ?? readScreenshots)(parsed.data as ScreenshotReadRequest, controller.signal) : extract(parsed.data as AnalysisRequest, controller.signal), abort]);
+      const valid = isAsk ? planAnswerSchema.safeParse(result) : isProposal ? planProposalResponseSchema.safeParse(result) : isTranscription ? transcriptionResponseSchema.safeParse(result) : analysisResponseSchema.safeParse(result);
       if (!valid.success) schemaFailure('response_contract', valid.error);
       if (!response.destroyed) response.json(valid.data);
     } catch (error) { if (!response.destroyed) next(error); }

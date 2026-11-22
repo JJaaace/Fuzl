@@ -1,5 +1,5 @@
 import { WorkspaceEdits } from './accounts/api';
-import { applyGuestAnswer, excerptProvenance, MAX_CONVERSATION_LENGTH, supportingSummary } from '@fuzl/planning';
+import { applyGuestAnswer, excerptProvenance, MAX_CONVERSATION_LENGTH, supportingSummary, proposalFactUsable } from '@fuzl/planning';
 import type { SavedSession } from '@fuzl/planning';
 import { useAccount } from './accounts/AccountProvider';
 import SavedGroups from './accounts/SavedGroups';
@@ -11,7 +11,10 @@ import { useEffect, useRef, useState } from 'react';
 import { examples } from './planning/examples';
 import { loadExample, sourceChanged, startManualReview, updateDraft } from './planning/model';
 import type { ReviewState } from './planning/model';
+import { activityHeading } from './planning/planPresentation';
 import SummaryReview from './planning/SummaryReview';
+import { ShortlistProvider } from './ballots/context';
+import { DiscoveryProvider } from './planning/DiscoveryContext';
 import SampleGallery, { sampleCards } from './planning/SampleGallery';
 import ConnectionPreview from './ui/ConnectionPreview';
 import AnalysisPanel from './planning/AnalysisPanel';
@@ -22,10 +25,12 @@ import { focusAndReveal, sectionEntrances } from './ui/presentation';
 import type { WorkspaceStage } from './planning/navigation';
 import LogoPreview from './ui/LogoPreview';
 import PeopleDemo from './planning/PeopleDemo';
+import SignInPreview from './accounts/SignInPreview';
 import { initialNavigation, navigateWorkspace } from './planning/navigation';
 import type { NavigationAction } from './planning/navigation';
 
 export default function App() {
+  if (import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'signin') return <SignInPreview/>;
   if (import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'people') return <PeopleDemo/>;
   if (import.meta.env?.DEV && new URLSearchParams(window.location.search).get('design') === 'health') return <ConnectionPreview/>;
   return import.meta.env?.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('design') === 'logos' ? <LogoPreview /> : <Workspace />;
@@ -180,7 +185,7 @@ function Workspace() {
           if (planning.draft !== request.conversation) return false;
           if (planning.review && !window.confirm('Replace the current summary, including unapplied edits, with unreviewed AI claims?')) return false;
           setLoadedSession(null); setSummaryTranscript(transcript?.draft === request.conversation ? structuredClone(transcript) : null);
-          setPlanning((current) => current.draft === request.conversation ? { ...current, review: { origin: 'ai', title: 'AI extraction — review required', sourceDraft: request.conversation, summary: result.summary } } : current);
+          setPlanning((current) => current.draft === request.conversation ? { ...current, review: { origin: 'ai', title: (result.summary.facts.some(f=>f.kind==='activity'&&f.description?.trim()&&proposalFactUsable(f,result.summary))?activityHeading(result.summary.facts.find(f=>f.kind==='activity'&&f.description?.trim()&&proposalFactUsable(f,result.summary))):'Working plan').slice(0,100), sourceDraft: request.conversation, summary: result.summary } } : current);
           setReviewVersion((current) => current + 1); transition({ type: 'summary-opened' }); focusSummary(); return true;
         }} />
         </div>
@@ -192,8 +197,8 @@ function Workspace() {
         </div>
         {planning.review && <section className="summary-panel" hidden={stage !== 'understanding' || previewReady} aria-labelledby="summary-title" key={`summary-${reviewVersion}`}>
           <div className="draft-heading"><div><p className="eyebrow">{planning.review.origin === 'sample' ? 'Sample plan · manually authored' : planning.review.origin === 'ai' ? 'AI-extracted claims · review required' : 'Entered manually'}</p><h2 id="summary-title" tabIndex={-1}>{planning.review.title}</h2></div><details className="summary-options"><summary>Summary options</summary><button className="danger quiet" onClick={() => { if (window.confirm('Remove this summary, including unapplied edits? Your draft will stay.')) { setPlanning((current) => ({ ...current, review: null })); setLoadedSession(null); transition({ type: 'stage', stage: 'conversation' }); } }}>Remove summary</button></details></div>
-          <p className="note">A working summary, not a booking.</p>
-          <SummaryReview active={stage === 'understanding' && !previewReady} summary={planning.review.summary} sourceKind={planning.review.origin} transcript={summaryTranscript} provenance={loadedSession?.payload.provenance} availableScreenshots={screenshotIds} onChange={(summary) => setPlanning((current) => current.review ? { ...current, review: { ...current.review, summary } } : current)} proposal={{ saved: loadedSession ? { id: loadedSession.id, revision: loadedSession.revision } : undefined, token: session?.access_token, getEditRevision: () => workspaceEdits.current.revision }} saveAction={{ label: 'Review save options', onClick: () => focusAndReveal(document.querySelector<HTMLElement>('.save-session')) }} />
+
+          <ShortlistProvider><DiscoveryProvider summary={planning.review.summary} sessionId={loadedSession?.id}><SummaryReview active={stage === 'understanding' && !previewReady} sampleId={planning.review.origin==='sample'?examples.find(example=>example.conversation===planning.review!.summary.sources.map(source=>source.text).join('\n'))?.id:undefined} summary={planning.review.summary} sourceKind={planning.review.origin} transcript={summaryTranscript} provenance={loadedSession?.payload.provenance} availableScreenshots={screenshotIds} onChange={(summary) => setPlanning((current) => current.review ? { ...current, review: { ...current.review, summary } } : current)} proposal={{ saved: loadedSession ? { id: loadedSession.id, revision: loadedSession.revision } : undefined, token: session?.access_token, getEditRevision: () => workspaceEdits.current.revision }} saveAction={{ label: 'Review save options', onClick: () => focusAndReveal(document.querySelector<HTMLElement>('.save-session')) }} />
           <SaveSession onApplyAdjustment={(reply, revision, expected) => {
             if (!planning.review || revision !== workspaceEdits.current.revision || JSON.stringify(supportingSummary(planning.review.summary)) !== expected || document.querySelector('.summary-panel .fact-form')) return false;
             setPlanning(current => current.review ? { ...current, review: { ...current.review, summary: { ...reply.summary, sources: current.review.summary.sources } } } : current); workspaceEdits.current.change(); setDirty(true); return true;
@@ -201,8 +206,9 @@ function Workspace() {
             if (value.editRevision !== workspaceEdits.current.revision || !planning.review) throw new Error('The workspace changed. Review it before applying this answer.');
             const summary = applyGuestAnswer(planning.review.summary,value.reply,value.questionId,value.participantId,value.resolveId,value.supersedes,value.mode);
             setPlanning(current => current.review ? { ...current, review: { ...current.review, summary } } : current); workspaceEdits.current.change(); setDirty(true);
-          }} key={reviewVersion} focusOuting={view === 'workspace' && loadedSession?.id === outingTarget} getEditRevision={() => workspaceEdits.current.revision} loaded={loadedSession} input={{ title: planning.review.title.slice(0, 100), summaryVersion: 1, summary: supportingSummary(planning.review.summary), origin: planning.review.origin, provenance: loadedSession ? loadedSession.payload.provenance.filter((source) => planning.review!.summary.facts.some((fact) => fact.sourceIds.includes(source.sourceId))) : excerptProvenance(supportingSummary(planning.review.summary), summaryTranscript) }} onSignIn={() => setView('groups')} onOpen={openSaved} onSaved={(saved, unchanged) => { setLoadedSession(saved); if (unchanged) setDirty(false); }} />
+          }} key={reviewVersion} focusOuting={view === 'workspace' && loadedSession?.id === outingTarget} getEditRevision={() => workspaceEdits.current.revision} loaded={loadedSession} input={{ title: planning.review.title.slice(0, 100), summaryVersion: 1, summary: supportingSummary(planning.review.summary), origin: planning.review.origin, provenance: loadedSession ? loadedSession.payload.provenance.filter((source) => planning.review!.summary.facts.some((fact) => fact.sourceIds.includes(source.sourceId))) : excerptProvenance(supportingSummary(planning.review.summary), summaryTranscript) }} onSignIn={() => setView('groups')} onOpen={openSaved} onSaved={(saved, unchanged) => { setLoadedSession(saved); if (unchanged) {setDirty(false);setPlanning(current=>current.review?{...current,review:{...current.review,title:saved.title}}:current);} }} />
 
+          </DiscoveryProvider></ShortlistProvider>
         </section>}
         </div></div>
         <div hidden={stage !== 'conversation'}><SampleGallery onOpen={openExample}/></div>

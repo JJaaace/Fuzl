@@ -64,7 +64,7 @@ function SignedInSave({ token, input, loaded, onSaved, onOpen, getEditRevision, 
         void privateRequest<SavedSession>(token, `/sessions/${loaded.id}`, active.signal).then((result) => { if (!active.signal.aborted) onOpen(validateLoadedSession(result)); }).catch(() => { if (!active.signal.aborted) setMessage('Could not reopen the latest version. Your edits were kept.'); });
       }}>Open latest version</button>}</div><p role="status" aria-live="polite">{message}</p>
     {loaded ? <OrganizerGuests key={loaded.id} token={token} loaded={loaded} summary={input.summary} getEditRevision={getEditRevision} onApply={onApplyGuest} /> : <p className="notice">Save this session to create a link.</p>}
-    {loaded && <SessionDiscovery key={loaded.id + "-" + loaded.groupId + "-places"} token={token} loaded={loaded} summary={input.summary} getEditRevision={getEditRevision} focusOuting={focusOuting} onApplyAdjustment={onApplyAdjustment} />}
+    {loaded && <details className="session-discovery"><summary>Explore places, events &amp; sharing</summary><SessionDiscovery key={loaded.id + "-" + loaded.groupId + "-places"} token={token} loaded={loaded} summary={input.summary} getEditRevision={getEditRevision} focusOuting={focusOuting} onApplyAdjustment={onApplyAdjustment} /></details>}
     {loaded && <p className="note">Saved revision {loaded.revision} · Last saved {new Date(loaded.updatedAt).toLocaleString()}</p>}
   </section>;
 }

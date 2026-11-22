@@ -1,4 +1,4 @@
-import { assessPlaces, attributed, budgetCheck, commonWindow, current, manualPlaces, planProposalResponseSchema, reviewed, settled, unknownHours, unknownPrice } from '@fuzl/planning';
+import { assessIdeaOptions, commonWindow, manualPlaces, proposalFactUsable, proposalWindow, planProposalResponseSchema, unknownHours, unknownPrice } from '@fuzl/planning';
 import type { PlanProposalRequest, PlanProposalResponse, PlaceCandidate } from '@fuzl/planning';
 import { z } from 'zod';
 import { verifyOrganizer } from '../accounts/auth.js';
@@ -40,27 +40,12 @@ export async function proposePlan(input: PlanProposalRequest, signal: AbortSigna
     } else if (input.summary.facts.some(f => f.guest) || input.summary.questions.some(q => q.guest)) {
       throw new ExtractionError(400, 'saved_context_required', 'Applied guest answers require their owned saved-session context.');
     }
-    const summary = context.checkingSummary ?? input.summary, window = commonWindow(summary);
-    const activities = summary.facts.filter(f => f.kind === 'activity' && current(f) && reviewed(f) && attributed(f, summary) && !f.guest && f.status !== 'conflicting' && f.description?.trim());
+    const summary = context.checkingSummary ?? input.summary, window = proposalWindow(summary);
+    const activities = summary.facts.filter(f => f.kind === 'activity' && proposalFactUsable(f,summary) && !f.guest && f.status !== 'conflicting' && f.description?.trim());
     const at = new Date().toISOString();
     // Model output never supplies venue evidence. Missing fields stay unknown.
     const candidates: PlaceCandidate[] = input.manual.length ? manualPlaces(input.manual, at) : activities.slice(0,3).map(f => ({ id: f.id, name: f.kind === 'activity' ? f.description! : '', source: 'organizer', sourceUrl: null, address: null, lat: null, lon: null, category: 'any', retrievedAt: at, price: { ...unknownPrice }, hours: { ...unknownHours } }));
-    const query = { area: '', radiusKm: 5, category: 'any' as const, date: window.date, start: window.start, end: window.end, timeZone: null };
-    const assessed = assessPlaces(candidates, null, query, summary, context.privateSpending, context.memories, context.visitHistory, context.participation, context.travel);
-    const all = [...assessed.verified, ...assessed.promising, ...assessed.excluded];
-    // An explicitly entered total can rule an idea out even while its address
-    // remains unverified. It can never upgrade unknown venue evidence to a fit.
-    for (const item of all) {
-      const original = candidates.find(c => c.id === item.candidate.id)!;
-      const publicLimits = summary.facts.filter(f => current(f) && f.kind === 'budget' && settled(f) && attributed(f, summary) && f.strength === 'firm');
-      const failures = publicLimits.flatMap(f => f.kind === 'budget' ? [budgetCheck(original,f,'budget',true)] : []).filter(c => c.status === 'does-not-fit');
-      const privateFailure = context.privateSpending.some(limit => limit.state === 'known' && budgetCheck(original,limit,'private-budget',true).status === 'does-not-fit');
-      if (privateFailure) failures.push({kind:'private-budget',status:'does-not-fit',detail:'Private spending check: this option does not fit. Individual limits stay private.'});
-      if (failures.length) { item.checks.push(...failures); item.status='does-not-fit'; }
-    }
-    if (window.conflict) for (const candidate of all) {
-      candidate.checks.push({ kind: 'timing', status: 'does-not-fit', detail: 'Confirmed availability has no common window. Changing the plan requires an explicit correction.' }); candidate.status = 'does-not-fit';
-    }
+    const all=assessIdeaOptions(candidates,summary,{privateSpending:context.privateSpending,memories:context.memories,history:context.visitHistory,participation:context.participation,travel:context.travel});
     const eligible = all.filter(c => c.status !== 'does-not-fit');
     let selectedId: string | null = null, metrics: PlanProposalResponse['metrics'] = null;
     if (!checksOnly && eligible.length) {

@@ -1,3 +1,5 @@
+**November 21 visual follow-up:** sign-in presentation now uses an original two-panel landscape and compact form, with mock-only sending/sent/error/retry checks. The real request helper, fixed callback, SDK session handling, ownership and original-tab protections below are unchanged. No new email or live auth verification was initiated. See [WORKSPACE_FINISH.md](WORKSPACE_FINISH.md) and the development-only **/?design=signin** mock preview.
+
 # Section 5 — organizer accounts and saved sessions
 
 Implemented November 6, 2026. This is the Section 5 architecture and historical verification record. Section 6 now adds account-free guest answers in [GUESTS.md](GUESTS.md); its new migration has been tested only on a disposable database and has not been applied to the configured hosted project. Sections 7A/7B add organizer-only place search in [PLACES.md](PLACES.md), with no new schema; stop after Section 7B. No deployment, paid resources, voting, recommendations or group memory.
@@ -132,3 +134,9 @@ Browser discovery remains empty. Additional manual checks, after setup:
 4. Delete a session, then a group containing sessions; decline confirmation once first. Reopening removed items must fail. Confirm unrelated groups/other accounts remain. Verify only required excerpts were stored, no raw images/transcript, and that browser persistence contains only designated auth/guest credentials, not typed planning or guest-answer drafts. Do not paste tokens or inspect unrelated storage.
 
 Section 5 is a checkpoint, not a fully verified milestone. Section 6 guest work is described in GUESTS; the hosted account checks above remain unverified. Section 7A/7B place search and owner-bound ephemeral rechecks are documented in PLACES/PLACES_7B. The cache contains public venue data and authorization/revision bindings, not summaries or private limits. Later features remain out of scope.
+
+## Outings-first Plan and recorded questions (local)
+
+Plan and saved discovery share a temporary shortlist. Saving a session does not publish or implicitly save that shortlist; its existing revisioned save/preview/publication still applies. Initial ballot loading preserves choices already made before saving. General-idea checks load the same owner-filtered Places context/private constraints before enabling selection. Attendance-scope edits invalidate those results.
+
+`POST /api/ask-plan` is a local-origin, read-only question endpoint. Saved requests require a verified organizer token, owned session/revision and validated guest-source provenance; the context version is rechecked before return. Its deterministic answer function receives only the organizer-authorized current summary, never retained private budget/history rows. Guest/public endpoints do not expose this UI, individual private answers or source chats. No new table, migration, persistence or auth configuration is needed. The sign-in firefly/oval renderer changes presentation only. Hosted and browser account checks remain pending as recorded in PROGRESS.

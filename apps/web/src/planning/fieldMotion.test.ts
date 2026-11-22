@@ -89,7 +89,7 @@ test('canvas caps density/rate, reduces phone count, pauses offscreen/hidden/ina
   h.intersect(true); assert.equal(h.frames.size, 0); h.visibility(false); assert.equal(h.frames.size, 1);
   h.tick(100000); assert.equal(h.context.fillStyle, phaseBeforePause, 'resume preserves elapsed phase instead of catching up across hidden time');
   h.controller.setActive(false); assert.equal(h.frames.size, 0); h.controller.setActive(true); assert.equal(h.frames.size, 1);
-  h.bounds.width = 348; h.bounds.height = 760; h.resize(); assert.equal(h.canvas.width, 522); assert.equal(h.arcs, phoneDotCount);
+  h.bounds.width = 348; h.bounds.height = 760; h.resize(); assert.equal(h.canvas.width, 522); assert.ok(h.arcs>phoneDotCount,'density eases instead of popping at a breakpoint');for(let t=100100;t<=100400;t+=10)h.tick(t);for(let t=100500;t<=103500;t+=100)h.tick(t);assert.equal(h.arcs,phoneDotCount);
   h.controller.dispose(); assert.equal(h.frames.size, 0); assert.equal(h.disconnected, 2);
   const disposed = h.paints; h.visibility(true); h.visibility(false); h.motion(true); assert.equal(h.paints, disposed);
 });
@@ -128,8 +128,8 @@ test('ribbon reacts only to desktop mouse, fades over editors, clears on return 
   h.pointer(415, 215, 130, true); h.tick(160); assert.ok(h.strokes > before, 'editor trail remains delicate rather than intercepting input');
   assert.ok(h.ribbonAlpha < normalAlpha, 'editor reduces visible ribbon opacity');
   h.visibility(true); const hidden = h.strokes; h.visibility(false); h.pointer(450, 230, 200); h.tick(220); assert.equal(h.strokes, hidden, 'tab return starts with one point');
-  h.coarse(); assert.equal(h.arcs, phoneDotCount, 'touch preference updates count without resizing');
-  h.pointer(470, 230, 230, false, 'touch'); h.pointer(490, 230, 240); h.tick(280); assert.equal(h.strokes, hidden);
+  h.coarse(); assert.ok(h.arcs>=phoneDotCount);for(let t=320;t<=2320;t+=100)h.tick(t);assert.equal(h.arcs,phoneDotCount,'touch density settles without reseeding');
+  h.pointer(470, 230, 230, false, 'touch'); h.pointer(490, 230, 240); h.tick(2400); assert.equal(h.strokes, hidden);
   h.controller.dispose();
 });
 
@@ -255,4 +255,30 @@ test('scroll rebases the complete cached curve exactly once and stopped expiry i
     assert.equal(point.at, before[i].at); assert.equal(point.expiresAt, before[i].expiresAt);
   });
   assert.equal(last.y, before.at(-1)!.y + 100, 'shared raw/cached endpoint is not shifted twice');
+});
+
+test('Plan projects the same stable dots into side margins with mostly soft white and a few fuse colors',async()=>{
+  const {planDotPosition,planDotColor}=await import('../ui/fieldGeometry');const dots=makeDotField();let white=0,orange=0,yellow=0;
+  for(const width of [390,1024,1440,1920])for(const dot of dots){const p=planDotPosition(dot,width,850);assert.ok(p.x<210||p.x>width-210);if(width===390)assert.ok(p.x<13||p.x>377);assert.ok(p.y>=0&&p.y<850);assert.deepEqual(p,planDotPosition(dot,width,850));}
+  for(const dot of dots){const color=planDotColor(dot).join(',');if(color==='245,244,238')white++;if(color==='255,148,77')orange++;if(color==='255,211,106')yellow++;}
+  assert.ok(white>dots.length*.85);assert.ok(orange>5&&yellow>5);assert.ok(orange+yellow<dots.length*.15);
+  const h=harness(true);h.controller.setDimmed(true);h.intersect(true);assert.equal(h.frames.size,0);const before=h.context.fillStyle;h.visibility(true);h.visibility(false);assert.equal(h.frames.size,0);assert.equal(h.context.fillStyle,before);h.controller.dispose();
+});
+
+test('upper sparks join the full-page field in both modes; density varies gradually with width and keeps the same logo colors',async()=>{
+  const {sparkPosition,upperSpark,responsiveDotCount}=await import('../ui/fieldGeometry');const {mascotColors}=await import('../ui/brand');
+  const dots=makeDotField(),upper=dots.filter(upperSpark);assert.ok(upper.length>80&&upper.length<180);
+  for(const width of [390,768,1440])for(const dot of upper){const hero=sparkPosition(dot,width,850,0),plan=sparkPosition(dot,width,850,1);assert.deepEqual(hero,plan,'header scattering persists across modes');assert.ok(hero.y<190&&hero.y>=0);assert.ok(hero.x>=0&&hero.x<=width);}
+  assert.ok(upper.some(dot=>sparkPosition(dot,1440,850,0).y<35),'points begin near the top, not below the heading');
+  let previous=responsiveDotCount(320);assert.equal(previous,phoneDotCount);for(let width=321;width<=1200;width++){const count=responsiveDotCount(width);assert.ok(count>=previous&&count-previous<=1);previous=count;}assert.equal(previous,desktopDotCount);
+  assert.equal(responsiveDotCount(1200,true),phoneDotCount);
+  const styles:string[]=[];const context={fillStyle:'',clearRect(){},beginPath(){},fill(){styles.push(this.fillStyle);},arc(){}};
+  for(const layout of [0,1])drawDotField(context as unknown as CanvasRenderingContext2D,1440,850,dots,1,undefined,{points:[],strength:0,drift:0,light:false,layout});
+  const rgb=(hex:string)=>[1,3,5].map(start=>parseInt(hex.slice(start,start+2),16)).join(',');assert.ok(styles.some(style=>style.includes(rgb(mascotColors.ember))));assert.ok(styles.some(style=>style.includes(rgb(mascotColors.gold))));
+});
+
+test('sign-in oval keeps an even stable distribution, balanced brand colors and a small bounded drift',async()=>{
+  const {ovalSparkPosition,ovalSparkColor}=await import('../ui/fieldGeometry');const dots=makeDotField(240),before=JSON.stringify(dots);const colors=new Map<string,number>();
+  for(const [i,dot] of dots.entries()){const a=ovalSparkPosition(dot,i,1200,800,0),b=ovalSparkPosition(dot,i,1200,800,10);assert.ok(Math.hypot(a.x-b.x,a.y-b.y)<9);const r=Math.hypot((a.x-600)/552,(a.y-400)/344);assert.ok(r>.84&&r<1.02);const key=ovalSparkColor(i).join(',');colors.set(key,(colors.get(key)??0)+1);}
+  assert.deepEqual([...colors.values()],[80,80,80]);assert.equal(JSON.stringify(dots),before);
 });

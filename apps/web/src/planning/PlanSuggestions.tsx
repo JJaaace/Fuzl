@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { moneyText, planProposalResponseSchema } from '@fuzl/planning';
+import { proposalWindow, moneyText, planProposalResponseSchema } from '@fuzl/planning';
 import type { PlanProposalRequest, PlanProposalResponse, PlanningSummary } from '@fuzl/planning';
 import ManualPlace from '../places/ManualPlace';
 import FuseDots from '../ui/FuseDots';
+import { localActionsAvailable, localWorkspaceUrl } from './localActions';
 
 export interface ProposalContext { saved?: PlanProposalRequest['saved']; token?: string; getEditRevision?: () => number; initialManual?: PlanProposalRequest['manual'] }
 export default function PlanSuggestions({ summary, saved, token, getEditRevision = () => 0, initialManual = [] }: ProposalContext & { summary: PlanningSummary }) {
+  const localAllowed=typeof window==='undefined'||localActionsAvailable(window.location.origin);
+  // Saved attendee scopes are projected on the server; the full group may differ.
+  const windowReady=!!saved||proposalWindow(summary).date!==null;
   const [manual, setManual] = useState(initialManual);
   const [busy,setBusy] = useState(false), [error,setError] = useState('');
   const [result,setResult] = useState<{ value: PlanProposalResponse; key: string } | null>(null);
@@ -16,13 +20,16 @@ export default function PlanSuggestions({ summary, saved, token, getEditRevision
   useEffect(()=>()=>{pending.current?.abort();},[]);
   async function run(checksOnly: boolean) {
     if(lock.current) return;
+    if(!localAllowed){setError('Open Fuzl on the Mac running it at '+localWorkspaceUrl+'. Your facts were kept; no provider was called.');return;}
+
     if(root.current?.closest('.summary-review')?.querySelector('.fact-form')) {setError('Apply or cancel open edits first. Your fields were kept.');return;}
     const controller = new AbortController(); pending.current=controller;lock.current=true;setBusy(true);setError('');
     const revision=getEditRevision(), snapshot=key;
     const request: PlanProposalRequest={summary,manual,expectedProvider:'gemini',...(saved?{saved}:{})};
     try {
       const response=await fetch(checksOnly?'/api/check-plan':'/api/suggest-plan',{method:'POST',headers:{'Content-Type':'application/json',...(saved&&token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify(request),signal:AbortSignal.any([controller.signal,AbortSignal.timeout(55000)]),cache:'no-store'});
-      const body=await response.json();
+      let body: unknown;
+      try {body=await response.json();} catch {throw Error('The API response could not be read. Your facts were kept; retry deliberately.');}
       if(!response.ok) {
         const value=body as {error?:{message?:unknown;reference?:unknown}};
         const message=typeof value.error?.message==='string'?value.error.message:'Plan suggestions could not complete. Your facts were kept.';
@@ -39,9 +46,11 @@ export default function PlanSuggestions({ summary, saved, token, getEditRevision
     } finally {if(pending.current===controller){pending.current=null;lock.current=false;setBusy(false);}}
   }
   return <div className="plan-suggestions" ref={root}>
+    {!localAllowed&&<p className="notice local-suggestions-notice">To use AI suggestions, open Fuzl on the Mac running it at <a href={localWorkspaceUrl} target="_blank" rel="noreferrer">{localWorkspaceUrl}</a>. Keep this tab open; drafts do not transfer between addresses. Offline samples and editing work here. Server fit checks also require the Mac URL.</p>}
+    {!windowReady&&<p className="proposal-prerequisite">General ideas can be compared now. An exact date and time window is still required for date-specific event or availability checks.</p>}
     <p className="provider-disclosure">Gemini receives eligible activity/candidate labels and a known group window. Participant records, source quotes, budget fields and private answers are excluded. Candidate labels you supply are sent. Unpaid Google content may be used for improvement and human review.</p>
-    <div className="actions"><button type="button" data-workspace-navigation className="primary" disabled={busy} aria-busy={busy} onClick={()=>void run(false)}>{busy?<><FuseDots/>Preparing…</>:'Suggest a plan'}</button><button type="button" data-workspace-navigation disabled={busy} onClick={()=>void run(true)}>Check fit without AI</button>{busy&&<button type="button" data-workspace-navigation onClick={()=>{pending.current?.abort();pending.current=null;lock.current=false;setBusy(false);setError('Cancelled locally. Facts kept; an already-started Gemini request may still use quota.');}}>Cancel suggestion</button>}</div>
-    <details className="proposal-candidates"><summary>Candidate details · {manual.length} organizer-entered</summary><p className="note">Without a candidate, current reviewed activity ideas have unknown costs, location, hours and travel. Gemini chooses among supplied ideas; it does not look up venues or invent evidence. Add known candidate details before checking them.</p>
+    <div className="actions"><button type="button" data-workspace-navigation className="primary" disabled={busy||!localAllowed} aria-busy={busy} onClick={()=>void run(false)}>{busy?<><FuseDots/>Preparing…</>:'Suggest a plan'}</button><button type="button" data-workspace-navigation disabled={busy||!localAllowed} onClick={()=>void run(true)}>Check fit without AI</button>{busy&&<button type="button" data-workspace-navigation onClick={()=>{pending.current?.abort();pending.current=null;lock.current=false;setBusy(false);setError('Cancelled locally. Facts kept; an already-started Gemini request may still use quota.');}}>Cancel suggestion</button>}</div>
+    <details className="proposal-candidates"><summary>Candidate details · {manual.length} organizer-entered</summary><p className="note">Without a candidate, current source-linked activity ideas have unknown costs, location, hours and travel. Gemini chooses among supplied ideas; it does not look up venues or invent evidence. Add known candidate details before checking them.</p>
       <ManualPlace disabled={busy||manual.length>=3} onAdd={candidate=>{if(manual.length>=3)return false;setManual([...manual,candidate]);return true;}}/>
       {manual.map((candidate,index)=><div key={index} className="manual-plan-candidate"><strong>{candidate.name}</strong> · {moneyText(candidate.price.amount,candidate.price.currency,candidate.price.basis==='per-person')} · {candidate.price.coverage==='total'?'Organizer-entered total':'Total cost unresolved'} <button className="quiet" disabled={busy} onClick={()=>setManual(manual.filter((_,i)=>i!==index))}>Remove candidate</button></div>)}
     </details>

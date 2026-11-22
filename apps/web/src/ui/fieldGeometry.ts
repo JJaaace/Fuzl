@@ -1,3 +1,4 @@
+import { mascotColors } from './brand';
 // Deterministic normalized positions: typing and mode switches never reseed the sky.
 const TAU = Math.PI * 2;
 export const desktopDotCount = 760;
@@ -42,21 +43,55 @@ export function dotAppearance(dot: FieldDot, seconds: number) {
 }
 export type FieldColor = readonly [number, number, number];
 export const fieldColors: { ink: FieldColor; amber: FieldColor } = { ink: [245, 240, 231], amber: [255, 190, 105] };
-export interface FieldInteraction { points: readonly {x:number;y:number}[]; strength:number; drift:number; light:boolean }
+export interface FieldInteraction { points: readonly {x:number;y:number}[]; strength:number; drift:number; light:boolean; margins?:boolean; layout?:number; population?:number; oval?:boolean }
+// Plan uses the same seeded points and clock, projected into two quiet margins.
+export function planDotPosition(dot: FieldDot, width: number, height: number) {
+  const edge=Math.max(width<600?12:24,Math.min(200,(width-960)/2-18));
+  const inset=Math.max(0,Math.min(1,dot.x<.5?dot.x*2:(1-dot.x)*2));
+  return {x:dot.x<.5?inset*edge:width-inset*edge,y:(.03+dot.y*.98)*height};
+}
+export function responsiveDotCount(width:number,coarse=false) {
+  return coarse?phoneDotCount:Math.round(phoneDotCount+(desktopDotCount-phoneDotCount)*Math.max(0,Math.min(1,(width-440)/660)));
+}
+export function upperSpark(dot:FieldDot) {return dot.phase<Math.PI*2*.18;}
+export function sparkPosition(dot:FieldDot,width:number,height:number,layout:number) {
+  if(upperSpark(dot))return {x:Math.max(.02,Math.min(.98,dot.x))*width,y:(.008+Math.max(0,Math.min(1,dot.y))*.21)*height};
+  const edge=planDotPosition(dot,width,height), hero={x:dot.x*width,y:dot.y*height};
+  return {x:hero.x+(edge.x-hero.x)*layout,y:hero.y+(edge.y-hero.y)*layout};
+}
+const rgb=(hex:string):FieldColor=>[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];
+const ember=rgb(mascotColors.ember),gold=rgb(mascotColors.gold);
+export function planDotColor(dot: FieldDot): FieldColor {
+  return dot.warmth>.977?ember:dot.warmth>.95?gold:[245,244,238];
+}
+// Broad ellipse with evenly spaced angular positions. The seed only controls
+// band width/local drift; it never redistributes sparks while the form is used.
+export function ovalSparkPosition(dot:FieldDot,index:number,width:number,height:number,seconds:number){
+  const angle=index*2.3999632297,band=.93+.07*Math.sin(dot.phase);
+  return {x:width/2+Math.cos(angle)*width*.46*band+Math.sin(seconds*.6+dot.phase)*3,
+    y:height/2+Math.sin(angle)*height*.43*band+Math.cos(seconds*.45+dot.phase)*3};
+}
+export const ovalSparkColor=(index:number):FieldColor=>index%3===0?fieldColors.ink:index%3===1?ember:gold;
 export function drawDotField(context: CanvasRenderingContext2D, width: number, height: number, dots: readonly FieldDot[], seconds: number, colors = fieldColors, interaction?: FieldInteraction) {
   context.clearRect(0, 0, width, height);
-  for (const dot of dots) {
-    let { dx, dy, alpha, warmth } = dotAppearance(dot, seconds);
+  for (const [index,dot] of dots.entries()) {
+    let { dx, dy, alpha } = dotAppearance(dot, seconds);
     const scale = interaction?.light ? .4 : 1;
     dx *= scale; dy *= scale; alpha *= interaction?.light ? .7 : 1;
-    const x=dot.x*width+dx,y=dot.y*height+dy;
+    const layout=interaction?.layout??(interaction?.margins?1:0);
+    const position=interaction?.oval?ovalSparkPosition(dot,index,width,height,seconds):sparkPosition(dot,width,height,layout);
+    if(!interaction?.oval&&upperSpark(dot))alpha*=.45;
+    alpha*=Math.max(0,Math.min(1,(interaction?.population??dots.length)-index));
+    if(interaction?.margins){dx+=Math.sin(seconds*.35+dot.y*6)*3*scale;dy+=Math.cos(seconds*.35+dot.y*6)*4*scale;}
+    const x=position.x+dx,y=position.y+dy;
     let nearest: {x:number;y:number}|undefined, distance=Infinity;
     for(const point of interaction?.points??[]) {const d=Math.hypot(x-point.x,y-point.y);if(d<distance){distance=d;nearest=point;}}
     const influence=Math.max(0,1-distance/72)**2*(interaction?.strength??0);
-    if(nearest&&influence>0) {const length=Math.max(1,distance);dx+=(x-nearest.x)/length*influence*5;dy+=(y-nearest.y)/length*influence*5;alpha=Math.min(.98,alpha+influence*.25);warmth=Math.min(1,warmth+influence*.5);}
+    if(nearest&&influence>0) {const length=Math.max(1,distance);dx+=(x-nearest.x)/length*influence*5;dy+=(y-nearest.y)/length*influence*5;alpha=Math.min(.98,alpha+influence*.25);}
     dy += (interaction?.drift??0) * Math.min(1,Math.hypot(dot.x-.5,dot.y-.43)*2);
-    const color = colors.ink.map((value, index) => Math.round(value + (colors.amber[index] - value) * warmth));
+    const accent=interaction?.oval?ovalSparkColor(index):planDotColor(dot);
+    const color=accent[0]===245?colors.ink:accent;
     context.fillStyle = `rgba(${color.join(',')},${alpha.toFixed(3)})`;
-    context.beginPath(); context.arc(dot.x * width + dx, dot.y * height + dy, dot.radius, 0, TAU); context.fill();
+    context.beginPath(); context.arc(position.x + dx, position.y + dy, dot.radius, 0, TAU); context.fill();
   }
 }

@@ -38,3 +38,10 @@ test('reduced motion is static from setup and live changes preserve an explicit 
   h.controller.setPaused(true); h.motion(true); h.motion(false); assert.equal(h.element.dataset.running, 'false');
   h.controller.dispose(); h.motion(true); assert.equal(h.element.dataset.motion, 'animated', 'listener removed');
 });
+
+test('firefly takes a seamless curved route, slows near the cabin and keeps brightness changes gentle',async()=>{
+  const {fireflyPose}=await import('../ui/firefly');assert.deepEqual(fireflyPose(0),fireflyPose(30));let total=0,near=0,nearCount=0;
+  for(let t=0;t<30;t+=.05){const a=fireflyPose(t),b=fireflyPose(t+.05);const distance=Math.hypot(a.x-b.x,a.y-b.y);assert.ok(distance<5);assert.ok(Math.abs(a.opacity-b.opacity)<.01);total+=distance;if(a.y<225){near+=distance;nearCount++;}}
+  assert.ok(nearCount>80,'lingers and loops near cabin');assert.ok(near/nearCount<total/600,'slower near cabin');
+  const a=fireflyPose(29.999),b=fireflyPose(0);assert.ok(Math.hypot(a.x-b.x,a.y-b.y)<.05,'no seam jump');
+});

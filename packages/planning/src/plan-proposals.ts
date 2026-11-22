@@ -29,6 +29,29 @@ export function commonWindow(summary: PlanningSummary) {
   const date = [...dates][0]!;
   return { date, start, end, conflict: false, label: `${date} · ${start}–${end} · confirmed overlapping availability` };
 }
+
+// Proposal timing is not confirmation. An explicit source-backed window can
+// guide an idea while missing/tentative attendance keeps fit checks unresolved.
+export function proposalWindow(summary: PlanningSummary) {
+  const confirmed=commonWindow(summary);
+  if(confirmed.date||confirmed.conflict)return confirmed;
+  const timing=summary.facts.filter(f=>current(f)&&f.kind==='schedule'&&attributed(f,summary));
+  const complete=timing.filter(f=>f.kind==='schedule'&&f.exactDate&&f.startTime&&f.endTime&&proposalFactUsable(f,summary));
+  const dates=new Set(timing.flatMap(f=>f.kind==='schedule'&&f.exactDate?[f.exactDate]:[]));
+  if(dates.size>1||timing.some(f=>f.status==='conflicting'))return {date:null,start:null,end:null,conflict:true,label:'Choose one date or resolve conflicting availability'};
+  if(!complete.length)return {...confirmed,label:dates.size?'Add an explicit time window for the proposed date':'Choose an exact outing date and time window'};
+  const start=complete.map(f=>f.kind==='schedule'?f.startTime!:'').sort().at(-1)!;
+  const end=complete.map(f=>f.kind==='schedule'?f.endTime!:'').sort()[0];
+  if(start>=end)return {date:null,start:null,end:null,conflict:true,label:'Reported time windows do not overlap'};
+  const date=[...dates][0]!;
+  return {date,start,end,conflict:false,label:`${date} · ${start}–${end} · proposed window · attendance still needs checking`};
+}
+export function proposalFactUsable(fact:PlanningFact,summary:PlanningSummary) {
+  if(!current(fact)||!attributed(fact,summary)||fact.status==='conflicting')return false;
+  // Initial extraction acceptance remains explicit. Inside the working summary,
+  // linked source-validated claims need no additional per-card approval.
+  return !fact.extraction||fact.extraction.reviewed||fact.sourceIds.length>0&&fact.sourceIds.every(id=>summary.sources.some(s=>s.id===id));
+}
 export function cardFactText(fact: PlanningFact) {
   if (fact.kind === 'budget') return moneyText(fact.amount, fact.currency, true);
   if (fact.kind === 'travel') {

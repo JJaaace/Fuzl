@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { focusAndReveal } from '../ui/presentation';
 import { Field } from './FactEditor';
 import { kindLabels, subjectLabel, validateQuestion } from './model';
 import type { OpenQuestion, PlanningSummary } from './model';
@@ -6,12 +7,14 @@ import type { OpenQuestion, PlanningSummary } from './model';
 function QuestionForm({ question, onApply, onCancel }: {
   question: OpenQuestion; onApply: (question: OpenQuestion) => void; onCancel: () => void;
 }) {
+  const form=useRef<HTMLFormElement>(null);
+  useEffect(()=>{focusAndReveal(form.current?.querySelector('input')??null);},[]);
   const [text, setText] = useState(question.text);
   const [kind, setKind] = useState(question.kind);
   const [resolved, setResolved] = useState(question.resolution !== null);
   const [resolution, setResolution] = useState(question.resolution ?? '');
   const [error, setError] = useState('');
-  return <form noValidate className="fact-form" onSubmit={(event) => {
+  return <form ref={form} noValidate className="fact-form" onSubmit={(event) => {
     event.preventDefault();
     const validationError = validateQuestion(text, resolved, resolution);
     if (validationError) {

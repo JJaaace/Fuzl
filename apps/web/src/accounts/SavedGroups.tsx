@@ -4,30 +4,8 @@ import type { SavedGroup, SavedSession, SessionListItem } from '@fuzl/planning';
 import { useAccount } from './AccountProvider';
 import { privateRequest, RequestLifetime, validateLoadedSession } from './api';
 import { Field } from '../planning/FactEditor';
-import { requestMagicLink } from './magicLink';
+import SignIn from './SignIn';
 
-function SignIn() {
-  const { client, loading, error, session, reload } = useAccount();
-  const [email, setEmail] = useState(session?.user.email ?? ''); const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false); const [message, setMessage] = useState('');
-  const lifetime = useRef(new RequestLifetime());
-  useEffect(() => { const active = new RequestLifetime(); lifetime.current = active; return () => active.dispose(); }, []);
-  return <section className="account-card"><h2>Sign in to save private work</h2><p>The temporary workspace remains available. Signing in uploads no draft, image or transcript. Signing into a different account clears the previous account’s workspace.</p>
-    {loading && <p role="status">Checking account configuration…</p>}{error && <p role="status">{error}</p>}
-    <form onSubmit={(event) => {
-      event.preventDefault(); if (!client || busy || sent) return;
-      const sequence = lifetime.current.capture(); setBusy(true); setMessage('');
-      void requestMagicLink(client.auth, email, window.location.origin).then((failure) => {
-        if (!lifetime.current.current(sequence)) return;
-        if (failure) setMessage(failure);
-        else { setSent(true); setMessage('Link requested. Check your organization-member inbox and spam folder. Open the email link in this browser, preferably a new tab; then return to this tab without reloading to keep your unsaved work. Sending a link does not mean you are signed in. No planning data was sent.'); }
-      }).catch(() => { if (lifetime.current.current(sequence)) setMessage('Could not reach sign-in. Your temporary work was kept.'); }).finally(() => { if (lifetime.current.current(sequence)) setBusy(false); });
-    }}><Field label="Email" type="email" required autoComplete="email" value={email} disabled={sent || busy} onChange={(event) => setEmail(event.target.value)} />
-      <button className="primary" disabled={!client || busy || loading || sent}>{busy ? 'Requesting link…' : sent ? 'Check your email' : 'Send sign-in link'}</button>
-      {sent && <button type="button" disabled={busy} onClick={() => { setSent(false); setMessage('Request another link only if needed; the default sender has a very small quota.'); }}>Use another email or prepare a new link</button>}
-    </form><p role="status">{message}</p>{(!client || error) && <button type="button" disabled={loading || busy} onClick={reload}>Reload account configuration</button>}<p className="note">Free development email delivery is restricted to Supabase organization members and currently two messages/hour. Follow the setup guide before testing.</p>
-  </section>;
-}
 export default function SavedGroups({ onOpen, onWorkspace, active = true }: { active?: boolean; onOpen: (session: SavedSession, focusOuting?: boolean) => void; onWorkspace: () => void }) {
   const { session } = useAccount();
   const [reauthenticating, setReauthenticating] = useState(false);

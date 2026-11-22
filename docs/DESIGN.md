@@ -1,6 +1,8 @@
+> Current local layout (November 21): the [outings-first Plan](OUTINGS_PLAN.md) supersedes the always-visible People/overview described in earlier notes below. Cards lead; Group details, Open questions and Sources are optional. The sign-in light follows a curved cabin loop with a stable oval spark field. Browser rendering and motion remain unverified; no screenshots/clip were fabricated.
+
 # Local design review
 
-**Current: Plan and People refinement (November 15, 2026).** See [PLAN_PEOPLE.md](PLAN_PEOPLE.md) for the compact result panel, ID-based person cards, applied-row feedback, validated Gemini proposal boundary, actual offline/HTTP evidence and pending device checks. Carries forward [origin recovery and sample/save labels](DESIGN_11A_RECOVERY.md), [summary/control](DESIGN_11A_SUMMARY.md), [journey/ribbon](DESIGN_11A_JOURNEY.md) and [artwork provenance](GALLERY_ARTWORK.md). Commit/push authorized for this pass; older notes below are historical.
+**Current: full sparks, uniform People cards and distinct sign-in (November 21, 2026), local above pushed 9297989.** See [WORKSPACE_FINISH.md](WORKSPACE_FINISH.md) for changes, automatic use of source-linked planning facts, roster/state fixtures, actual checks and pending rendered/device verification. Builds on [compact Plan](PLAN_POLISH.md), [Plan/People](PLAN_PEOPLE.md), [origin recovery](DESIGN_11A_RECOVERY.md) and [journey/ribbon](DESIGN_11A_JOURNEY.md). No new commit/push or deployment; older notes below are historical.
 
 November 7, 2026. This is a visual and usability milestone between Sections 5 and 6, based on checkpoint `77b5638`. The initial design checkpoint was pushed as `083d78b`; the current ripple/crescent refinement is included in the requested follow-up checkpoint. Local preview remains available; there is no deployment. Section 6 has not started. No provider request, sign-in email, billing change, migration or deployment was made for this milestone.
 

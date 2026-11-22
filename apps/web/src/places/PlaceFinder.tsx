@@ -1,3 +1,4 @@
+import { useDiscovered } from '../planning/DiscoveryContext';
 import TravelPanel from '../travel/TravelPanel';
 import Preference from '../discovery/Preference';
 import { preferredPlaces } from '../discovery/ranking';
@@ -7,7 +8,7 @@ import type { CardIdeaSelection } from '../ideas/SaveLater';
 import MakeThisWork from '../adjustments/MakeThisWork';
 import type { ApplyAdjustment } from '../adjustments/MakeThisWork';
 import EventFinder from '../events/EventFinder';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { demoPlaces, evaluatePlaces, factValue, placeCategories, placeQuerySchema, placeResponseSchema, manualPlaces, correctedPlace, workKey, summaryForScope } from '@fuzl/planning';
 import type { PlaceQuery, PlaceResults, PlanningSummary, SavedSession, PlaceSearch, PlaceCorrection, PlaceResponse, PlaceDiscovery, IdeaReference } from '@fuzl/planning';
 import { privateRequest, SavedWorkError } from '../accounts/api';
@@ -16,6 +17,7 @@ import ManualPlace from './ManualPlace';
 export interface FinderProps { demoTravel?: import('@fuzl/planning').TravelContext; demoScope?: import('@fuzl/planning').ParticipationScope; participationVersion?: number; participationBlocked?: boolean; demoRanking?: Pick<ReturnType<typeof import('@fuzl/planning').discoveryFixture>, 'found' | 'history' | 'memories'>; token?: string; loaded?: SavedSession; summary: PlanningSummary; getEditRevision: () => number; initialQuery?: PlaceQuery; previewOnly?: boolean; onApplyAdjustment?: ApplyAdjustment; ideasVersion?: number; onSaveIdea?: (v: CardIdeaSelection) => void }
 const initial: PlaceQuery = { area: '', radiusKm: 5, category: 'any', date: null, start: null, end: null, timeZone: null };
 export default function PlaceFinder({ token, loaded, summary, getEditRevision, initialQuery = initial, previewOnly = false, onApplyAdjustment, ideasVersion, onSaveIdea, demoRanking, participationVersion, participationBlocked = false, demoScope, demoTravel }: FinderProps) {
+  const discovered=useDiscovered();
   const [balance, setBalance] = useState(false), [travelVersion, setTravelVersion] = useState(0);
   useEffect(() => { const invalidate = () => setTravelVersion(v => v + 1); window.addEventListener('fuzl-travel-history-change', invalidate); return () => window.removeEventListener('fuzl-travel-history-change', invalidate); }, []);
   const [preference, setPreference] = useState<DiscoveryPreference>('balanced');
@@ -36,6 +38,8 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
   const fingerprintFor = (q: PlaceQuery, m = manual, c = corrections, saved = savedIdeas) => JSON.stringify([q, m, c, saved, travelVersion, participationVersion, demoScope?.key, demoTravel, summary, loaded?.id, loaded?.revision]);
   const fingerprint = fingerprintFor(query);
   const boundary = (q: PlaceQuery) => JSON.stringify([q.area, q.resolutionId ?? null, q.radiusKm, q.category]);
+  const invalidateDiscovery=discovered.invalidate;
+  useEffect(()=>{if(result&&result.fingerprint!==fingerprint)invalidateDiscovery?.();},[fingerprint,result,invalidateDiscovery]);
   const latest = useRef(fingerprint);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { latest.current = fingerprint; }, [fingerprint]);
@@ -88,15 +92,17 @@ export default function PlaceFinder({ token, loaded, summary, getEditRevision, i
     if (next.length > 23) { setError('The temporary detail limit is reached. Clear recorded details before adding another place.'); return false; }
     latest.current = fingerprintFor(query, manual, next); setCorrections(next); void search(result?.data.mode ?? 'demo', undefined, true, next, key); return true;
   }
-  const card = (r: PlaceResults['promising'][number]) => <PlaceCard key={r.candidate.id} place={r} balanceReason={preferred?.moved.has(workKey(r.candidate))} busy={busy} onReview={review} onSaveLater={onSaveIdea && result?.data.workId ? () => onSaveIdea({ snapshotId: result.data.workId!, candidateKey: workKey(r.candidate), kind: 'place', hint: r.candidate.name, provider: r.candidate.savedIdea?.origin ?? r.candidate.source }) : undefined} />;
   const stale = outdated || !!result && result.fingerprint !== fingerprint;
-  const preferred = result && !stale ? preferredPlaces(result.data, preference, balance) : null;
+  const preferred = useMemo(()=>result && !stale ? preferredPlaces(result.data, preference, balance) : null,[result,stale,preference,balance]);
+  const publishPlaces=discovered.onPlaces;
+  useEffect(()=>{if(preferred)publishPlaces?.(preferred.result);},[preferred,publishPlaces]);
   const visible = preferred?.result ?? null;
-  return <section className="place-finder review-section">
+  const card = (r: PlaceResults['promising'][number]) => <PlaceCard key={r.candidate.id} place={r} balanceReason={preferred?.moved.has(workKey(r.candidate))} busy={busy} onReview={review} onSaveLater={onSaveIdea && result?.data.workId ? () => onSaveIdea({ snapshotId: result.data.workId!, candidateKey: workKey(r.candidate), kind: 'place', hint: r.candidate.name, provider: r.candidate.savedIdea?.origin ?? r.candidate.source }) : undefined} />;
+  return <section data-discovery-entry className="place-finder review-section">
     {!previewOnly && <button aria-expanded={open} onClick={() => setOpen(v => !v)}>Find places</button>}
     <div hidden={!open}><h3>Discover options for this plan</h3><p className="note">Use your applied planning facts and guest answers. Unreviewed AI claims stay unreviewed. These are suggestions, never a booking or confirmed plan. Search results and manual candidates are temporary; Save session does not save this shortlist.</p>
       <details><summary>Full session facts & checking scope</summary><ul>{summary.facts.filter(f => f.extraction?.scope !== 'historical').map(f => <li key={f.id}>{factValue(f)} · {f.strength} · {f.status}{f.extraction && !f.extraction.reviewed && <strong> · AI claim — unreviewed</strong>}{f.guest && ' · Applied guest answer'}</li>)}</ul><p className="note">These are the full retained session facts. Checks use the reviewed attendance scope; other people’s facts stay in the editor for Everyone together. Whole-group and unattributed requirements remain. Only confirmed, reviewed, attributed firm facts can verify or exclude. Tentative, conflicting, unknown-firmness or unreviewed information stays unresolved. Flexible preferences affect ordering. Free-text requirements may need manual checking.</p></details>
-      <div className="places-actions" role="group" aria-label="Discovery type"><button aria-pressed={discovery === 'places'} onClick={() => { sequence.current++; pending.current?.abort(); sending.current = false; setBusy(false); setDiscovery('places'); }}>Places</button><button aria-pressed={discovery === 'events'} onClick={() => { sequence.current++; pending.current?.abort(); sending.current = false; setBusy(false); setDiscovery('events'); }}>Events</button></div>
+      <div className="places-actions" role="group" aria-label="Discovery type"><button aria-pressed={discovery === 'places'} onClick={() => { sequence.current++; pending.current?.abort(); sending.current = false; setBusy(false); discovered.invalidate?.();setDiscovery('places'); }}>Places</button><button aria-pressed={discovery === 'events'} onClick={() => { sequence.current++; pending.current?.abort(); sending.current = false; setBusy(false); discovered.invalidate?.();setDiscovery('events'); }}>Events</button></div>
       <div className="form-grid"><label className="field"><span>Search area (US City, State or ZIP)</span><input maxLength={100} placeholder="Columbus, OH or 43210" value={query.area} onChange={e => change({ ...query, area: e.target.value })}/></label><label className="field"><span>Search radius in km</span><input type="number" min="1" max="30" step="1" value={query.radiusKm} onChange={e => change({ ...query, radiusKm: Number(e.target.value) })}/></label><label className="field" hidden={discovery !== 'places'}><span>Category</span><select value={query.category} onChange={e => change({ ...query, category: e.target.value as PlaceQuery['category'] })}>{placeCategories.map(c => <option key={c} value={c}>{c === 'any' ? 'All supported activities' : c}</option>)}</select></label></div>
       <div hidden={discovery !== 'places'}>
       <details><summary>Outing timing (optional; unknown stays unchecked)</summary><p className="note">Use a specific date, start/end and IANA time zone; a blank zone uses the matched venue’s reliable local zone when available. Ambiguous DST clocks stay unresolved. “Friday” remains unresolved until you correct the planning fact. These controls do not rewrite the summary. Radius measures a boundary around the area center, not travel time from anyone’s home.</p><div className="form-grid">{(['date', 'start', 'end', 'timeZone'] as const).map(k => <label className="field" key={k}><span>{k === 'timeZone' ? 'Time zone (e.g. America/New_York)' : k === 'date' ? 'Outing date' : k === 'start' ? 'Start time' : 'End time'}</span><input type={k === 'date' ? 'date' : k === 'timeZone' ? 'text' : 'time'} maxLength={80} value={query[k] ?? ''} onChange={e => change({ ...query, [k]: e.target.value || null })}/></label>)}</div></details>

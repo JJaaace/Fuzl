@@ -3,7 +3,8 @@ import type { TranscriptSnapshot } from '@fuzl/planning';
 import { useEffect, useRef, useState } from 'react';
 import FactEditor, { Field } from './FactEditor';
 import Questions from './Questions';
-import SummaryOverview from './SummaryOverview';
+import PlanOutings from './PlanOutings';
+import AskFuzl from './AskFuzl';
 import { blankFact, factKinds, factStatuses, factValue, kindLabels, subjectLabel } from './model';
 import type { FactKind, PlanningFact, PlanningSummary } from './model';
 import type { SummaryNextStep } from './summaryNextStep';
@@ -46,15 +47,22 @@ function FactCard({ fact, summary, sourceKind, transcript, provenance, available
   </article>;
 }
 
-export default function SummaryReview({ summary, sourceKind = 'sample', transcript, active = true, provenance = [], availableScreenshots = [], onChange, saveAction, proposal }: {
+export default function SummaryReview({ summary, sourceKind = 'sample', sampleId, transcript, active = true, provenance = [], availableScreenshots = [], onChange, saveAction, proposal }: {
   proposal?: ProposalContext; saveAction?: { label: string; onClick: () => void }; summary: PlanningSummary; active?: boolean; onChange: (summary: PlanningSummary) => void;
-  sourceKind?: 'sample' | 'manual' | 'ai'; transcript?: TranscriptSnapshot | null; provenance?: SavedProvenance; availableScreenshots?: string[];
+  sampleId?: string; sourceKind?: 'sample' | 'manual' | 'ai'; transcript?: TranscriptSnapshot | null; provenance?: SavedProvenance; availableScreenshots?: string[];
 }) {
   const [newKind, setNewKind] = useState<FactKind>('schedule');
   const [newFact, setNewFact] = useState<PlanningFact | null>(null);
   const [shortcutNotice, setShortcutNotice] = useState('');
   const [changed, setChanged] = useState<FactChange | null>(null);
-  const lastPerson = useRef<string | null>(null), localEdits = useRef(0), advanced = useRef<HTMLDetailsElement>(null);
+  const detailsBeforePersonEdit=useRef(false);
+  useEffect(()=>{
+    if(!changed||changed.settled)return;
+    const timer=setTimeout(()=>setChanged(value=>value?.sequence===changed.sequence?{...value,settled:true}:value),1200);
+    return ()=>clearTimeout(timer);
+  },[changed]);
+  const lastPerson = useRef<string | null>(null), localEdits = useRef(0), advanced = useRef<HTMLDetailsElement>(null), questions = useRef<HTMLDetailsElement>(null);
+  const group = useRef<HTMLDetailsElement>(null);
   const root = useRef<HTMLDivElement>(null), facts = useRef<HTMLDetailsElement>(null), people = useRef<HTMLDetailsElement>(null);
   const focusFrame = useRef<number | null>(null);
   useEffect(() => () => { if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current); }, []);
@@ -63,6 +71,7 @@ export default function SummaryReview({ summary, sourceKind = 'sample', transcri
     if (details) { if (advanced.current) advanced.current.open = true; details.open = true; focusAndReveal(details.querySelector('summary')); }
   }
   function takeNextStep(target: SummaryNextStep = next, personId?: string) {
+    if(target.kind==='tools'){const tools=root.current?.querySelector<HTMLDetailsElement>('.planning-tools');if(tools){tools.open=true;focusAndReveal(tools.querySelector('button:not(:disabled)')??tools.querySelector('summary'));}return;}
     if (target.kind === 'save') { if (saveAction) saveAction.onClick(); else revealDetails(facts.current); return; }
     let card: HTMLElement | undefined;
     if (target.kind === 'fact' || target.kind === 'question') {
@@ -74,7 +83,8 @@ export default function SummaryReview({ summary, sourceKind = 'sample', transcri
       setShortcutNotice('Apply or cancel the open edit first. Your fields were kept.');
       focusAndReveal(pending.querySelector('input')); return;
     }
-    setShortcutNotice(''); lastPerson.current = personId ?? null;
+    setShortcutNotice(''); if(personId)detailsBeforePersonEdit.current=advanced.current?.open??false; lastPerson.current = personId ?? null;
+    if(target.kind==='question' && questions.current)questions.current.open=true;
     if (target.kind !== 'question' && advanced.current) advanced.current.open = true;
     if (target.kind !== 'question' && facts.current) facts.current.open = true;
     if (target.kind === 'fact' || target.kind === 'question') {
@@ -91,24 +101,23 @@ export default function SummaryReview({ summary, sourceKind = 'sample', transcri
       focusAndReveal(container?.querySelector<HTMLElement>(date ? '.fact-form input[type=date]' : '.fact-form input') ?? null);
     });
   }
-  return <div className="summary-review" ref={root} onInputCapture={() => {localEdits.current++;}} onClickCapture={() => { if (shortcutNotice) setShortcutNotice(''); }}>
-    <SummaryOverview summary={summary} active={active} nextAction={<>
-      <PlanSuggestions {...proposal} summary={summary} getEditRevision={() => (proposal?.getEditRevision?.() ?? 0) + localEdits.current}/>
-      <div className="plan-secondary-actions"><button type="button" data-workspace-navigation className="quiet summary-primary" onClick={() => takeNextStep()}>{next.kind === 'save' ? saveAction?.label ?? 'Review all facts' : next.label}</button>
-      {saveAction && next.kind !== 'save' && <button type="button" data-workspace-navigation className="quiet summary-save-shortcut" onClick={saveAction.onClick}>{saveAction.label}</button>}</div>
-      <p className="note">{next.hint}</p>{shortcutNotice && <p className="note" role="status">{shortcutNotice}</p>}
-    </>}/>
+  return <div className="summary-review" data-active={active} ref={root} onInputCapture={() => {localEdits.current++;}} onClickCapture={() => { if (shortcutNotice) setShortcutNotice(''); }}>
+    <PlanOutings summary={summary} sample={sourceKind==='sample'} sampleId={sampleId} context={{...proposal,getEditRevision:()=> (proposal?.getEditRevision?.()??0)+localEdits.current}} saveAction={saveAction} onClarify={()=>takeNextStep()} clarifyLabel={next.label}/>
+    {shortcutNotice&&<p role="status">{shortcutNotice}</p>}
+    <AskFuzl summary={summary} sample={sourceKind==='sample'} context={{...proposal,getEditRevision:()=> (proposal?.getEditRevision?.()??0)+localEdits.current}} onEdit={id=>takeNextStep({kind:'fact',id,label:'Edit fact',hint:''})} onSource={id=>{
+      if(advanced.current)advanced.current.open=true;if(facts.current)facts.current.open=true;
+      const card=[...(root.current?.querySelectorAll<HTMLElement>('.fact-card')??[])].find(card=>card.dataset.factId===id);
+      const text=card?.querySelector<HTMLDetailsElement>('.supporting-text');if(text)text.open=true;focusAndReveal(text?.querySelector('summary')??card??null);
+    }}/>
+    <details className="group-details compact-disclosure" ref={group}><summary>Group details · {summary.participants.length} people</summary>
     <PeopleCards summary={summary} sourceKind={sourceKind} transcript={transcript} provenance={provenance} availableScreenshots={availableScreenshots} changed={changed}
       onEditFact={(id,personId) => takeNextStep({kind:'fact',id,label:'Edit fact',hint:''}, personId)}
       onEditName={id => { if (root.current?.querySelector('.fact-form')) {setShortcutNotice('Apply or cancel the open edit first. Your fields were kept.');return;} revealDetails(people.current); focusAndReveal(people.current?.querySelectorAll<HTMLInputElement>('.participant-fields input')[summary.participants.findIndex(p=>p.id===id)] ?? null); }}/>
-    <div className="summary-tools" role="group" aria-label="Summary details" data-workspace-navigation>
-      <button className="quiet" onClick={() => focusAndReveal(root.current?.querySelector<HTMLElement>('#questions-title') ?? null)}>Review questions</button>
-      <button className="quiet" onClick={() => revealDetails(people.current)}>People &amp; attribution</button>
-      <button className="quiet" onClick={() => revealDetails(facts.current)}>All facts &amp; sources</button>
-    </div>
-    <Questions summary={summary} onChange={onChange} showEmptyNotice={false} />
+    </details>
+    <details className="open-questions compact-disclosure" ref={questions}><summary>Open questions ({summary.questions.filter(q=>q.resolution===null).length})</summary><Questions summary={summary} onChange={onChange} showEmptyNotice={true}/></details>
+    <details className="planning-tools compact-disclosure"><summary>Planning tools</summary><PlanSuggestions {...proposal} summary={summary} getEditRevision={() => (proposal?.getEditRevision?.() ?? 0) + localEdits.current}/></details>
     {!!summary.organizerDecisions?.length && <details className="review-section organizer-decisions"><summary>Organizer decisions ({summary.organizerDecisions.length})</summary><p className="note">Explicit working-session decisions, separate from original conversation evidence. They do not change a published plan or any RSVP.</p><ul>{summary.organizerDecisions.map(d => <li key={d.id}><strong>{d.before} → {d.after}</strong><p>{d.reason}</p><p className="note">{new Date(d.recordedAt).toLocaleString()} · Original source references: {d.sourceIds.join(', ') || 'Manual fact'}</p>{d.checks?.flatMap(c => [c.evidence.travel, c.evidence.booking].filter(Boolean).map((e, i) => <p key={`${c.key}:${i}`}><a href={e!.sourceUrl} target="_blank" rel="noreferrer">Organizer-recorded check source</a> · Checked {e!.checkedOn} · {e!.destination}</p>))}</li>)}</ul></details>}
-    <details className="plan-details" ref={advanced}><summary>Details · facts, sources &amp; speaker mappings</summary>
+    <details className="plan-details" ref={advanced}><summary>Sources</summary>
     <details ref={people} data-section-entry className="people-details review-section">
       <summary><span>Participants &amp; speaker mappings</span><span className="muted">Edit names &amp; attribution</span></summary>
       <p className="note">Names are editable aliases. Speaker mappings update the attribution of linked facts; original quotes stay unchanged.</p>
@@ -141,11 +150,13 @@ export default function SummaryReview({ summary, sourceKind = 'sample', transcri
         onChange({ ...summary, facts: summary.facts.map(item => item.id === next.id ? next : item) });
         setChanged(previous => ({id:next.id,sequence:(previous?.sequence ?? 0)+1}));
         if (lastPerson.current) {
+          if(!detailsBeforePersonEdit.current&&advanced.current)advanced.current.open=false;
           lastPerson.current = null;
           if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
           focusFrame.current = requestAnimationFrame(() => {
             focusFrame.current = null;
-            const row = [...(root.current?.querySelectorAll<HTMLElement>('[data-person-fact]') ?? [])].find(element => element.dataset.personFact === next.id);
+            if(group.current)group.current.open=true;
+            const row = [...(root.current?.querySelectorAll<HTMLElement>('[data-person-fact], [data-person-detail-fact]') ?? [])].find(element => (element.dataset.personFact ?? element.dataset.personDetailFact) === next.id);
             for (let parent = row?.parentElement; parent; parent=parent.parentElement) if(parent instanceof HTMLDetailsElement) parent.open=true;
             focusAndReveal(row ?? null);
           });

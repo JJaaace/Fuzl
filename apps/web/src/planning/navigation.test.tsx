@@ -100,8 +100,8 @@ test('the opening composer is empty and explicit; samples reveal a compact plan 
   assert.equal([...document.querySelectorAll('.stage-nav button')].filter(visible).length, 0, 'a disabled next step is not useful navigation yet');
   await sample();
   assert.equal(document.querySelector('#summary-title')!.textContent, 'Friday, maybe');
-  assert.equal(document.querySelectorAll('.summary-panel .plan-overview').length, 1); assert.equal(document.querySelector('.plan-overview')?.nextElementSibling?.className, 'people-section');
-  assert.equal(document.querySelectorAll('.people-grid .person-card').length, examples[1].summary.participants.length); assert.ok(button('Suggest a plan'));
+  assert.equal(document.querySelectorAll('.summary-panel .plan-outings').length, 1); assert.equal(document.querySelector<HTMLDetailsElement>('.group-details')!.open,false);
+  assert.equal(document.querySelectorAll('.people-grid .person-card').length, examples[1].summary.participants.length); assert.ok(button('Review the date')); assert.equal(document.querySelector<HTMLDetailsElement>('.planning-tools')?.open,false);
   assert.equal([...document.querySelectorAll('.stage-nav button')].filter(visible).length, 2);
   assert.ok(![...document.querySelectorAll('.stage-nav button')].filter(visible).some((item) => item.textContent?.includes('Transcript')));
   await reviewFacts(); await click(button('Edit fact'));
@@ -188,13 +188,13 @@ test('mode, stage and saved-group navigation preserve draft nodes, unapplied fac
 test('the summary entrance settles once and does not restart after editing or a quick stage switch', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   await mount(t); await sample();
-  assert.ok(document.querySelector('.summary-panel .summary-overview')!.classList.contains('is-revealing'));
+  assert.ok(document.querySelector('.summary-panel .plan-outings')!.classList.contains('is-revealing'));
   await act(async () => { t.mock.timers.tick(100); }); await stage('Conversation');
   await act(async () => { t.mock.timers.tick(240); }); await stage('Plan');
-  const overview = document.querySelector('.summary-panel .summary-overview')!;
+  const overview = document.querySelector('.summary-panel .plan-outings')!;
   assert.ok(!overview.classList.contains('is-revealing'));
   await reviewDetails(); await click(document.querySelector('.people-details > summary')); await enter(input('Participant 1 name'), 'Still editing');
-  assert.equal(document.querySelector('.summary-panel .summary-overview'), overview); assert.ok(!overview.classList.contains('is-revealing'));
+  assert.equal(document.querySelector('.summary-panel .plan-outings'), overview); assert.ok(!overview.classList.contains('is-revealing'));
 });
 
 test('AI preview acceptance is explicit; declined replacement keeps the exact editor, and edit-back cannot bypass staleness', async (t) => {
@@ -219,6 +219,7 @@ test('AI preview acceptance is explicit; declined replacement keeps the exact ed
   await click(button('Analyze conversation')); await click(button('Use extracted summary'));
   assert.equal(analyses, 2); assert.ok(visible(document.querySelector('.summary-panel')!));
   assert.ok(document.querySelector('.summary-panel')!.textContent!.includes('AI claim — unreviewed'));
+  assert.equal(document.querySelector('#summary-title')?.textContent,'Bowling suggested');
   assert.notEqual(document.querySelector('.summary-panel .fact-form'), original);
 });
 
@@ -393,7 +394,7 @@ for (const reduced of [false, true]) for (const [index, example] of examples.ent
   let replace=false;t.mock.method(window,'confirm',()=>replace);const card=gallery.querySelectorAll('.sample-card')[index];assert.ok(card.getAttribute('aria-label')?.startsWith('Open sample:'));
   await click(card);assert.equal(draft.value,'Synthetic unsaved draft.');assert.equal(document.querySelector('.summary-panel'),null);
   replace=true;await click(card);assert.equal(draft.value,example.conversation);assert.equal(document.querySelector('#summary-title')?.textContent,card.querySelector('.sample-card-name')?.textContent);
-  const order=[...document.querySelectorAll('.summary-overview, .people-section, [aria-labelledby="questions-title"]')].map(e=>e.classList[0]);assert.deepEqual(order,['summary-overview','people-section','review-section']);
+  const order=[...document.querySelectorAll('.plan-outings, .people-section, [aria-labelledby="questions-title"]')].map(e=>e.classList[0]);assert.deepEqual(order,['plan-outings','people-section','review-section']);
   assert.equal(calls.filter(url=>url!=='/api/ai-config').length,0);
 });
 
@@ -430,11 +431,11 @@ test('Friday, maybe focuses its summary and opens the unknown exact date without
   await click(document.querySelector('[aria-label="Open sample: Friday, maybe"]'));
   await act(async () => { await new Promise(r => setTimeout(r, 25)); });
   assert.equal(document.activeElement?.id, 'summary-title');
-  const overview = document.querySelector('.summary-overview')!;
-  assert.ok(overview.textContent?.includes('This Friday evening; reference date unknown'));
-  assert.ok(overview.textContent?.includes('Exact date unresolved'));
+  const overview = document.querySelector('.plan-outings')!;
+  assert.ok(overview.textContent?.includes('Bowling')); assert.ok(overview.textContent?.includes('Friday evening · tentative'));
+  assert.ok(overview.textContent?.includes('Which Friday works for everyone?'));
   assert.ok(document.querySelector('.people-section')?.textContent?.includes('Tentative'));
-  assert.equal(overview.querySelectorAll('button.primary').length, 1);
+  assert.equal(overview.querySelectorAll('button.primary').length,3);
   assert.ok(!document.querySelector('.intro')?.textContent?.includes('Bring the chat'));
   assert.ok(!document.body.textContent?.includes('A little closer to a plan'));
   await click(button('Review the date'));
@@ -467,7 +468,7 @@ test('conflict shortcut opens its existing question and never resolves requireme
 
 test('blank summary has an immediate manual-entry action and keeps its unapplied fields on repeated navigation', async t => {
   const { calls } = await mount(t); await click(button('Start blank summary'));
-  assert.ok(document.querySelector('.summary-overview')?.textContent?.includes('Choose an activity together'));
+  assert.ok(document.querySelector('.plan-outings')?.textContent?.includes('Outings to consider'));
   await click(button('Add planning details'));
   await act(async () => { await new Promise(r => setTimeout(r, 25)); });
   const form = document.querySelector('.new-fact .fact-form')!;
@@ -486,7 +487,7 @@ test('date shortcut preserves another unapplied editor and explains how to conti
   await click(button('Review the date'));
   assert.equal(document.querySelector('[data-fact-id="b-abudget"] .fact-form'), form); assert.equal(field.value, '12');
   assert.equal(document.activeElement, field);
-  assert.ok(document.querySelector('.plan-next-action [role=status]')?.textContent?.includes('Your fields were kept'));
+  assert.ok(document.querySelector('.summary-review > [role=status]')?.textContent?.includes('Your fields were kept'));
   assert.equal(document.querySelector('[data-fact-id="b-date"] .fact-form'), null);
 });
 
@@ -545,9 +546,9 @@ test('Saturday title and save shortcut describe the real action, with one empty-
   assert.ok(panel.querySelector('.eyebrow')?.textContent?.includes('Sample plan'));
   assert.equal((panel.textContent?.match(/No open questions recorded/g)||[]).length,1);
   assert.ok(!panel.textContent?.includes('No missing details flagged here'));
-  const overview=panel.querySelector('.summary-overview')!;
-  assert.ok(overview.textContent?.includes('Bowling — idea only, not booked'));
-  assert.ok(overview.textContent?.includes('proposed')); assert.ok(overview.textContent?.includes('confirmed'));
+  const overview=panel.querySelector('.plan-outings')!;
+  assert.ok(overview.textContent?.includes('Bowling'));
+  assert.ok(overview.textContent?.includes('Sample activity idea')); assert.ok(overview.textContent?.includes('confirmed availability')); assert.equal(document.querySelector('[data-fact-id="a-activity"] .fact-status')?.textContent,'proposed');
   await click(button('Review save options')); assert.equal(document.activeElement,panel.querySelector('.save-session'));
   assert.ok(panel.querySelector('.save-session')?.textContent?.includes('supporting message excerpts'));
   await click(button('Sign in to save session')); assert.ok(visible(document.querySelector('#groups-main')!));
@@ -556,8 +557,19 @@ test('Saturday title and save shortcut describe the real action, with one empty-
 
 test('open-question overview leads with the specific Friday issue and manual titles come from their own data', async t => {
   await mount(t); await sample();
-  assert.equal(document.querySelector('.plan-open-question')?.textContent,examples[1].summary.questions[0].text);
+  assert.ok(document.querySelector('.outing-clarification p')?.textContent?.startsWith('Which Friday works for everyone?')); assert.equal(document.querySelector<HTMLDetailsElement>('.open-questions')?.open,false); assert.equal(document.querySelector('.open-questions > summary')?.textContent,'Open questions (3)');
   await stage('Conversation'); await click(button('Start blank summary'));
   assert.equal(document.querySelector('#summary-title')?.textContent,'Manual summary');
   assert.ok(!document.querySelector('.summary-panel > .draft-heading')?.textContent?.includes('Sample plan'));
+});
+
+test('question disclosure opens the existing question editor and focuses it; edits preserve the real count',async t=>{
+  const {calls}=await mount(t);await sample();
+  assert.equal(document.querySelector<HTMLDetailsElement>('.open-questions')!.open,false);
+  await click(document.querySelector('.open-questions > summary'));await click(document.querySelector('[data-question-id="bq1"] [data-edit-question]'));await act(async()=>{await new Promise(r=>setTimeout(r,25));});
+  const question=document.querySelector('[data-question-id="bq1"]')!;
+  assert.equal(document.querySelector<HTMLDetailsElement>('.open-questions')!.open,true);
+  assert.ok(question.contains(document.activeElement));assert.ok(question.querySelector('.fact-form'));
+  assert.equal(document.querySelector('.open-questions > summary')?.textContent,'Open questions (3)');
+  assert.equal(calls.filter(url=>url!=='/api/ai-config').length,0);
 });

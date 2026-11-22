@@ -40,10 +40,11 @@ test('nullable money, zero, currencies and ambiguous/tentative dates remain expl
   const unknown=structuredClone(value);unknown.summary.facts[0].sourceIds=['missing'];assert.ok(!planProposalRequestSchema.safeParse(unknown).success);
 });
 
-test('unreviewed and historical ideas cannot become supplied choices, and incompatible firm windows exclude options',async()=>{
+test('source-linked unreviewed ideas can guide proposals, while historical/unsupported ideas and firm conflicts remain blocked',async()=>{
   const value=raisedBudget();value.manual=[];
   const idea=value.summary.facts.find(f=>f.kind==='activity')!;idea.extraction={reviewed:false,scope:'current',reportedStatus:'proposed',uncertainty:'Synthetic unreviewed idea',supersedes:[]};
-  assert.equal((await proposePlan(value,signal(),{},true)).candidates.length,0);
+  assert.equal((await proposePlan(value,signal(),{},true)).candidates.length,1);
+  const sources=idea.sourceIds;idea.sourceIds=[];assert.equal((await proposePlan(value,signal(),{},true)).candidates.length,0);idea.sourceIds=sources;
   idea.extraction.reviewed=true;idea.extraction.scope='historical';assert.equal((await proposePlan(value,signal(),{},true)).candidates.length,0);
   const conflict=raisedBudget();const timing=conflict.summary.facts.find(f=>f.id==='date-1');if(timing?.kind==='schedule'){timing.startTime='21:00';timing.endTime='22:00';}
   const result=await proposePlan(conflict,signal(),{},false,{choose:async()=>{throw Error('not eligible');}});assert.equal(result.selectedId,null);assert.ok(result.candidates[0].checks.some(c=>c.kind==='timing'&&c.status==='does-not-fit'));
@@ -102,4 +103,27 @@ test('missing Gemini credentials and a different selected provider never cause a
   await assert.rejects(proposePlan(raisedBudget(),signal(),{},false),e=>e instanceof ExtractionError&&e.code==='ai_not_configured');
   process.env.AI_PROVIDER='openai';env(t,'OPENAI_API_KEY','synthetic-unused-openai-key');
   await assert.rejects(proposePlan(raisedBudget(),signal(),{},false),e=>e instanceof ExtractionError&&e.code==='proposal_provider');assert.equal(calls,0);
+});
+
+test('general Friday proposals preserve unresolved dates and tentative attendance without requiring a date-specific lookup',async()=>{
+  const summary=input().summary;for(const fact of summary.facts)if(fact.kind==='schedule'){fact.exactDate=null;fact.startTime=null;fact.endTime=null;fact.description='Maybe Friday';fact.status='tentative';}const before=JSON.stringify(summary);let calls=0;
+  const response=await proposePlan({summary,manual:[],expectedProvider:'gemini'},signal(),{},false,{choose:async data=>{calls++;assert.equal(data.window.date,null);return{id:data.candidates[0].id,metrics:null};}});
+  assert.equal(calls,1);assert.equal(response.window.date,null);assert.ok(response.candidates.every(c=>c.status==='needs-checking'));assert.equal(JSON.stringify(summary),before);
+});
+
+test('saved context projects date readiness before the suggestion prerequisite, preserving scoped planning',async()=>{
+  const value=raisedBudget();value.saved=saved;for(const f of value.summary.facts)if(f.kind==='schedule'){f.exactDate=null;f.status='tentative';}
+  const result=await proposePlan(value,signal(),headers,false,{verify:async()=> 'owner',store:()=>({context:async()=>({version:'same',checkingSummary:raisedBudget().summary,privateSpending:[]})}),choose:async body=>{assert.equal(body.window.date,'2099-04-18');return{id:body.candidates[0].id,metrics:null};}});
+  assert.ok(result.selectedId);assert.equal(result.window.date,'2099-04-18');assert.equal(value.summary.facts[0].status,'tentative');
+});
+
+test('accepted source-linked extraction facts guide a proposal without per-card approval, and remain unreviewed with original evidence',async()=>{
+  const value=raisedBudget();value.manual=[];for(const f of value.summary.facts){f.extraction={reviewed:false,reportedStatus:f.status,scope:'current',uncertainty:'Source-reported synthetic claim',supersedes:[]};if(f.status==='confirmed')f.status='proposed';}
+  const original=JSON.stringify(value.summary);let calls=0;
+  const result=await proposePlan(value,signal(),{},false,{choose:async body=>{calls++;assert.equal(body.window.date,'2099-04-18');assert.match(body.window.label,/proposed window/);return{id:body.candidates[0].id,metrics:null};}});
+  assert.equal(calls,1);assert.ok(result.selectedId);assert.equal(result.candidates[0].status,'needs-checking');assert.equal(JSON.stringify(value.summary),original);
+  value.manual=peopleFixture(2).manual;for(const f of value.summary.facts)if(f.id==='budget-1'&&f.kind==='budget')f.amount=20;
+  const rejected=await proposePlan(value,signal(),{},false,{choose:async()=>{throw Error('firm source-reported budget must exclude this option');}});assert.equal(rejected.selectedId,null);assert.equal(rejected.candidates[0].status,'does-not-fit');assert.match(JSON.stringify(rejected),/source-reported firm limit/);
+  const corrected=value.summary.facts.find(f=>f.id==='budget-1')!;corrected.status='tentative';corrected.extraction!.reviewed=true;
+  const updated=await proposePlan(value,signal(),{},true);assert.equal(updated.candidates[0].status,'needs-checking','an organizer correction overrides the older AI-reported confirmation');assert.ok(!updated.candidates[0].checks.some(c=>c.kind==='budget'&&c.status==='does-not-fit'));
 });

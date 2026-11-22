@@ -21,7 +21,11 @@ export default function OrganizerBallot({ token, loaded, content, onContent, onM
     void (demoRequest ? demoRequest('', 'GET') : privateRequest(token!, `/sessions/${loadedId}/ballots`, controller.signal)).then(raw => {
       if (controller.signal.aborted) return;
       const data = ballotDashboardSchema.parse(raw); setDashboard(data);
-      if (!loadedOnce.current && changeRevision() === at && data.shortlist) { onContent(data.shortlist.content); setSavedContent(JSON.stringify(data.shortlist.content)); setDraftRevision(data.shortlist.revision); }
+      if (!loadedOnce.current && data.shortlist) {
+        setSavedContent(JSON.stringify(data.shortlist.content));setDraftRevision(data.shortlist.revision);
+        if(at===0 && changeRevision()===at)onContent(data.shortlist.content);
+        else onMessage('Local shortlist choices were kept. Reload the saved shortlist explicitly to replace them.');
+      }
       loadedOnce.current = true;
     }).catch(() => { if (!controller.signal.aborted) onMessage('Could not load ballots. Check migrations/connection and refresh deliberately; local selections were kept.'); });
     return () => { controller.abort(); pending.current?.abort(); };

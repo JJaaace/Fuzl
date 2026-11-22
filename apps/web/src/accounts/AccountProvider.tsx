@@ -1,3 +1,4 @@
+import { clearChatCredentials } from '../chat/client';
 import { AccountIdentity } from './api';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -9,7 +10,7 @@ const storageKey = 'fuzl-organizer-auth';
 export function AccountProvider({ children, magicLink = null }: { children: ReactNode; magicLink?: MagicLinkCallback | null }) {
   const [linkMessage, setLinkMessage] = useState(magicLink ? 'Completing email-link sign-in…' : '');
   const [privacyEpoch, setPrivacyEpoch] = useState(0);
-  const identity = useRef(new AccountIdentity());
+  const identity = useRef(new AccountIdentity()), lastIdentityEpoch=useRef(0);
   const [session, setSession] = useState<Session | null>(null);
   const [client, setClient] = useState<SupabaseClient | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,7 +20,10 @@ export function AccountProvider({ children, magicLink = null }: { children: Reac
   const linkHandled = useRef(false);
   function acceptSession(next: Session | null) {
     const nextId = next?.user.id ?? null;
-    setPrivacyEpoch(identity.current.accept(nextId)); setSession(next);
+    const previous=lastIdentityEpoch.current;
+    const epoch=identity.current.accept(nextId);
+    if(epoch!==previous){try{clearChatCredentials();}catch{/* Private browser storage may be unavailable. */}}
+    lastIdentityEpoch.current=epoch;setPrivacyEpoch(epoch); setSession(next);
   }
   useEffect(() => {
     const controller = new AbortController(); let subscription: { unsubscribe: () => void } | undefined; let auth: SupabaseClient | undefined;

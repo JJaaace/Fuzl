@@ -60,14 +60,14 @@ function GroupLibrary({ token, active, onOpen, onWorkspace }: { token: string; a
             await privateRequest(token, `/groups/${selected.id}`, active.signal, 'DELETE'); if (active.signal.aborted) return; setSelected(null); setSessions([]); setVersion((value) => value + 1);
           }); }}>Delete group</button></div>
         <button onClick={onWorkspace}>Go to workspace to save a session</button>
-        <GroupHistory key={selected.id} token={token} groupId={selected.id} active={active} refreshKey={version} disabled={busy} onOpen={sessionId => act(async current => {
+        <a className="group-conversations-link" href={`/chat?group=${selected.id}`}>Open group conversations →</a><GroupHistory key={selected.id} token={token} groupId={selected.id} active={active} refreshKey={version} disabled={busy} onOpen={sessionId => act(async current => {
           const result = validateLoadedSession(await privateRequest<SavedSession>(token, `/sessions/${sessionId}`, current.signal)); if (!current.signal.aborted) onOpen(result, true);
         })}/>
         <h3>Saved planning sessions</h3>
         <ul className="session-list">{sessions.map((item) => <li key={item.id}><strong>{item.title}</strong><p className="note">Updated {new Date(item.updatedAt).toLocaleString()}</p>
           <div className="actions"><button disabled={busy} onClick={() => void act(async (active) => {
             const result = validateLoadedSession(await privateRequest<SavedSession>(token, `/sessions/${item.id}`, active.signal)); if (!active.signal.aborted) onOpen(result);
-          })}>Open session</button><button className="danger quiet" disabled={busy} onClick={() => { if (!window.confirm(`Delete “${item.title}”, including its saved summary and source excerpts?`)) return;
+          })}>Open session</button><a href={`/chat?group=${item.groupId}&session=${item.id}`}>Start outing conversation →</a><button className="danger quiet" disabled={busy} onClick={() => { if (!window.confirm(`Delete “${item.title}”, including its saved summary and source excerpts?`)) return;
             void act(async (active) => { await privateRequest(token, `/sessions/${item.id}`, active.signal, 'DELETE'); if (!active.signal.aborted) { setSessions((current) => current.filter((entry) => entry.id !== item.id)); setVersion((value) => value + 1); } });
           }}>Delete session</button></div></li>)}</ul>
       </> : <p>Create a group or choose one to see its saved sessions.</p>}</div></div><p role="status" aria-live="polite">{message}</p><button onClick={() => setVersion((value) => value + 1)}>Refresh groups</button>

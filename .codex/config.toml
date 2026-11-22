@@ -1,0 +1,7 @@
+# Project-only browser verification. No existing browser profile or saved login.
+[mcp_servers.fuzl_playwright]
+command = "npx"
+cwd = "/Users/jacejoseph/VS CODE/Fuzl/Fuzl"
+args = ["--yes", "@playwright/mcp@0.0.86", "--browser", "chrome", "--headless", "--isolated", "--caps", "devtools", "--viewport-size", "1440x1000", "--output-dir", "artifacts/design/section12a", "--redact-url-params", "access_token,refresh_token,token,code,invite"]
+startup_timeout_sec = 60
+tool_timeout_sec = 60

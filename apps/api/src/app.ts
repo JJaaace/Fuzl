@@ -1,3 +1,5 @@
+import { chatRouter } from './chat/router.js';
+import type { ChatOptions } from './chat/router.js';
 import { publicOutingRouter } from './outings/router.js';
 import type { OutingOptions } from './outings/router.js';
 import { publicPlanRouter } from './plans/router.js';
@@ -25,7 +27,7 @@ import { planProposalRequestSchema, planProposalResponseSchema } from '@fuzl/pla
 import type { PlanProposalRequest } from '@fuzl/planning';
 
 type Extractor = (request: AnalysisRequest, signal: AbortSignal) => Promise<AnalysisResponse>;
-export function createApp(options: { proposals?: ProposalOptions; outings?: OutingOptions; plans?: PlanOptions; ballots?: BallotOptions; guests?: GuestOptions; accounts?: Parameters<typeof accountRouter>[0]; transcribe?: (request: ScreenshotReadRequest, signal: AbortSignal) => Promise<TranscriptionResponse>; extract?: Extractor; checkConfiguration?: () => void; now?: () => number; timeoutMs?: number } = {}) {
+export function createApp(options: { chat?:ChatOptions; proposals?: ProposalOptions; outings?: OutingOptions; plans?: PlanOptions; ballots?: BallotOptions; guests?: GuestOptions; accounts?: Parameters<typeof accountRouter>[0]; transcribe?: (request: ScreenshotReadRequest, signal: AbortSignal) => Promise<TranscriptionResponse>; extract?: Extractor; checkConfiguration?: () => void; now?: () => number; timeoutMs?: number } = {}) {
   const app = express();
   app.disable('x-powered-by');
   const extract = options.extract ?? extractConversation;
@@ -137,6 +139,7 @@ export function createApp(options: { proposals?: ProposalOptions; outings?: Outi
   app.use('/api/plan', publicPlanRouter(options.plans));
   app.use('/api/ballot', publicBallotRouter(options.ballots));
   app.use('/api/guest', publicGuestRouter(options.guests));
+  app.use('/api/chat', chatRouter(options.chat));
   app.use('/api', accountRouter({ ...options.accounts, outings: options.outings ?? options.accounts?.outings, guests: options.guests ?? options.accounts?.guests, ballots: options.ballots ?? options.accounts?.ballots, plans: options.plans ?? options.accounts?.plans }));
   app.use(errors);
   return app;

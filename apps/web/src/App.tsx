@@ -1,3 +1,4 @@
+import { privateRequest } from './accounts/api';
 import { WorkspaceEdits } from './accounts/api';
 import { applyGuestAnswer, excerptProvenance, MAX_CONVERSATION_LENGTH, supportingSummary, proposalFactUsable } from '@fuzl/planning';
 import type { SavedSession } from '@fuzl/planning';
@@ -41,7 +42,7 @@ function Workspace() {
   const [navigation, setNavigation] = useState(initialNavigation);
   const transition = (action: NavigationAction) => setNavigation((current) => navigateWorkspace(current, action));
   const { stage, mode, transcriptReady, previewReady } = navigation;
-  const [view, setView] = useState<'workspace' | 'groups'>('workspace');
+  const [view, setView] = useState<'workspace' | 'groups'>(()=>typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('view')==='groups'?'groups':'workspace');
   const [loadedSession, setLoadedSession] = useState<SavedSession | null>(null);
   const workspaceEdits = useRef(new WorkspaceEdits());
   const [dirty, setDirty] = useState(false);
@@ -112,6 +113,14 @@ function Workspace() {
       heading?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
     });
   }
+  const routeSession=useRef(false),openRouteSession=useRef(openSaved);
+  useEffect(()=>{openRouteSession.current=openSaved;});
+  useEffect(()=>{
+    const selected=new URLSearchParams(window.location.search).get('session');if(!selected||!session?.access_token||routeSession.current||!/^[\da-f-]{36}$/i.test(selected))return;
+    routeSession.current=true;let completed=false;const controller=new AbortController(),at=workspaceEdits.current.revision;
+    void privateRequest<SavedSession>(session.access_token,`/sessions/${selected}`,controller.signal).then(saved=>{if(!controller.signal.aborted&&workspaceEdits.current.revision===at){openRouteSession.current(saved);completed=true;}}).catch(()=>{if(!controller.signal.aborted){routeSession.current=false;window.alert('This session could not be opened. Sign in with its organizer account and reopen it from Saved groups. Your current work was kept.');}});
+    return()=>{controller.abort();if(!completed)routeSession.current=false;};
+  },[session?.access_token]);
   function openExample(id: string) {
     const example = examples.find(item => item.id === id);
     if (!example) return;
@@ -127,7 +136,7 @@ function Workspace() {
       <a className="skip-link" href={view === 'groups' ? '#groups-main' : '#workspace-main'}>Skip to main content</a>
       <header className="app-header">
         <button className="brand" aria-label="Fuzl workspace" onClick={() => setView('workspace')}><Logo playOnMount hoverReplay /><span className="wordmark">Fuzl</span></button>
-        <nav className="workspace-nav" aria-label="Main navigation">
+        <nav className="workspace-nav" aria-label="Main navigation"><a className="nav-button" href="/chat">Conversations</a>
           <button className="nav-button" aria-current={view === 'workspace' ? 'page' : undefined} onClick={() => setView('workspace')}><span>Workspace</span></button>
           <button className="nav-button" aria-current={view === 'groups' ? 'page' : undefined} onClick={() => setView('groups')}><span>Saved groups</span></button>
         </nav>

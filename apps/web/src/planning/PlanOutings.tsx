@@ -1,3 +1,5 @@
+import AIActivity from '../ui/AIActivity';
+import type {AIPhase} from '../ui/AIActivity';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { assessIdeaOptions, manualPlaces, proposalWindow, moneyText, planProposalResponseSchema, ballotOptionSchema, shortlistPlace, shortlistEvent } from '@fuzl/planning';
 import type { AssessedPlace, BallotOption, PlanningSummary, PlanProposalResponse } from '@fuzl/planning';
@@ -37,6 +39,7 @@ export default function PlanOutings({ summary, sampleId, sample, context, saveAc
     onClarify: () => void;
     clarifyLabel?: string;
 }) {
+    const [phase,setPhase]=useState<AIPhase>('idle'),[aiRun,setAiRun]=useState(0);
     const [settled, setSettled] = useState(false);
     useEffect(() => { const timer = setTimeout(() => setSettled(true), 340); return () => clearTimeout(timer); }, []);
     const [page, setPage] = useState(0), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [reply, setReply] = useState<{
@@ -62,6 +65,7 @@ export default function PlanOutings({ summary, sampleId, sample, context, saveAc
             setError('Apply or cancel the open edit first. Your fields were kept.');
             return;
         }
+        if(ai){setPhase('thinking');setAiRun(n=>n+1);}
         lock.current = true;
         setBusy(true);
         setError('');
@@ -90,12 +94,13 @@ export default function PlanOutings({ summary, sampleId, sample, context, saveAc
             if (controller.signal.aborted)
                 return;
             if (latest.current !== snapshot || context?.getEditRevision?.() !== revision || document.querySelector('.summary-panel .fact-form')) {
-                setError('The plan changed while checking. The stale result was discarded. Check the current ideas again.');
+                if(ai)setPhase('error');setError('The plan changed while checking. The stale result was discarded. Check the current ideas again.');
                 return;
             }
-            setReply({ key: snapshot, value });
+            setReply({ key: snapshot, value });if(ai)setPhase('success');
         }
         catch (failure) {
+            if(ai)setPhase('error');
             if (!controller.signal.aborted)
                 setError(failure instanceof Error && failure.name !== 'ZodError' ? failure.message : 'The response could not be verified. Your plan was kept.');
         }
@@ -148,6 +153,7 @@ export default function PlanOutings({ summary, sampleId, sample, context, saveAc
     {useful.length ? <div className="outing-grid">{useful.map(card)}</div> : <div className="outing-empty"><h3>{discovery.hasResults ? `No useful ${discovery.kind === 'event' ? 'events' : 'places'} for these filters.` : 'No option clears the current firm checks.'}</h3><p>Keep the firm limits. Review exclusions, change the search area/date/radius, or continue with general ideas.</p><button onClick={onClarify}>Review the blocking detail</button></div>}
     {!!excluded.length && <details className="excluded-outings"><summary>Excluded options ({excluded.length})</summary><div className="outing-grid">{excluded.map(card)}</div></details>}
     <div className="actions"><button disabled={busy} onClick={() => { discovery.clear?.(); setPage(p => p + 1); setError(''); setNotice('More general ideas · not a provider search. Existing shortlist choices were kept.'); }}>More general ideas</button><button onClick={findLocal}>Find local places or events</button>{saveAction && <button className="quiet summary-save-shortcut" onClick={saveAction.onClick}>{saveAction.label}</button>}</div>
+    <AIActivity phase={phase} run={aiRun}/>{busy&&phase==='thinking'&&<button onClick={()=>{pending.current?.abort();pending.current=null;lock.current=false;setBusy(false);setPhase('cancelled');setError('Cancelled locally. Already-started AI may use quota. Your plan was kept.');}}>Cancel AI choice</button>}
     <details className="gemini-choice"><summary>Choose with Fuzl</summary><p className="provider-disclosure">Sends these idea names and any known group window to Google Gemini to choose among them. Quotes, budget fields and participant records stay out. Unpaid content may be reviewed or used for improvement. This does not search venues or book anything.</p>{!local && <p>For AI, open <a href={localWorkspaceUrl}>{localWorkspaceUrl}</a> on the Mac. General sample ideas work here.</p>}<button disabled={busy || !local || discovery.blocked} onClick={() => void evaluate(true)}>Ask Gemini to choose</button></details>
     {selections && <aside className="plan-shortlist"><h3>Shortlist · {selections.content.options.length}/3</h3>{!selections.content.options.length && <p>Keep an idea here while you compare.</p>}{selections.content.options.map(option => <p key={option.id}>{option.name}<button className="quiet" aria-label={`Remove ${option.name} from shortlist`} onClick={() => selections.onContent({ ...selections.content, options: selections.content.options.filter(o => o.id !== option.id) })}>Remove</button></p>)}{selections.message && <p role="status">{selections.message}</p>}{!context?.saved && selections.content.options.length > 0 && <p>Save this session to save the shortlist and preview sharing. Choices stay temporary until then.</p>}</aside>}
   </section>;

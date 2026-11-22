@@ -1,3 +1,7 @@
+## Native conversations (November 22, local)
+
+[Conversation setup and boundaries](CONVERSATIONS.md) adds explicit outing-thread membership above the existing owner model. Supabase subjects are still remotely verified; a member need not own the group but cannot open its private saved session. Dedicated hashed chat credentials never authorize survey, ballot, RSVP or private-account routes. Owner-only actions include invitations/revocation, removal of others, identity mapping and shared-summary approval. New native history is persisted; imported conversation retention is unchanged. Chat views remount and browser chat credentials clear on sign-out/account changes. New tables are RLS-enabled with browser-role access revoked. The additive migration was verified only in disposable PostgreSQL; hosted application and real two-account checks remain pending.
+
 **November 21 visual follow-up:** sign-in presentation now uses an original two-panel landscape and compact form, with mock-only sending/sent/error/retry checks. The real request helper, fixed callback, SDK session handling, ownership and original-tab protections below are unchanged. No new email or live auth verification was initiated. See [WORKSPACE_FINISH.md](WORKSPACE_FINISH.md) and the development-only **/?design=signin** mock preview.
 
 # Section 5 — organizer accounts and saved sessions

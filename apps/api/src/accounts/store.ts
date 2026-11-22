@@ -58,7 +58,9 @@ export class OrganizerStore {
   }
   async updateSession(subject: string, id: string, groupId: string, revision: number, input: SessionInput) {
     return this.db.$transaction(async (tx) => {
-      const previous = await tx.planningSession.findFirst({ where: sessionScope(subject, id) });
+      let previous = await tx.planningSession.findFirst({ where: sessionScope(subject, id) });
+      if(previous){await tx.$queryRaw`SELECT id FROM fuzl.fuzl_sessions WHERE id=${id}::uuid FOR UPDATE`;previous=await tx.planningSession.findFirst({where:sessionScope(subject,id)});}
+      if(previous&&previous.groupId!==groupId&&await tx.chatThread.findUnique({where:{sessionId:id}}))throw new ExtractionError(409,'chat_group_bound','This session has a group conversation. Save a new session copy to plan with a different group.');
       if (!previous || !await tx.group.findFirst({ where: groupScope(subject, groupId), select: { id: true } })) throw missing();
       if (!quotesUnchanged(sessionDTO(previous).payload, input)) throw new ExtractionError(422, 'source_immutable', 'Original supporting quotations and image-reading provenance cannot be replaced. Save this replacement summary as a new session.');
       await validateGuestOrigins(tx,subject,input,sessionDTO(previous).payload,id);

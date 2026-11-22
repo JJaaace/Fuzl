@@ -1,5 +1,19 @@
 # Fuzl
 
+## Browser verification (Section 12A)
+
+Project-scoped **fuzl_playwright** now connects through Microsoft Playwright MCP to isolated Chrome. Real desktop and 390px viewport checks passed for homepage → offline sample Plan → Group details → sign-in typing, with no email sent or AI request. Screenshots and diagnostics are under `artifacts/design/section12a/`. [Connection setup, evidence and future-session instructions](docs/BROWSER_SETUP.md). Start a fresh Codex conversation in this trusted checkout to load the new server. Safari, real phones, hosted flows and Section 12B remain separate.
+
+
+## Native outing conversations — local review
+
+The previous Plan checkpoint was pushed to `origin/main` as **`6ee0ec0`**. New group conversations are local: persisted, membership-checked threads; dedicated revocable guest credentials; ordered/idempotent messaging and reconnect; explicit Gemini planning; source-linked recorded questions; shared-summary review; existing shortlist → ballot → final plan → RSVP. Imported chats and private answers stay separate. The mascot follows actual request state, with bounded canvas sparks.
+
+**Try it:** [conversation fixture](http://127.0.0.1:5173/?design=chat) → **Make a plan → Add to shortlist → Open proposed plan → Review proposed update → Apply shared summary**. Send **@Fuzl when is Sam available?**, then use the later-availability and identity controls. Fixture responses are hand-authored and make no network/provider requests. [Setup, exact voting/RSVP demo and access rules](docs/CONVERSATIONS.md).
+
+New migration: **`202611210001_group_conversations`** (five additive private tables). It is verified only in an owned disposable PostgreSQL cluster; it has **not** been applied to Supabase. Existing backend configuration is preserved. Browser/Safari/real phone, hosted accounts/guest links and live native-chat extraction remain unverified. See [current progress](docs/PROGRESS.md); older sections below record their own checkpoints.
+
+
 Turn your group chat into a plan.
 
 Fuzl helps one organizer turn selected conversation context into an editable plan. **Sections 7A/7B add place search, US-area clarification and sourced feasibility checks for owned saved sessions**, alongside Section 6 account-free guest answers, organizer sign-in, private groups and explicit saving/reopening. The first Section 7C pass adds scheduled event discovery and fit checks through the same workspace. The temporary text/screenshot workspace remains usable without an account. Friends do not need accounts.
@@ -14,7 +28,7 @@ Supabase supplies managed email magic-link Auth and PostgreSQL; Prisma migration
 
 [Open Fuzl on the Mac](http://127.0.0.1:5173/) → **Try a sample plan → Friday, maybe** → shortlist an idea → ask **When is Sam available?** [Same-Wi-Fi fixture preview](http://192.168.12.248:5174/), [mock sign-in animation](http://127.0.0.1:5173/?design=signin), and [roster-size previews](http://127.0.0.1:5173/?design=people) remain available. Live AI and backend context/questions retain the Mac-origin restriction.
 
-**Checks:** 386 passed, 13 intentional database skips, zero failures; types/lint/build results are recorded in [progress](docs/PROGRESS.md). Actual loopback recorded-facts and non-AI check requests returned 200; LAN-origin backend questions returned 403 before a provider. Zero live provider/authentication calls or emails for this pass. Browser unavailable: rendered desktop/phone/Safari, screenshots and animation recordings remain unverified. [Architecture, evidence and exact review path](docs/OUTINGS_PLAN.md). Changes remain local; no migration, deployment, commit or push.
+**Checks:** 386 passed, 13 intentional database skips, zero failures; types/lint/build results are recorded in [progress](docs/PROGRESS.md). Actual loopback recorded-facts and non-AI check requests returned 200; LAN-origin backend questions returned 403 before a provider. Zero live provider/authentication calls or emails for this pass. Browser unavailable: rendered desktop/phone/Safari, screenshots and animation recordings remain unverified. [Architecture, evidence and exact review path](docs/OUTINGS_PLAN.md). This earlier Plan pass was pushed in checkpoint `6ee0ec0`; its historical browser/live limitations remain. The new native-conversation pass above remains local.
 
 ## Group history & next ideas (Section 10.7)
 

@@ -1,3 +1,7 @@
+## Native conversation workspace (November 22, local)
+
+The new `/chat` workspace adds a calm central conversation, groups/outing sidebar and collapsible proposed-plan panel. Phone CSS switches Chat/Plan/People, with a safe-area multiline composer, optimistic/retry states and separate new-message/older-history controls. Existing workspace, title, favicon, palette, field and import flows are preserved. `AIActivity` reuses the bomb/crescent/three fuse dots for chat and explicit Plan AI actions; thinking/settling follows request state, with a bounded completion burst in the existing canvas. Reduced motion removes movement and uses brightness/static completion. [Demo and pending real-browser checks](CONVERSATIONS.md). DOM simulations verify behavior, not rendered layout, keyboard reach or motion quality; no screenshots or recording were captured for this pass.
+
 > Current local layout (November 21): the [outings-first Plan](OUTINGS_PLAN.md) supersedes the always-visible People/overview described in earlier notes below. Cards lead; Group details, Open questions and Sources are optional. The sign-in light follows a curved cabin loop with a stable oval spark field. Browser rendering and motion remain unverified; no screenshots/clip were fabricated.
 
 # Local design review

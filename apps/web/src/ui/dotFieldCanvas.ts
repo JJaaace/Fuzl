@@ -1,3 +1,5 @@
+import { aiBurst, aiSparkPose } from './aiSparks';
+import type { AISpark } from './aiSparks';
 import { desktopDotCount, drawDotField, fieldColors, makeDotField, responsiveDotCount } from './fieldGeometry';
 import type { FieldColor } from './fieldGeometry';
 import { PointerRibbon, drawRibbon } from './pointerRibbon';
@@ -19,6 +21,7 @@ export function startDotField(canvas: HTMLCanvasElement, environment = window): 
   const coarse = environment.matchMedia('(pointer: coarse)');
   const fine = environment.matchMedia('(hover: hover) and (pointer: fine)');
   const trail = new PointerRibbon();
+  let bursts:AISpark[]=[];
   let active = true, dimmed = false, oval = false, inView = !environment.IntersectionObserver, disposed = false;
   let width = 0, height = 0, ratio = 1, seconds = 0, inHero = false;
   let origin = { left: 0, top: 0 };
@@ -41,6 +44,10 @@ export function startDotField(canvas: HTMLCanvasElement, environment = window): 
       drift: motion.matches ? 0 : drift,
       light: coarse.matches || width < 600,
       margins: dimmed, layout:motion.matches?(dimmed?1:0):layout, population, oval,
+    });
+    bursts=bursts.filter(spark=>{
+      const point=aiSparkPose(spark,seconds);if(!point.alive)return false;
+      if(!motion.matches){context!.globalAlpha=point.opacity;context!.fillStyle=spark.color;context!.beginPath();context!.arc(point.x,point.y,1.5,0,Math.PI*2);context!.fill();context!.globalAlpha=1;}return true;
     });
     if (interactive) drawRibbon(context!, { ...ribbon, alpha: ribbon.alpha * weight });
   }
@@ -108,6 +115,8 @@ export function startDotField(canvas: HTMLCanvasElement, environment = window): 
     trail.translate(origin.left - bounds.left, origin.top - bounds.top); origin = bounds;
     targetDrift = Math.min(8, Math.max(0, environment.scrollY || 0) * .012);
   };
+  const burst=(event:Event)=>{const point=(event as CustomEvent<{x:number;y:number}>).detail;if(!visible()||motion.matches||!point||!Number.isFinite(point.x)||!Number.isFinite(point.y))return;const bounds=canvas.getBoundingClientRect();bursts=[...bursts,...aiBurst(point.x-bounds.left,point.y-bounds.top,seconds,width<600)].slice(-48);};
+  environment.addEventListener('fuzl-ai-burst',burst);
   const visibility = () => { clearPointer(); synchronize(); };
   const preferences = () => {
     clearPointer();
@@ -136,6 +145,7 @@ export function startDotField(canvas: HTMLCanvasElement, environment = window): 
     setActive(value) { active = value; synchronize(); },
     setDimmed(value) { dimmed = value; if (value) clearPointer(); if(visible())paint(); },
     dispose() {
+      environment.removeEventListener('fuzl-ai-burst',burst);bursts=[];
       disposed = true; clearPointer(); stop();
       intersection?.disconnect(); resizing?.disconnect();
       root?.removeEventListener('pointermove', pointer); root?.removeEventListener('pointerleave', leave);

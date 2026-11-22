@@ -28,6 +28,7 @@ model Group {
   sessions PlanningSession[]
   outings Outing[]
   ideas SavedIdea[]
+  threads ChatThread[]
   @@index([ownerId])
   @@schema("fuzl")
   @@map("fuzl_groups")
@@ -49,6 +50,7 @@ model PlanningSession {
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   title String @db.VarChar(100)
   travelReview Json?
+  thread ChatThread?
   participation SessionScope?
   invites GuestInvite[]
   shortlist BallotShortlist?
@@ -330,4 +332,113 @@ model ScopeOptIn {
   @@unique([scopeId, inviteId, responseId])
   @@schema("fuzl")
   @@map("fuzl_scope_opt_ins")
+}
+
+model ChatThread {
+  id String @id @default(uuid()) @db.Uuid
+  groupId String @db.Uuid
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sessionId String @unique @db.Uuid
+  session PlanningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  creationId String @db.Uuid
+  creationHash String @db.VarChar(64)
+  title String @db.VarChar(100)
+  version Int @default(1)
+  contentVersion Int @default(1)
+  nextSequence Int @default(0)
+  sharedVersion Int @default(0)
+  sharedSummary Json
+  sharedSources Json @default("{}")
+  activeRequestId String? @db.Uuid
+  activeUntil DateTime?
+  createdAt DateTime @default(now())
+  members ChatMember[]
+  invites ChatInvite[]
+  messages ChatMessage[]
+  requests ChatRequest[]
+  @@unique([groupId, creationId])
+  @@index([groupId])
+  @@schema("fuzl")
+  @@map("fuzl_chat_threads")
+}
+model ChatMember {
+  id String @id @default(uuid()) @db.Uuid
+  threadId String @db.Uuid
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authSubject String? @db.Uuid
+  credentialDigest String? @unique @db.VarChar(64)
+  joinId String @db.Uuid
+  inviteId String? @db.Uuid
+  invite ChatInvite? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+  displayName String @db.VarChar(60)
+  role String @db.VarChar(12)
+  canAI Boolean @default(false)
+  planningParticipantId String? @db.VarChar(80)
+  removedAt DateTime?
+  createdAt DateTime @default(now())
+  messages ChatMessage[]
+  requests ChatRequest[]
+  @@unique([threadId, authSubject])
+  @@unique([threadId, joinId])
+  @@index([threadId])
+  @@schema("fuzl")
+  @@map("fuzl_chat_members")
+}
+model ChatInvite {
+  id String @id @db.Uuid
+  threadId String @db.Uuid
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  tokenDigest String @unique @db.VarChar(64)
+  allowAI Boolean @default(false)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  members ChatMember[]
+  @@index([threadId])
+  @@schema("fuzl")
+  @@map("fuzl_chat_invites")
+}
+model ChatMessage {
+  id String @id @default(uuid()) @db.Uuid
+  threadId String @db.Uuid
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  memberId String? @db.Uuid
+  member ChatMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  author String @db.VarChar(60)
+  submissionId String @db.Uuid
+  submissionHash String @db.VarChar(64)
+  sequence Int
+  changeVersion Int
+  kind String @db.VarChar(12)
+  body String? @db.VarChar(2000)
+  requestId String? @db.Uuid
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([threadId, sequence])
+  @@unique([threadId, memberId, submissionId])
+  @@index([threadId, changeVersion])
+  @@schema("fuzl")
+  @@map("fuzl_chat_messages")
+}
+model ChatRequest {
+  id String @id @db.Uuid
+  threadId String @db.Uuid
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  memberId String @db.Uuid
+  member ChatMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  inputHash String @db.VarChar(64)
+  kind String @db.VarChar(12)
+  state String @db.VarChar(12)
+  contentVersion Int
+  sharedVersion Int
+  sessionRevision Int
+  sourceVersions Json
+  contextHash String? @db.VarChar(64)
+  sourceMap Json @default("{}")
+  result Json?
+  message String @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  @@index([threadId])
+  @@schema("fuzl")
+  @@map("fuzl_chat_requests")
 }

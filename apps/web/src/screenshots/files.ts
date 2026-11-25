@@ -1,3 +1,4 @@
+import { newRecordId } from '@fuzl/planning';
 import { MAX_SCREENSHOTS, MAX_IMAGE_BYTES, MAX_TOTAL_IMAGE_BYTES, MAX_IMAGE_PIXELS, MAX_TOTAL_IMAGE_PIXELS, MAX_IMAGE_EDGE } from '@fuzl/planning';
 export interface ScreenshotFile { id: string; file: File; url: string; width: number; height: number }
 export const selectionKey = (files: Pick<ScreenshotFile, 'id'>[]) => files.map((file) => file.id).join('|');
@@ -38,7 +39,7 @@ export async function prepareFiles(files: File[], existing: ScreenshotFile[]): P
       const { width, height } = imageDimensions(new Uint8Array(await file.arrayBuffer())); pixels += width * height;
       if (!width || !height || width > MAX_IMAGE_EDGE || height > MAX_IMAGE_EDGE || width * height > MAX_IMAGE_PIXELS || pixels > MAX_TOTAL_IMAGE_PIXELS) throw new Error('Crop or resize to at most 4096 pixels per side, 8 megapixels each, and 20 megapixels total.');
       const bitmap = await createImageBitmap(file); bitmap.close();
-      added.push({ id: crypto.randomUUID(), file, width, height, url: URL.createObjectURL(file) });
+      added.push({ id: newRecordId(), file, width, height, url: URL.createObjectURL(file) });
     }
     return added;
   } catch (failure) { for (const item of added) URL.revokeObjectURL(item.url); throw failure; }

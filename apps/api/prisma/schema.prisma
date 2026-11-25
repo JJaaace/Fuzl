@@ -343,6 +343,7 @@ model ChatThread {
   creationId String @db.Uuid
   creationHash String @db.VarChar(64)
   title String @db.VarChar(100)
+  destination Json?
   version Int @default(1)
   contentVersion Int @default(1)
   nextSequence Int @default(0)
@@ -441,4 +442,15 @@ model ChatRequest {
   @@index([threadId])
   @@schema("fuzl")
   @@map("fuzl_chat_requests")
+}
+
+// Usage survives deleting a thread; contains no prompt, response or provider key.
+model AiRequestLease {
+  id String @id @db.Uuid
+  authSubject String @db.Uuid
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  @@index([authSubject, createdAt])
+  @@schema("fuzl")
+  @@map("fuzl_ai_request_leases")
 }

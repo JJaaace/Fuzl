@@ -1,3 +1,4 @@
+import { newRecordId } from '@fuzl/planning';
 import { useRef, useState } from 'react';
 import { applyWorkChange, evaluateEvents, evaluatePlaces, makeWork, recordWorkDecision, workApplySchema, workCases, workFixture, workReportSchema } from '@fuzl/planning';
 import type { WorkCase, WorkSuggestion } from '@fuzl/planning';
@@ -12,16 +13,16 @@ export default function AdjustmentDemo() {
 }
 function Case({ kind }: { kind: WorkCase }) {
   const [fixture] = useState(() => workFixture(kind)), [summary, setSummary] = useState(fixture.summary), [context, setContext] = useState(fixture.context), [message, setMessage] = useState('');
-  const [snapshot] = useState(() => crypto.randomUUID()), revision = useRef(0), serverGeneration = useRef(1);
+  const [snapshot] = useState(() => newRecordId()), revision = useRef(0), serverGeneration = useRef(1);
   const previews = useRef(new Map<string, { key: string; generation: number; suggestions: WorkSuggestion[] }>());
   const result = context.kind === 'places' ? evaluatePlaces(context.candidates, context.area, context.query, summary, [], fixture.memories) : evaluateEvents(context.candidates, context.area, context.query, summary, [], fixture.memories);
   const transport: WorkTransport = async (path, raw) => {
     const input = raw as { summary: typeof summary; evidence: Parameters<typeof makeWork>[2] };
     const key = JSON.stringify([input.summary, input.evidence]);
-    if (path === 'preview') { const report = makeWork(context, input.summary, input.evidence, fixture.memories), previewId = crypto.randomUUID(); previews.current.set(previewId, { key, generation: serverGeneration.current, suggestions: report.suggestions }); return workReportSchema.parse({ ...report, previewId }); }
+    if (path === 'preview') { const report = makeWork(context, input.summary, input.evidence, fixture.memories), previewId = newRecordId(); previews.current.set(previewId, { key, generation: serverGeneration.current, suggestions: report.suggestions }); return workReportSchema.parse({ ...report, previewId }); }
     const chosen = workApplySchema.parse(raw), preview = previews.current.get(chosen.previewId), suggestion = preview?.suggestions.find(s => s.id === chosen.suggestionId);
     if (!preview || !suggestion || preview.key !== key || preview.generation !== serverGeneration.current) throw Error('Simulated saved revision or candidates changed. Current work was kept; preview again.');
-    const next = applyWorkChange(context, summary, suggestion), decision = recordWorkDecision(summary, suggestion, crypto.randomUUID(), new Date().toISOString(), chosen.evidence); next.summary.organizerDecisions = [...(summary.organizerDecisions ?? []), decision];
+    const next = applyWorkChange(context, summary, suggestion), decision = recordWorkDecision(summary, suggestion, newRecordId(), new Date().toISOString(), chosen.evidence); next.summary.organizerDecisions = [...(summary.organizerDecisions ?? []), decision];
     return { summary: next.summary, query: next.context.kind === 'places' ? next.context.query : null, decision };
   };
   return <><button onClick={() => { serverGeneration.current++; setMessage('Simulated external revision/candidate change. The existing preview must now fail server validation; your working summary is unchanged.'); }}>Simulate saved session or candidates changing elsewhere</button><p role="status">{message}</p><p>Evaluated options: {result.verified.length} checked fits. Source text and published plans remain unchanged by a preview.</p>

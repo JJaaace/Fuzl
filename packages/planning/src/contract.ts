@@ -1,3 +1,4 @@
+import { outingProposalSchema } from './proposed-plan.js';
 import { z } from 'zod';
 import type { PlanningSummary } from './model.js';
 
@@ -82,6 +83,7 @@ export const planningSummarySchema = z.strictObject({
 
 export const analysisResponseSchema = z.strictObject({
   summary: planningSummarySchema,
+  proposal: outingProposalSchema.optional(),
   warnings: z.array(shortText).max(100),
   metrics: z.strictObject({
     provider: aiProviderSchema,

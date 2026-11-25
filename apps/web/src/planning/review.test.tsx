@@ -39,10 +39,10 @@ test('fact forms expose labeled editable values and explicit unknown/firm/status
 test('analysis disclosure precedes submission, reference date is optional, and samples stay distinct', () => {
   const panel = renderToStaticMarkup(<AnalysisPanel draft="Sam: Maybe Friday" onAccept={() => {}} />);
   const disclosureIndex = panel.toLowerCase().indexOf('sends this draft');
-  assert.ok(disclosureIndex >= 0 && disclosureIndex < panel.indexOf('<form'));
-  assert.match(panel, /sends this draft.*OpenAI/i);
+  assert.ok(disclosureIndex >= 0 && panel.includes('Privacy &amp; provider details') && panel.includes('aria-describedby="analysis-disclosure"'));
+  assert.match(panel, /sends this draft.*the configured AI provider/i);
   assert.match(panel, /Date of the conversation \(optional reference\)/);
-  assert.match(panel, /Analyze conversation/);
+  assert.match(panel, /Make the plan/);
   assert.match(panel, /6000 characters/);
   const app = renderToStaticMarkup(<App />);
   assert.ok(app.includes('manually authored summary, not AI analysis'));

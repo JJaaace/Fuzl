@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { authOriginAllowed } from './google';
 
-// One canonical local origin; neither a query parameter nor an email can select
-// a return destination. A hosted origin is outside this local milestone.
+// Hosts are restricted by server APP_ORIGIN and the Supabase redirect allowlist.
 export const localAppUrl = 'http://127.0.0.1:5173';
 export const magicLinkRedirect = `${localAppUrl}/auth/callback`;
 const invalidLink = 'This sign-in link is invalid, expired or already used. Keep your original workspace open and request a fresh link deliberately in Saved groups.';
@@ -42,26 +42,26 @@ export class MagicLinkCallback {
 // Called once at startup, before React or any asynchronous configuration fetch.
 // Fragments never reach Express. Immediately replace the history entry, even
 // when configuration is missing or the provider returned a malicious error.
-export function captureMagicLink(href: string, replace: (path: string) => void): MagicLinkCallback | null {
+export function captureMagicLink(href: string, replace: (path: string) => void, origin = localAppUrl, oauthDestination: string | null = null): MagicLinkCallback | null {
   const url = new URL(href);
   const fragment = new URLSearchParams(url.hash.slice(1));
   const sensitive = ['access_token', 'refresh_token', 'error', 'error_code', 'error_description', 'code', 'token_hash', 'token', 'provider_token', 'provider_refresh_token'];
   const hasAuth = sensitive.some((key) => fragment.has(key) || url.searchParams.has(key));
   if (url.pathname !== '/auth/callback' && !hasAuth) return null;
-  replace('/');
-  if (url.origin !== localAppUrl || url.pathname !== '/auth/callback') return new MagicLinkCallback(null, wrongRedirect);
+  replace(oauthDestination ?? '/');
+  if (!authOriginAllowed(origin) || url.origin !== origin || url.pathname !== '/auth/callback') return new MagicLinkCallback(null, wrongRedirect);
   if (url.search || fragment.has('error') || fragment.has('error_code')) return new MagicLinkCallback(null, invalidLink);
   const access = fragment.get('access_token'); const refresh = fragment.get('refresh_token');
   if (!access || !refresh || access.length > 8192 || refresh.length > 8192 || /\s/.test(access + refresh)
     || fragment.getAll('access_token').length !== 1 || fragment.getAll('refresh_token').length !== 1
-    || fragment.get('token_type') !== 'bearer' || !['magiclink', 'signup'].includes(fragment.get('type') ?? '')) return new MagicLinkCallback(null, invalidLink);
+    || fragment.get('token_type') !== 'bearer' || !(['magiclink', 'signup'].includes(fragment.get('type') ?? '') || oauthDestination && !fragment.has('type'))) return new MagicLinkCallback(null, invalidLink);
   return new MagicLinkCallback({ access_token: access, refresh_token: refresh }, '');
 }
 
-export async function requestMagicLink(auth: Pick<SupabaseClient['auth'], 'signInWithOtp'>, email: string, origin: string): Promise<string> {
-  if (origin !== localAppUrl) return 'Open Fuzl at http://127.0.0.1:5173 before requesting a sign-in link.';
+export async function requestMagicLink(auth: Pick<SupabaseClient['auth'], 'signInWithOtp'>, email: string, origin: string, configuredOrigin = localAppUrl): Promise<string> {
+  if (!authOriginAllowed(origin) || origin !== configuredOrigin) return 'Open Fuzl at http://127.0.0.1:5173 before requesting a sign-in link.';
   try {
-    const { error } = await auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true, emailRedirectTo: magicLinkRedirect } });
+    const { error } = await auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true, emailRedirectTo: `${origin}/auth/callback` } });
     if (error) return 'Could not send a sign-in link. Use your Supabase organization-member email and check the project email settings and sending quota. No automatic retry was made.';
     return '';
   } catch { return 'Could not reach sign-in. Keep your temporary work and retry deliberately when connectivity returns.'; }

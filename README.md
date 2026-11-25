@@ -1,294 +1,93 @@
 # Fuzl
 
-## Browser verification (Section 12A)
+Turn a group conversation into an outing people can agree on. Fuzl helps an organizer review what friends want, compare ideas against the group's constraints, collect votes, and publish a plan with RSVPs.
 
-Project-scoped **fuzl_playwright** now connects through Microsoft Playwright MCP to isolated Chrome. Real desktop and 390px viewport checks passed for homepage → offline sample Plan → Group details → sign-in typing, with no email sent or AI request. Screenshots and diagnostics are under `artifacts/design/section12a/`. [Connection setup, evidence and future-session instructions](docs/BROWSER_SETUP.md). Start a fresh Codex conversation in this trusted checkout to load the new server. Safari, real phones, hosted flows and Section 12B remain separate.
+![Fuzl's current workspace: conversation composer, a tentative sample plan, and the illustrated sample gallery.](docs/images/fuzl-workspace.png)
 
+## How it works
 
-## Native outing conversations — local review
+1. **Bring the conversation.** Paste selected messages, review a screenshot transcript, or discuss an outing in a saved group's Fuzl conversation.
+2. **Review the Plan.** Correct people, dates, budgets and preferences. Unknowns, tentative claims, conflicts and supporting excerpts stay visible. AI output needs explicit acceptance.
+3. **Compare and shortlist.** Evaluate general ideas, saved ideas, places or scheduled events against the current attendees' constraints. Keep up to three options; missing evidence remains **Needs checking**.
+4. **Vote, then decide.** Publish a versioned ballot for account-free voting. The organizer explicitly selects and confirms the final plan; votes do not imply attendance.
+5. **Share and RSVP.** Publish the shared plan and collect Going/Maybe/Can't make it responses. Material changes can require reconfirmation. Completed outings and approved group takeaways can inform later planning.
 
-The previous Plan checkpoint was pushed to `origin/main` as **`6ee0ec0`**. New group conversations are local: persisted, membership-checked threads; dedicated revocable guest credentials; ordered/idempotent messaging and reconnect; explicit Gemini planning; source-linked recorded questions; shared-summary review; existing shortlist → ballot → final plan → RSVP. Imported chats and private answers stay separate. The mascot follows actual request state, with bounded canvas sparks.
+These flows are implemented and covered by synthetic tests and disposable-database checks. Hosted end-to-end acceptance is still pending; implementation does not mean a booking, ticket, venue detail or person's attendance has been verified.
 
-**Try it:** [conversation fixture](http://127.0.0.1:5173/?design=chat) → **Make a plan → Add to shortlist → Open proposed plan → Review proposed update → Apply shared summary**. Send **@Fuzl when is Sam available?**, then use the later-availability and identity controls. Fixture responses are hand-authored and make no network/provider requests. [Setup, exact voting/RSVP demo and access rules](docs/CONVERSATIONS.md).
+## Try it locally
 
-New migration: **`202611210001_group_conversations`** (five additive private tables). It is verified only in an owned disposable PostgreSQL cluster; it has **not** been applied to Supabase. Existing backend configuration is preserved. Browser/Safari/real phone, hosted accounts/guest links and live native-chat extraction remain unverified. See [current progress](docs/PROGRESS.md); older sections below record their own checkpoints.
-
-
-Turn your group chat into a plan.
-
-Fuzl helps one organizer turn selected conversation context into an editable plan. **Sections 7A/7B add place search, US-area clarification and sourced feasibility checks for owned saved sessions**, alongside Section 6 account-free guest answers, organizer sign-in, private groups and explicit saving/reopening. The first Section 7C pass adds scheduled event discovery and fit checks through the same workspace. The temporary text/screenshot workspace remains usable without an account. Friends do not need accounts.
-
-Supabase supplies managed email magic-link Auth and PostgreSQL; Prisma migrations and server ownership checks protect saved work. Sections 8A/8B add shortlist voting, explicit plan agreement, shared plan pages and credential-scoped RSVPs. Section 9 adds actual outings, optional explicit-attendee feedback and approved group-level memory. Reservations, verified personal identity/attendance, messaging integrations and native features remain unimplemented. The original [specification](FUZL_CODEX_SPEC.md) is unchanged. Current authorization is the **outings-first Plan workspace**, building on the local work above pushed `9297989`. Existing planning, history and backup flows are preserved. Reviews, trends, deployment and later work remain deferred.
-
-## Current design review
-
-**The Plan page now leads with illustrated outing cards**, the actual session title and a compact group/window line. **Add to shortlist** uses the existing three-option shortlist, and **More general ideas** keeps selections. Samples immediately show labelled offline ideas; real imports use the same layout without fixture prices. Friday stays tentative and its exact date stays unknown. **Group details**, **Open questions**, **Sources** and **Planning tools** retain existing corrections, quotes and fit checks.
-
-**Ask Fuzl** answers recorded availability, public budgets and preferences, with source links and explicit correction-editor actions. It makes no model request or automatic changes. **Choose with Fuzl** separately discloses and explicitly requests a backend Gemini candidate choice. Real venue/event search retains the existing saved-session controls and provider disclosures; firm limits, private budgets and stale-context checks stay in force. Sign-in’s light follows a curved, looping path and its sparks form a balanced ivory/ember/gold oval.
-
-[Open Fuzl on the Mac](http://127.0.0.1:5173/) → **Try a sample plan → Friday, maybe** → shortlist an idea → ask **When is Sam available?** [Same-Wi-Fi fixture preview](http://192.168.12.248:5174/), [mock sign-in animation](http://127.0.0.1:5173/?design=signin), and [roster-size previews](http://127.0.0.1:5173/?design=people) remain available. Live AI and backend context/questions retain the Mac-origin restriction.
-
-**Checks:** 386 passed, 13 intentional database skips, zero failures; types/lint/build results are recorded in [progress](docs/PROGRESS.md). Actual loopback recorded-facts and non-AI check requests returned 200; LAN-origin backend questions returned 403 before a provider. Zero live provider/authentication calls or emails for this pass. Browser unavailable: rendered desktop/phone/Safari, screenshots and animation recordings remain unverified. [Architecture, evidence and exact review path](docs/OUTINGS_PLAN.md). This earlier Plan pass was pushed in checkpoint `6ee0ec0`; its historical browser/live limitations remain. The new native-conversation pass above remains local.
-
-## Group history & next ideas (Section 10.7)
-
-Choose a saved group to see the latest actual completed outings first, with recorded location/time and current approved takeaways. **Open outing details** reuses the original session and actual/takeaway editor; earlier public versions preserve an outdoor plan replaced by a backup. Outings without feedback still appear. Cancelled plans, unused backups and unvisited ideas stay outside visit history. Recaps include only explicit organizer attendance-entry counts, never inferred RSVPs, private feedback, budgets or travel records.
-
-**Saved ideas · for next time** opens the existing group-scoped library above the session list. Use a session for that group to evaluate an idea through the normal candidate/shortlist checks. Recaps refresh on group reentry or **Refresh past outings**, and idea drafts survive ordinary detail/return navigation. History and approved takeaways stay organizer-only.
-
-**Exact demo:** http://127.0.0.1:5173/?design=history → **History Group A → Open outing details** on indoor games → inspect earlier plan history → edit/approve or remove the takeaway → **Back to group history**. **Saved ideas · for next time** shows the untried night-market fixture; **History Group B** shows only its own cafe/idea. [GROUP_HISTORY.md](docs/GROUP_HISTORY.md) gives exact edit controls, actual corrections, the real planning path and pending checks.
-
-No new migration, key or provider request. Section 10.7 stays local; existing hosted rollout and rendered browser/mobile/account checks remain pending. Photos and reminders are deferred.
-
-## Private backup and explicit switch (Section 10.6)
-
-On a confirmed owned plan, **Set backup** selects a saved shortlist snapshot or a manual idea. Activity, date/local time/zone, meeting point, cost/links and unresolved checks form the proposed public replacement; its condition note stays private. Saving does not change the shared page. **Switch to backup · preview** rechecks the latest saved constraints and reviewed attendees, shows both versions, blocks known firm conflicts and requires explicit approval/unknown acknowledgment. Publication retains the link and original history and applies material RSVP reconfirmation, including a known end-time change. Fuzl does not monitor weather or switch automatically.
-
-**Exact demo:** http://127.0.0.1:5173/?design=backups → guest Going on the original → organizer **Set backup → Synthetic indoor games** → enter November 21, 2026, 19:00, America/New_York (optional end 20:30 and reviewed availability zone) → **Save private backup → Reload backup & fit checks → Switch to backup · preview → both approvals → Confirm switch & publish backup** → guest **Reload shared plan / my RSVP → Reconfirm RSVP**. [BACKUPS.md](docs/BACKUPS.md) has exact fields, conflict/stale cases and pending checks.
-
-Section 10.6 is pushed as `3c9f119`; 10.7 stays local. Migration **`202611140006_backups`** adds one private nullable column and was tested only on disposable PostgreSQL. Hosted rollout/account/guest and rendered desktop/mobile checks remain pending. No new key, provider call, email, notification or deployment.
-
-## Balance travel (Section 10.5)
-
-Optional **Balance travel** is off by default near Discovery preference. It uses at least two recent completed outings with explicit reviewed attendance and comparable one-way minutes for every intended attendee, plus reviewed current estimates. It makes a bounded adjacent change only among comparable verified fits, after discovery preferences and approved memory. Private budgets and all firm/unknown checks stay in force; missing minutes are unknown. Individual history and origins stay out of ranking explanations, public pages and provider inputs. The private organizer editor supports corrections/deletion and explicit identity matching. Toggling uses loaded candidates without a request.
-
-**Exact demo:** http://127.0.0.1:5173/?design=travel → **Show demo results → Add to shortlist** on the central garden → check **Balance travel** (east garden moves ahead) → **Reviewed subset · Avery & Blake → Show demo results** (central garden stays first). Try missing estimates, corrections/deletion and separate-group history. The over-budget option stays excluded. [TRAVEL_BALANCE.md](docs/TRAVEL_BALANCE.md) documents the rule, exact real-data steps and pending checks.
-
-Section 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 stays local. New migration **`202611140005_travel_balance`** adds two private nullable columns, tested only on disposable PostgreSQL. Existing hosted migrations, real account/guest and rendered browser/mobile checks remain pending. No new key or provider request.
-
-## Participation scope (Section 10.4)
-
-Saved-session discovery defaults to **Everyone together**, showing every intended participant and confirmed/tentative/missing/conflicting availability. **Who’s available?** uses a date or exact time window and the existing account-free guest link. Guests save a name/optional private budget, then separately save an explicit Yes/No/Maybe/Unknown opt-in. The organizer matches response credentials to participants and reviews the intended subset before checking. Missing replies never become opt-ins; group membership, votes, RSVPs and actual attendance stay separate.
-
-Current Places/Events checks and Make this work use the selected roster, keeping every included person’s firm constraints and server-private limits. Unmatched private limits remain in force. Scope changes hide old results/previews and preserve shortlist fields for rechecking. A published plan changes only after **Use reviewed attendance scope in plan draft → Preview shared plan → approve/publish**; changed roster snapshots require RSVP reconfirmation.
-
-**Exact six-person demo:** http://127.0.0.1:5173/?design=participation → **Show demo results** (six cannot be verified) → **Who’s available? → Include Avery/Blake/Casey/Devon → approve scope → Review & use attendance scope → Show demo results** (four fit the synthetic supplied limits). Change a guest’s own opt-in, refresh/review, try expiry and Group B. No account/API/provider request or working public link. [PARTICIPATION.md](docs/PARTICIPATION.md) contains exact clicks, real setup, privacy/model details and pending checks.
-
-Section 10.3 is pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 stays local. New migration **`202611140004_participation`** adds two protected tables, tested only on disposable PostgreSQL. Existing hosted migrations and real account/guest/mobile/browser acceptance remain pending. No new key or environment setting.
-
-## Discovery preference (Section 10.3)
-
-Near the Places/Events shortlist, choose **Balanced**, **Familiar favorites**, or **Something new**. Balanced preserves the usual ranking. Familiar adds a modest preference for exact recorded visits with current approved positive feedback; Something new favors identifiable listings with **No visit recorded**. A saved idea can qualify. Unknown matches remain unknown, and missing history never means never visited. Ordering changes only within each fit category; firm checks and selected shortlist snapshots stay unchanged.
-
-Switching modes uses the already-checked candidate pool locally, with **no API/provider request**. The setting belongs to the current open session, shared by Places/Events; reopen/reload starts Balanced. History refresh remains deliberate through the existing recheck/search. No migration, dependency, key or environment setting is added.
-
-**Exact synthetic demo:** http://127.0.0.1:5173/?design=discovery → **Show demo results → Add to shortlist** on the garden → **Discovery preference: Something new** (saved market moves first) → **Familiar favorites** (garden returns first). The selected garden stays in the shortlist. Expand the over-budget exclusion; try Group B for the insufficient-history notice. [DISCOVERY_PREFERENCES.md](docs/DISCOVERY_PREFERENCES.md) covers exact steps, matching/ranking, privacy and pending manual checks.
-
-Section 10.2 was pushed as `01ec983`; 10.3 was pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 remains local for review. Browser/mobile rendering and hosted account/guest acceptance remain unverified; existing migrations through saved ideas remain pending on hosted Supabase.
-
-## Saved ideas (Section 10.2)
-
-**Saved groups → group → Saved ideas** stores a name, optional link and private note, with edit/archive/remove controls. **Save for later** on owned Places/Events cards preserves a source reference. Ticketmaster bookmarks require an organizer-entered label and intended date/details instead of permanently copying API event content. Ongoing venues and dated events are distinct; past/unclear-date events leave active choices.
-
-In another saved session for that group, use **From your saved ideas → Add idea to candidates → Evaluate saved ideas (no provider call)** after resolving the area through the existing search. The same firm/private-budget checks apply; old cost, hours, tickets and travel estimates are unknown. Review the card, then use **Add to shortlist** and the existing exact public preview. Private notes stay in the library and never become guest details or provider inputs.
-
-**Exact synthetic demo:** http://127.0.0.1:5173/?design=ideas → enter **Synthetic night market** → **Save idea → Open second session for this group → Add idea to candidates → Evaluate saved ideas (no provider call) → Add to shortlist → Save shortlist → Preview ballot**. No account, database or provider call; reload resets it. Try Group B, archive/edit/remove, and the expired-event fixture. [SAVED_IDEAS.md](docs/SAVED_IDEAS.md) gives complete steps, storage/privacy rules and pending real checks.
-
-Section 10.1 is pushed as `6616d6b`. Section 10.2 is pushed as `01ec983`; 10.3 is pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 remains local. The saved-ideas **`202611140003_saved_ideas`** migration passed only on disposable PostgreSQL; it and earlier Section 6/8A/8B/9 hosted migrations remain pending. No new key/settings. Actual rendered browser/mobile and hosted account/guest verification remain unverified.
-
-## Make this work (Section 10.1)
-
-When a saved session’s discovery shortlist has no checked fit, **Make this work** previews one explicitly flexible group-window shift (up to 60 minutes) or a travel-limit increase (up to 10 minutes), using the same candidates and fit checks. Sourced travel duration is required; radius is insufficient. Firm constraints and unknown values stay in force. Private feasibility sessions withhold comparisons to avoid leaking individual thresholds.
-
-Preview original/new values, affected options and remaining checks, then explicitly apply. This records an organizer decision in the working summary; **Save session** persists it. Published plans and RSVPs stay unchanged. Existing Places and new Events rechecks reuse the same list without a provider call.
-
-**Synthetic demo:** http://127.0.0.1:5173/?design=adjustments → **Make this work → approve → Apply this adjustment**. Switch cases for time, sourced travel, radius-only, firm travel and a fixed event. Exact clicks, bounds, data handling and pending hosted/browser checks: [MAKE_THIS_WORK.md](docs/MAKE_THIS_WORK.md). No new key, dependency or SQL migration. Sections 8B/9 were pushed as `9edc96e`; Section 10.1 was pushed as `6616d6b`; Section 10.2 was pushed as `01ec983`; Section 10.3 was pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 remains local for review.
-
-## Actual outings & approved memory (Section 9)
-
-Reopen a saved session’s confirmed plan and use **Mark completed · record the actual outing** to confirm what really happened, keeping the original publication identifiable. Explicitly confirmed attendance stays separate from votes/RSVPs. Completed outings appear in **Saved groups → group → Past outings**.
-
-People reporting attendance can optionally answer repeat/value questions and a note at the existing plan link, update their own feedback, and choose whether it may inform group memory. The organizer separately saves private notes/proposals and explicitly approves, edits or removes a short group takeaway. Feedback/actual-detail changes suspend use pending review. Same-group searches may apply a small exact-listing preference boost; past enjoyment never overrides firm constraints or current uncertainty.
-
-**No-account synthetic demo:** http://127.0.0.1:5173/?design=outings. Follow [OUTINGS.md](docs/OUTINGS.md) for exact steps through plan → actual completion → feedback → approval → next shortlist. This is an in-memory UI simulator with no API/provider call or working shared link. Real persistence is tested separately on disposable PostgreSQL. Section 8B and 9 are included in pushed checkpoint `9edc96e`. Section 10.1 was pushed as `6616d6b`; Section 10.2 was pushed as `01ec983`; Section 10.3 was pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 remains local for review. Browser/hosted verification and the Section 6/8A/8B/9 hosted migrations remain pending; no new key/settings are needed.
-
-## Shared plans & RSVPs (Section 8B)
-
-Choose a published ballot option explicitly, save a public proposal, then **Preview shared plan → approve → Confirm & publish plan**. A clear date, local time, time zone and meeting point are required. The stable account-free link shows the latest approved snapshot/status, with booking and cost uncertainty visible. Guests send Going, Maybe or Can’t make it and update only their own credential-scoped RSVP. Votes are separate. Time/location and other material changes mark old RSVPs for reconfirmation; cancellation/completion closes responses and leaves a prominent notice at the valid link.
-
-**Exact local preview:** [plan simulator](http://127.0.0.1:5173/?design=plans) → add the sample walk → **Save shortlist → Preview ballot → approve → Publish ballot → Guest ballot demo → vote** → **Organizer demo → Refresh plan & attendance → choose option → Use chosen option**. Enter **November 21, 2026**, **15:00**, **America/New_York**, **Synthetic park north gate** → **Save plan draft → Preview shared plan → approve → Confirm & publish plan → Create / replace plan link → Guest plan demo → Going → approve current version → Send RSVP**. Change time to 16:00, publish, then reload the guest page and reconfirm. This is a labeled local simulation, not a hosted/shared service. It makes no real API/provider/database request.
-
-[Shared-plan architecture, complete demo and required checks before sharing with friends](docs/SHARED_PLANS.md). Hosted Section 6/8A/8B migrations, real account/guest acceptance and rendered mobile browser checks remain pending. The new 8B migration was tested only in disposable PostgreSQL. No hosted rollout, email or deployment occurred.
-
-## Shortlist & vote (Section 8A)
-
-From an owned saved session, use **Add to shortlist** on Places/Events or **Add manual idea** (three options maximum). **Save shortlist → Preview ballot → approve → Publish ballot** creates an account-free voting link with an immutable option snapshot. Guests choose one option and can change only their own credential-scoped vote while open. The organizer refreshes version-specific tallies, sees ties honestly and closes voting explicitly. Revisions keep earlier votes separate. Votes never confirm attendance, tickets or a final plan. Private budgets, conversations and organizer metadata are excluded from the public view.
-
-**Exact local demo:** `npm run dev` → [ballot simulator](http://127.0.0.1:5173/?design=ballots) → **Show demo results → Add to shortlist** on the walk → **Events → November 14, 2026 → Show demo events → Add to shortlist** → **Save shortlist → Preview ballot → approve → Publish ballot → Guest ballot demo**. Vote, change the vote, then **Organizer demo → Refresh tallies**. This is explicitly synthetic and uses no account, API, database or provider; the real routes are tested separately on disposable PostgreSQL. [Ballot architecture, exact revision/close demo and pending browser/hosted checks](docs/BALLOTS.md).
-
-The Section 8A checkpoint was pushed as `4b8b844`. Its migration was tested only on a disposable local database. Hosted rollout, real guest/account workflow and rendered phone/browser verification remain pending. Its prior local-only statements describe preparation before that checkpoint; Section 8B and 9 are now included in pushed checkpoint `9edc96e`; Section 10.1 was pushed as `6616d6b`; Section 10.2 was pushed as `01ec983`; Section 10.3 was pushed as `635cf16`; 10.4 is pushed as `50f88e9`; 10.5 is pushed as `d27ca9f`; 10.6 is pushed as `3c9f119`; 10.7 remains local for review. No provider calls, email or deployment.
-
-## Find events (Section 7C, first pass)
-
-From an owned saved session, open **Find places → Events**. The shared US area/radius controls support leading-zero ZIPs and ambiguous city choices. Choose explicit inclusive dates (up to 31 days); search dates leave tentative planning facts unchanged. **Show demo events** makes no provider call. **Search real events** deliberately uses a backend Ticketmaster Discovery adapter after private key setup, with no retries or fallback. Cards retain event-local dates/times, status, source/retrieval time, starting versus total prices and separate fees/ticket/travel unknowns. Cancelled events are excluded; postponed/rescheduled dates remain unresolved. Existing acceptance, edit/save and private-budget boundaries are preserved. Results are temporary.
-
-**Exact fixture demo:** open [the local discovery preview](http://127.0.0.1:5173/?design=places) → enter **02108** → **Places → Show demo results** → **Events** → choose **November 14, 2026** under **Event search from** → **Show demo events**. This needs no account, database or provider key. [EVENTS.md](docs/EVENTS.md) covers the request flow, official provider/quota/attribution references, private setup for a later live search and precise manual checks. One separately authorized Columbus weekend search succeeded using two provider API requests; all three useful cards retained unresolved fees, duration, ticket inventory and travel time. [Actual live result and link limitations](docs/EVENTS_LIVE_CHECK.md). Rendered browser acceptance remains unverified. Reviews and local trend detection remain for the next pass.
-
-## Find places (Sections 7A/7B)
-
-**Section 7B demo:** open [the local places preview](http://127.0.0.1:5173/?design=places), enter **02108** for Boston, then **Show demo results**. Try **Marfa, TX** for sparse coverage, **Springfield** for explicit area selection, and **43210 / museum** for the recorded Columbus address conflicts. All are fixtures; no provider request occurs. [Short checklist and source/correction rules](docs/PLACES_7B.md).
-
-**Sources & verified details** keeps differing addresses with their sources/dates. Confirming a new address does not carry over the old coordinates, prices or hours. Recording a matched official page is explicit, and booking remains unverified. Authenticated cached rechecks make no provider calls. No Section 7B live test was run; the earlier single Columbus check remains the only live search.
-
-
-Open an owned saved session → **Find places**. Choose a US City, State or ZIP (try **43210** near Ohio State), radius/category and optional exact timing. **Show demo results** uses explicitly synthetic fixtures; **Search real places** separately calls a server-side Geoapify adapter after private Free-plan setup. Up to three useful cards distinguish verified constraints from unresolved checks, with exclusions separate. Known total per-person costs, exact date-specific hours, straight-line search boundaries and reviewed firm facts are checked conservatively; unreviewed AI, ambiguous dates and unknown costs stay unresolved. Private spending affects only a general server-side check. Manual candidates are labeled organizer-entered.
-
-**Exact no-account demo:** run `npm run dev`, open [the development places preview](http://127.0.0.1:5173/?design=places), then click **Show demo results**. The synthetic walk fits, bowling needs checking, and the museum is excluded by the fixture's firm budget. Change the area to **Cleveland, OH** and search again. This preview never contacts a provider or database.
-
-See [PLACES.md](docs/PLACES.md) for provider choice/pricing/attribution, private backend configuration, evaluation rules, limitations and browser checks. One authorized Geoapify search now passed; all three returned entities have OSU references, but two provider addresses differ and every card remains unresolved. See [the actual live check](docs/PLACES_LIVE_CHECK.md). Results/manual candidates remain temporary. Hosted guest migration/account verification and rendered browser checks remain pending; no new migration was added for places.
-
-## Ask the group (Section 6)
-
-Open an owned saved session and choose **Ask the group**. Write/review a guest-visible title and up to five questions, preview the form, approve its wording, then create/copy an expiring invite into your existing chat. Temporary work says **Save this session to create a link**. One link is active per session; replacement is explicit and revokes the old link and its edit permissions.
-
-Guests need no account. The form preserves tentative wording, unknown currency, known zero, explicit unknown and optional blank answers. Private spending limits are the default: only the respondent sees the amount in this interface; the backend stores it separately and the organizer sees a marker. Other guests never receive replies. This browser retains separate response-edit permission so reload can restore a sent response; it does not store typed drafts. See [guest flow, privacy, routes, migration and exact manual checks](docs/GUESTS.md).
-
-In **Responses**, refresh manually, match an alias explicitly and apply a shareable answer as a proposed fact or resolve a question. Original excerpts and unrelated edits remain; incoming replies do not autosave or overwrite the summary. Explicit Save rechecks fresh guest sources and existing session revisions. Revocation/expiry stops guest read/edit/submission access; collected owner-visible replies remain until session/group deletion.
-
-**Setup/verification:** the new additive migration was applied/reapplied only to an owned disposable PostgreSQL cluster; the configured hosted project has not received it. After review, run `npm run db:migrate` against your intended development database before trying real links. No new credentials are required. Current checks: **168 offline tests passed, two intentional DB-suite skips; 16 disposable-database checks passed; types/lint/build passed.** Browser/mobile, real organizer sign-in/save and hosted owner/guest acceptance remain unverified. A copied `127.0.0.1` link works on the same computer; friends need a reachable HTTPS frontend/API and exact APP_ORIGIN configuration, described in GUESTS. No deployment or network exposure was enabled.
-
-## Save and reopen a session
-
-1. Follow [account/database setup](docs/ACCOUNTS.md). Add SUPABASE_URL, the designated public SUPABASE_PUBLISHABLE_KEY, private DATABASE_URL, and optional private migration-only DIRECT_URL to the existing apps/api/.env; preserve the AI settings. The local setup uses DIRECT_URL to avoid a demonstrated macOS pooler-certificate incompatibility while retaining strict TLS. Use the Free project and default magic-link sender/templates. Set Site URL to `http://127.0.0.1:5173` and allow only `http://127.0.0.1:5173/auth/callback` as the local redirect. No SMTP or billing setup is required. No credentials or email links go into chat or frontend environment variables.
-2. Run `npm ci`, `npm run db:migrate`, then `npm run dev`. Open http://127.0.0.1:5173. **Saved groups** has sign-in and group creation; **Workspace** keeps the editor separate.
-3. Sign in, create a group, then return to the workspace and load a sample. Edit/apply a fact, enter a session title/group, and choose **Save session**. Saving stores the applied summary, review labels and fact-linked supporting/correction excerpts. It does not store raw images or the full imported conversation, call AI, or confirm claims.
-4. Reload, select the group, and **Open session** to continue editing. Later saves use revisions; stale edits produce a recoverable conflict. Sign-out/account switching clears loaded private work and cancels old responses. The auth SDK session cache persists in browser storage; planning data does not.
-
-Database migrations/authorization/fidelity are tested against a disposable real PostgreSQL instance. Real hosted TLS connections, migration deployment/status and API adapter reads now pass; the app is running with account configuration available. Hosted email sign-in/save/reopen and full browser behavior remain unverified; browser tooling is unavailable. Jace reports the sign-in email was sent; callback completion, signed-in identity, original-tab edit preservation, hosted save/reopen, sign-out, real two-account isolation and remaining browser/mobile checks are still pending. See [ACCOUNTS](docs/ACCOUNTS.md) and [PROGRESS](docs/PROGRESS.md) for setup, deletion limits, actual checks and a precise manual test. Section 4 was pushed as a3dc405; the Section 5 checkpoint includes baseline 0fe4699 and explicitly leaves manual acceptance pending.
-
-## Try screenshot reading
-
-Select up to five PNG/JPEG screenshots (5 MiB each, 15 MiB total), check previews/order, and explicitly choose **Read screenshots**. Review/correct text and unknown aliases, then **Use reviewed transcript as draft**. Choose **Analyze conversation** separately, review the candidate summary, and accept it into the existing editor. Reading and analysis are separate AI requests; selecting or editing files sends nothing. Gemini is required for image reading; OpenAI remains available for pasted text. No automatic provider fallback occurs.
-
-Use the five synthetic images in `fixtures/screenshots`. Pixel limits are 4096 per side, 8 megapixels per image and 20 total; very large encoded sets may also exceed Google's 20 MB inline-request budget. Raw images stay in browser/backend memory, with no raw image persistence. Explicit Save stores only the summary and required supporting/correction excerpts. Removed previews are revoked. Explicit Clear/reload releases screenshot/transcript state; existing draft/summary clearing has separate controls. Google's retention is separate from Fuzl's lifecycle.
-
-See [Screenshot workflow, lifecycle, tests and exact manual checks](docs/SCREENSHOTS.md). At the Section 4 checkpoint, all 114 offline tests, type checking, linting, builds and health checks passed; current design checks are recorded above. A synthetic screenshot read matched its fixture, and final text extraction preserved separately attributed zero/unknown budgets and tentative dates with unreviewed claims. Three Gemini calls were used, including one planning completeness failure before a prompt correction; one extra local attempt failed before reaching the API. Full results and measured usage are in PROGRESS. Browser interactions remain unverified because no browser is connected. Section 3/4 are committed; Section 5 is checkpointed with manual verification pending.
-
-## Configure and try AI extraction
-
-1. Copy `apps/api/.env.example` to **`apps/api/.env`** if that file does not exist. Set `AI_PROVIDER=openai` with `OPENAI_API_KEY`, or `AI_PROVIDER=gemini` with `GEMINI_API_KEY`. Only the selected key is required. Keep keys out of chat, frontend code, `VITE_` variables, and Git. Omitted AI_PROVIDER defaults to OpenAI for compatibility; invalid values fail without fallback.
-2. For **Gemini Free Tier testing**, follow [Gemini setup](docs/GEMINI_SETUP.md): obtain an AI Studio key, verify its project's Free Tier status, any required verification, and the model's current quotas. Do not enable billing. For OpenAI, review a small project budget first. Then set `AI_ENABLED=true` and restart `npm run dev`.
-3. The page reads public provider/model metadata before enabling Analyze. Confirm the displayed provider and disclosure. **Analyze sends the draft and optional conversation date only to that provider.** A backend provider change requires reloading the disclosure; it cannot silently send to another provider. Editing alone does not send text. Use synthetic conversations for Gemini development.
-4. The result is staged separately. Choose **Use extracted summary** to open it; replacing an existing summary requires confirmation, including for unapplied form edits. If the draft/reference date changed since submission, that result cannot be applied. Cancel stops waiting and requests backend cancellation; a provider call already started may still incur usage.
-5. Inspect **AI claim — unreviewed**, uncertainty, scope, and **Supporting submitted text**. Use Edit fact and Apply changes to mark a fact reviewed; choose confirmed only when justified. AI-reported confirmation does not silently become user confirmation. Source quotes stay unchanged.
-
-Provider: OpenAI Responses with pinned `gpt-5.4-mini-2026-03-17`, strict structured output, `store: false`, and no tools/retries. The model supports structured outputs and standard token pricing of $0.75/M input and $4.50/M output as checked November 6, 2026. This is an initial selection, not a measured quality claim. [Official model documentation](https://developers.openai.com/api/docs/models/gpt-5.4-mini)
-
-Optional Gemini model: stable `gemini-3.5-flash-lite`, documented with structured output and Free Tier input/output. Account eligibility and quota are not guaranteed or checked by Fuzl. No paid-provider fallback exists. [Google model](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite), [pricing](https://ai.google.dev/gemini-api/docs/pricing#gemini-3.5-flash-lite).
-
-Fuzl keeps planning data in memory and does not log raw text or save it. Provider handling is separate: OpenAI says API content is not used for training by default unless opted in; standard abuse-monitoring logs may retain content for up to 30 days, with exceptions. `store: false` does **not** promise zero retention. Account-specific retention controls have not been verified. [Official data controls](https://developers.openai.com/api/docs/guides/your-data)
-
-See [AI integration and evaluation](docs/AI_INTEGRATION.md) for the contract, validation limits, development request cap, offline/live evaluation, and manual browser checks.
-Google's unpaid-service handling differs; use synthetic text and read [Gemini data handling/setup](docs/GEMINI_SETUP.md#data-handling).
-
-## Try the three examples
-
-At http://127.0.0.1:5173, open **Try an example** beside the composer, select a **Sample example**, then click **Load sample**:
-
-| Example | What to inspect |
-| --- | --- |
-| Straightforward plan | Explicit November 14, 2026 availability, individual USD budgets, travel limits, and an unbooked bowling idea |
-| Missing & tentative details | Original Foundation conversation: “Friday” has no invented exact date, “maybe” stays tentative, missing budgets and currency stay unknown |
-| Conflicts & a correction | Indoor/outdoor requirements conflict; Ren’s corrected USD 15 limit is used and both original statements remain inspectable |
-
-Each opens as **Sample summary**, labeled **Manually authored sample data**, never AI analysis. Loading replaces the current draft and summary, including edits; existing drafts, summaries or selected screenshots trigger replacement confirmation. Screenshot selections remain until separately cleared. Merely selecting another example does not replace anything. To test live extraction of a sample conversation, explicitly use Analyze conversation; the sample summary is never substituted for a provider response.
-
-Expand **Participants & speaker mappings** to rename participants or change a speaker mapping to correct attribution across linked facts. Expand **Planning facts**, select **Edit fact**, change its fields/status/firmness, and **Apply changes**; Cancel discards unapplied edits. Expand **Supporting sample text** to inspect original quotes. These quotes never silently change to justify your corrections.
-
-Use **Add participant** and **Add information** for missing details. For a manual fallback, choose **Start blank summary**, which preserves the draft and starts with no inferred facts. **Clear draft** clears only the conversation, **Remove summary** removes only the summary, and reload clears all planning state. Replacing/removing an existing summary requires confirmation.
-
-Editing or clearing the draft after loading a summary shows a mismatch warning while preserving summary edits. Returning it exactly to the original snapshot clears the warning. Analysis runs only on explicit submission; edits never automatically reanalyze or resolve conflicts. Questions/conflicts remain separate: an issue needs a written resolution to be marked resolved, and an answer does not silently change related facts.
-
-## Data model and local edits
-
-[model.ts](packages/planning/src/model.ts) preserves the existing model in a small shared workspace so the web and compiled API use the same types and validators. The original web import path re-exports it. It defines stable participant IDs, speaker mappings, source text, typed facts, and questions. Facts carry **proposed / tentative / confirmed / conflicting** status separately from **firm / flexible / unknown** strength. Optional AI provenance adds review state, reported status, uncertainty, current/historical scope, and superseded fact IDs. Remapping a speaker updates linked attribution without rewriting quotes; direct person attribution stays with that person.
-
-Unknown values are `null`, not zero or guessed text. A budget of zero is a known limit; a blank amount is unknown. Currency can remain unknown independently of the amount. Dates retain the conversational description separately from an optional exact date and optional time boundaries. An ambiguous Friday stays ambiguous. Travel distinguishes “under” from “at most.” Multiple date/time facts can represent different participants or possible windows.
-
-[examples.ts](apps/web/src/planning/examples.ts) contains all three fixtures. Loading clones a fixture into React state, so edits cannot contaminate it or another sample. [SummaryReview.tsx](apps/web/src/planning/SummaryReview.tsx), [FactEditor.tsx](apps/web/src/planning/FactEditor.tsx), and [Questions.tsx](apps/web/src/planning/Questions.tsx) render the review and forms. Name/mapping changes update immediately; fact/question forms validate before applying changes. Blank fields mean unknown. Validation rejects negative/overprecise/unsafe budget amounts, malformed three-letter currency codes, fractional/negative travel minutes, invalid dates, and end times that precede or equal their same-day start. Currency format is checked; it is not a currency conversion or supported-currency service. Overnight windows need separate date/time facts. Status and questions never update automatically from content edits.
-
-## Setup
-
-Use **Node 24.18.0 and npm 11.16.0**, the installed and verified toolchain. `.nvmrc` pins Node; the root manifest accepts Node 24.18+ within version 24 and npm 11. With nvm:
+Requires **Node 24.18+ within 24.x** and **npm 11.x**. The repository records the versions it was checked with in `package.json`. No provider key, account or PostgreSQL connection is needed for offline samples.
 
 ```sh
-nvm install
-nvm use
 npm ci
+# Copy only if you do not already have this file. Preserve existing settings.
+cp -n apps/api/.env.example apps/api/.env
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. The API listens at **http://127.0.0.1:3001**. Samples, manual entry, and health require no credentials. AI requires the selected provider's key and explicit enabling; Gemini can use an eligible Free Tier project. Ctrl+C stops both servers. Installation builds the shared package automatically; root dev/test/typecheck/build commands also build it first. After editing shared source, restart root development to rebuild it.
+Open **http://127.0.0.1:5173/** on the Mac running Fuzl. The API listens on **127.0.0.1:3001**, with `/api` proxied through Vite. **Try an example** and the gallery's **Saturday bowling**, **Friday, maybe** and **Indoors or outdoors?** open manually authored summaries without an AI request. Replacement prompts protect an existing draft.
 
-Versions were selected after checking installed versions, the [Node LTS schedule](https://nodejs.org/en/about/previous-releases), [Vite requirements](https://vite.dev/guide/), [Express requirements](https://expressjs.com/en/starter/installing/), and npm engine/peer metadata. React 19, Vite 8, Express 5, and ESLint 10 are pinned in manifests and the root lockfile. TypeScript **6.0.3** is intentional: typescript-eslint 8.72.1 requires TypeScript below 6.1, so TypeScript 7 is incompatible. `concurrently` manages the two development processes; `tsx` watches API TypeScript. No future-feature dependencies are installed.
+For an offline group-conversation demo, open **http://127.0.0.1:5173/?design=chat**. Its fixture controls switch simulated people and exercise planning, shortlisting, voting and RSVPs. It does not send messages to a hosted group or call Gemini.
 
-## Commands
-
-Run from the repository root:
-
-| Command | Purpose |
-| --- | --- |
-| `npm install` | Install dependencies and update the single root lockfile when needed |
-| `npm ci` | Reproduce the locked installation from scratch |
-| `npm run dev` | Start both servers; stop the other when either command exits |
-| `npm run dev:web` | Run only Vite on port 5173 |
-| `npm run dev:api` | Check port availability, then watch the API on port 3001 |
-| `npm run db:generate` | Generate the server Prisma client without connecting |
-| `npm run db:migrate` | Apply additive tracked migrations to the configured fuzl schema; never reset |
-| `npm run test:db` | Exercise real migrations/CRUD/isolation on an owned disposable local PostgreSQL cluster |
-| `npm run typecheck` | Strictly check frontend, Vite config, and API TypeScript |
-| `npm run lint` | Lint source and tooling with zero warnings allowed |
-| `npm test` | Offline contract/provider-mock/HTTP/evaluation/state/DOM tests; no provider calls |
-| `npm run fixtures:screenshots` | Regenerate the five synthetic chat-image fixtures |
-| `npm run eval:screenshots -- --confirm-live` | One deliberate synthetic screenshot read; add --analyze-reviewed for a second planning call after fixture review |
-| `npm run eval:live -- --confirm-live-eval --case=zero-budget` | One explicit synthetic request to the selected provider; check tier/quota/budget first |
-| `npm run build` | Build web assets and compile API JavaScript |
-| `npm run start:api` | Run the compiled API after building |
-
-Stop the development API before starting the compiled API on the same port. Output lives in each app's ignored `dist/` directory. The web build produces static assets. Deployment and production API routing are future work; Vite's development proxy does not ship in that build.
-
-## Request flow and draft privacy
-
-1. [App.tsx](apps/web/src/App.tsx) holds draft/summary in temporary React state. Reload clears the temporary workspace. Explicitly saved sessions can be reopened. Samples/manual edits send no planning text by themselves; only the auth SDK session cache persists in browser storage. A bodyless `GET /api/ai-config` supplies only public provider/model metadata. Analyze POSTs draft/reference date/expected provider through Vite to `/api/analyze`; the backend calls only that provider and validates the result. See [AnalysisPanel.tsx](apps/web/src/planning/AnalysisPanel.tsx) and [provider.ts](apps/api/src/extraction/provider.ts).
-2. The development-only `/?design=health` Check connection action calls [api.ts](apps/web/src/lib/api.ts), which makes an **HTTP GET** to `/api/health` without a body. It validates the response, times out after five seconds, supports cancellation, and rejects network, HTTP, and response-format failures. A new check replaces the previous result; there are no automatic retries.
-3. The browser sends the relative request to Vite on port 5173. The **development proxy** in [vite.config.ts](apps/web/vite.config.ts) forwards `/api` to port 3001. Browser requests stay on the frontend origin without CORS configuration.
-4. The **backend**, [app.ts](apps/api/src/app.ts), returns health JSON and handles bounded analysis requests. [server.ts](apps/api/src/server.ts) starts Express and handles shutdown. The API key stays on the backend and is never sent to the frontend or included in the model prompt.
-
-The normal workspace has no diagnostic panel. In development, open **http://127.0.0.1:5173/?design=health** and choose **Check connection**. “Connected” means the API answered the last check; it is not continuous monitoring or evidence of AI availability.
+A same-network preview can be started separately with:
 
 ```sh
-curl -i http://127.0.0.1:3001/api/health
-curl -i http://127.0.0.1:5173/api/health
+npm run dev --workspace @fuzl/web -- --host 0.0.0.0 --port 5174
 ```
 
-Both should return HTTP 200 with:
+Open `http://YOUR_MAC_LAN_IP:5174/` on the same network. AI/private local endpoints intentionally reject LAN origins. Use loopback on the Mac for those actions; drafts do not transfer between addresses. This is a local development preview, not a deployment.
 
-```json
-{"status":"ok","service":"fuzl-api"}
+## Optional integrations
+
+Edit **apps/api/.env privately**, preserving existing values. Restart the API after configuration changes. All optional live features are disabled in the safe example file.
+
+| Capability | Backend settings | Guide |
+| --- | --- | --- |
+| Pasted-text AI extraction | `AI_ENABLED=true`, `AI_PROVIDER=openai` + `OPENAI_API_KEY`, or `AI_PROVIDER=gemini` + `GEMINI_API_KEY` | [AI integration](docs/AI_INTEGRATION.md), [Gemini setup and unpaid-service handling](docs/GEMINI_SETUP.md) |
+| Screenshot transcription and planning choices | Selected Gemini configuration above; separate deliberate actions | [Screenshots](docs/SCREENSHOTS.md) |
+| Organizer accounts and explicit saving | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `DATABASE_URL`, optional `DIRECT_URL`, `APP_ORIGIN=http://127.0.0.1:5173` | [Accounts, magic links, TLS and migrations](docs/ACCOUNTS.md) |
+| Native group conversations | Account/database setup and current migrations; Gemini only for explicit AI planning | [Conversations and fixture walkthrough](docs/CONVERSATIONS.md) |
+| Places | `VENUE_SEARCH_ENABLED=true`, `GEOAPIFY_API_KEY` | [Places setup](docs/PLACES.md), [location resolution and evidence](docs/PLACES_7B.md) |
+| Scheduled events | Places/location setup, `EVENT_SEARCH_ENABLED=true`, `TICKETMASTER_API_KEY` | [Events setup and limits](docs/EVENTS.md) |
+
+Configure only the selected AI provider's credentials. There is no automatic paid fallback. Verify project quotas and applicable data handling before an explicit live request. No billing or SMTP setup is required for the offline demo. Supabase development sender restrictions and the pending email task are documented in the account guide.
+
+For persistent features, follow the database/TLS guide before running `npm run db:migrate`. This applies existing migrations with `prisma migrate deploy`; it does not reset a database. Some later feature migrations have only been verified locally—check [progress](docs/PROGRESS.md) before hosted rollout. Never use hosted data for disposable tests.
+
+## Architecture and data
+
+- **Frontend:** React 19, TypeScript and Vite 8 in `apps/web`. Temporary workspace state, review/edit screens, native conversations and credential-scoped public pages share planning contracts. Development demos load separately from the production entry; guest entry screens load on demand.
+- **API:** Express 5 in `apps/api`. Provider adapters, validation, request bounds and server-side fit checks sit behind the relevant local-origin, identity, membership and ownership checks.
+- **Contracts:** `packages/planning` holds Zod schemas, source checks, uncertainty/status rules, fit/ranking and privacy projections. Firm constraints take precedence over preferences or approved memory.
+- **Persistence:** Supabase email magic-link Auth and PostgreSQL, accessed by Prisma 7 on the backend. Guest credentials grant scoped access; a matching display name grants no permissions.
+- **Providers:** One selected OpenAI/Gemini extraction adapter; Gemini for the implemented screenshot/native planning actions; Geoapify for area/place discovery; Ticketmaster for scheduled event listings. Results are proposals or provider evidence, not confirmed reservations.
+
+Raw pasted drafts, temporary screenshots and imported transcripts stay in local application memory. Reloading clears them. Explicit saving stores the summary and supporting excerpts, plus the selected planning records. Native Fuzl conversations intentionally store their messages separately under membership checks. Account switches clear private client state. Organizer authentication and guest credentials use the existing dedicated browser storage; raw imports are not added there.
+
+An explicit Analyze action sends the draft and optional reference date to the selected backend AI provider. Read screenshots sends the selected images to Gemini. Planning choices/native-chat extraction send their documented eligible context; raw imports and private answers stay outside native shared context. Place/event providers receive discovery inputs such as area, radius and dates, not conversations, participant records or private budgets. Public ballots/plans expose approved fields and a guest's own response. Each sending action provides a concise disclosure and full **Privacy & provider details** before submission. Provider retention is separate from Fuzl's temporary state; unpaid Google content may be used for improvement and human review. Use synthetic data for development.
+
+Keys and database connections remain backend-only. Keep `.env`, tokens and private certificates out of Git, screenshots and logs. The Supabase project URL and publishable key are intentionally public; database credentials are not.
+
+## Development and verification
+
+```sh
+npm test             # Offline API/unit/DOM fixtures; database-only cases skip
+npm run test:db      # Owned disposable PostgreSQL; needs initdb, pg_ctl, psql
+npm run typecheck
+npm run lint
+npm run build
 ```
 
-## Troubleshooting
+`npm run dev:web` and `npm run dev:api` start services separately. Installation/build generates Prisma without connecting to a database. Production builds go into workspace `dist` directories; `npm run start:api` starts the compiled API. Hosting and production routing are not configured by these commands.
 
-- **Stopped API:** start `npm run dev:api` and open **`/?design=health` → Check connection**. For failure/recovery testing, run web and API in separate terminals, stop the API, check again, then restart it and retry.
-- **Occupied ports:** both fail clearly instead of silently moving. Stop the conflicting process or change the port. The API preflight makes an occupied/invalid API port fail before watching, allowing the combined command to stop the frontend too. Change the web port in `apps/web/vite.config.ts` if needed.
-- **Different API port:** use `PORT=3002 npm run dev` (or `PORT=3002 npm run dev:api` / `PORT=3002 npm run start:api`) and change the Vite proxy target to `http://127.0.0.1:3002`. Restart Vite after editing configuration. The API now loads optional `apps/api/.env` through Node's environment-file support; exported process variables take precedence. Defaults require no file. Never use `VITE_` variables for secrets.
-- **AI errors:** missing configuration is HTTP 503, invalid input 400/413, throttling/quota 429, unusable provider output 502, and timeout 504. No sample is returned on failure. API limits are global to this local process: one in flight, three attempts/minute, ten attempts until restart. Failed/cancelled provider attempts count. Review spend before restarting; this is not a durable dollar budget. Provider timeout is 45 seconds; client timeout is 55 seconds; retries are manual.
-- **Gemini quota:** HTTP 429 asks you to check this project's active model limits and retry manually after reset. No automatic retries, billing changes, model changes, or provider fallback occur. A different backend provider than the displayed selection yields HTTP 409 before calling a provider; reload the page. Gemini's USD cost is unknown rather than reported as zero.
-- **Dependency audit:** `npm audit` reports 10 moderate development-tool findings through minimatch 10 in ESLint/typescript-eslint. Their current dependency ranges do not accept fixed minimatch 11.0.1. No forced upgrades or overrides were applied. `npm audit --omit=dev` reports zero vulnerabilities. Recheck upstream updates before later work.
+[Browser setup](docs/BROWSER_SETUP.md) documents the project **fuzl_playwright** MCP connection, isolated Chrome, screenshots and console/network inspection. Keep test evidence under ignored `artifacts/`. [Repository guidance](AGENTS.md) maps entry points and development safeguards.
 
-## Verification and manual browser checks
+Useful development-only previews: `?design=chat`, `places`, `ballots`, `plans`, `outings`, `history`, `ideas`, `discovery`, `participation`, `travel`, `backups`, `adjustments`, `people`, `signin`, `logos`, and `health`. These preserve synthetic fixtures and design/diagnostic tools; production does not enable these fixture routes.
 
-See [docs/PROGRESS.md](docs/PROGRESS.md) for exact results. The Section 3 checkpoint passed 93 offline tests, type checking, linting, and builds. Current Section 4 verification is recorded in [PROGRESS](docs/PROGRESS.md) and [SCREENSHOTS](docs/SCREENSHOTS.md). The historical Section 3 diagnosis used **two live synthetic requests**: the first failed source validation at `speakers[0].label` (`speaker_not_in_source`); after constraining generated labels to source prefixes, the second completed with HTTP 200. It preserved the USD 0 budget, exact supporting source, and unreviewed status. Provider latency was 1497 ms, with 713 input / 168 output tokens; cost and project billing tier are unknown. No retry, fallback, billing change, or bulk evaluation ran. Earlier generic failures cannot be reconstructed because their responses were not retained. **Browser flow and broad live extraction quality remain unverified.**
+## Current status
 
-Gemini failures now distinguish upstream HTTP errors, network/TLS failures, deadlines/cancellation, malformed responses, validation, and unexpected adapter exceptions. The UI shows a useful sanitized message and error reference; only server diagnostics include stage/path/rule, upstream status/recognized code, and a fixed safe interpretation of the provider message. Unknown provider text, raw exceptions, keys, URLs, headers, and conversations are never logged. Match the UI reference to the `analysis_failure` line in the API terminal; do not add raw-response logging.
+Section 12B fixed HTTP LAN sample crashes, added visible rendering recovery and retained drafts across navigation. Its [verification report](docs/WEBSITE_12B.md) separates real Chrome/WebKit checks from mocked AI responses. Section 12C's [cleanup report](docs/CLEANUP_12C.md) records the current checks and bundle measurements.
 
-With the app running:
+Real Safari, physical phones and hosted account/guest acceptance remain pending. Hosted callback, save/reopen, two-account isolation, guest voting/RSVP and native-conversation rollout need their controlled checks before sharing real plans. WebKit is not Safari; fixture and disposable-database tests do not establish hosted verification. Some live provider connections were tested in earlier passes, with dated evidence in their guides; this cleanup makes no new live requests.
 
-1. Confirm the page title is Fuzl and the textarea has the Conversation draft label. Try all three examples, type/edit/clear the draft, and confirm the mismatch warning appears without changing the summary. Reload and confirm draft and summary are gone. Pasting arbitrary text alone must never create a summary.
-2. At `/?design=health`, check connection. Using separate web/API terminals, stop the API and check again, then restart and retry. Confirm checking, failure, and recovery messages.
-3. Rename Sam, remap that speaker, and check linked fact attribution changes while the quote stays unchanged. Edit a budget from unknown to `0` and back to blank. Try `-1`, `12.345`, and currency `US` to check errors. Confirm tentative statements and conflicting requirements do not silently become confirmed. Change firmness/status explicitly and apply, then test Cancel.
-4. Edit date/time/activity/travel fields. Try an end time before the start. Add a participant, a missing budget, an activity, and a question manually. Resolve/reopen a question; confirming a resolution requires written text and does not update facts. Reload the same sample to confirm edits reset. Test Start blank summary and manual entry without a sample.
-5. In browser developer tools, confirm sample/manual edits send no planning text, configuration/health are bodyless GETs, Analyze POSTs conversation/reference date/expected provider; Read screenshots separately sends selected images, and Save separately sends the structured summary/excerpts. AI configuration must contain only provider/model; account configuration exposes only designated public Supabase URL/publishable key. Confirm backend keys/database credentials are absent from frontend assets/responses, tokens travel only in private/auth transport and stay out of logs, planning data is absent from browser persistence, and API logs contain no raw planning text. Follow [AI integration](docs/AI_INTEGRATION.md) and [Gemini checks](docs/GEMINI_SETUP.md).
-6. Inspect all examples with a fact editor open at desktop and mobile widths, including 320px, for readable layout and no horizontal overflow. Tab through buttons, inputs, selects, supporting-text disclosures, and the textarea; check visible focus and keyboard activation. With a screen reader, check labels and polite connection/mismatch announcements.
-
-**Current authorization is the outings-first Plan and focused Ask Fuzl pass, left local for review.** Earlier feature checkpoints are preserved. Deployment, reviews/trends and later feature work remain deferred. Hosted migrations/account/guest acceptance gaps remain pending as recorded in progress notes.
+**Section 12D email setup is next.** Reviews/trend discovery, automated booking and deployment remain outside this pass. [Progress](docs/PROGRESS.md) records the implemented milestones and remaining gaps; the original [specification](FUZL_CODEX_SPEC.md) remains unchanged.

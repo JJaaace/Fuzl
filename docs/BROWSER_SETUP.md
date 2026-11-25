@@ -1,5 +1,7 @@
 # Section 12A — Playwright MCP setup and real-browser verification
 
+For the later LAN/Chrome/WebKit reliability pass and current screenshots, see [Section 12B](WEBSITE_12B.md). The setup evidence below remains scoped to Section 12A.
+
 Verified November 22, 2026. This pass configures browser testing only. It preserves all pre-existing local conversation work and makes no Section 12B website changes.
 
 ## Configured connection

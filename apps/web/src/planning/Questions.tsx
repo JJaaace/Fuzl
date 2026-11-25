@@ -1,3 +1,4 @@
+import { newRecordId } from '@fuzl/planning';
 import { useEffect, useRef, useState } from 'react';
 import { focusAndReveal } from '../ui/presentation';
 import { Field } from './FactEditor';
@@ -64,7 +65,7 @@ export default function Questions({ summary, onChange, showEmptyNotice = true }:
       setNewQuestion(null);
     }} onCancel={() => setNewQuestion(null)} /> : <button onClick={() => {
       setEditing(null);
-      setNewQuestion({ id: crypto.randomUUID(), kind: 'missing', text: '', relatedFactIds: [], resolution: null });
+      setNewQuestion({ id: newRecordId(), kind: 'missing', text: '', relatedFactIds: [], resolution: null });
     }}>Add question or conflict</button>}
   </section>;
 }

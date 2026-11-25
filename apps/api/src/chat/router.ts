@@ -21,7 +21,7 @@ export function chatRouter(options:ChatOptions={}){
   router.use((req,res,next)=>{
     res.set({'Cache-Control':'no-store, private','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff',Vary:'Authorization, X-Chat-Credential, X-Chat-Invite'});
     const origin=req.get('origin'),allowed=process.env.APP_ORIGIN?[process.env.APP_ORIGIN]:['http://127.0.0.1:5173','http://localhost:5173'];
-    if(origin&&!allowed.includes(origin))throw new ExtractionError(403,'origin_rejected','Open the supported local app on the Mac for real conversations. The fixture demo works on the preview.');
+    if(origin&&!allowed.includes(origin))throw new ExtractionError(403,'origin_rejected','Open the configured Fuzl website for real conversations. This preview cannot access private groups.');
     const now=Date.now();for(const [key,value] of buckets)if(now-value.at>=60000)buckets.delete(key);
     const key=req.ip??'local',bucket=buckets.get(key)??{at:now,reads:0,writes:0};if(!buckets.has(key)&&buckets.size>=1000)throw new ExtractionError(429,'chat_busy','Conversation service is busy. Retry deliberately later.');buckets.set(key,bucket);
     if(req.method==='GET'){if(++bucket.reads>240)throw new ExtractionError(429,'chat_rate_limit','Pause before refreshing the conversation again.');}else if(++bucket.writes>40)throw new ExtractionError(429,'chat_rate_limit','Too many conversation changes. Wait a minute before retrying.');
@@ -51,11 +51,12 @@ export function chatRouter(options:ChatOptions={}){
   router.delete('/threads/:id/messages/:messageId',async(req,res)=>{await store().deleteMessage(await actor(req),id(req),parse(recordId,req.params.messageId));res.json({ok:true});});
   router.post('/threads/:id/review',async(req,res)=>res.json(await store().prepareReview(await actor(req),id(req),parse(z.strictObject({contentVersion:z.number().int().nonnegative(),sharedVersion:z.number().int().nonnegative()}),req.body))));
   router.post('/threads/:id/requests',async(req,res)=>{
-    const a=await actor(req),threadId=id(req),input=parse(chatRequestInput,req.body),controller=new AbortController();const close=()=>{if(!res.writableEnded)controller.abort();};res.once('close',close);
+    const a=await actor(req),threadId=id(req),input=parse(chatRequestInput,req.body);if(process.env.NODE_ENV==='production'&&input.kind==='plan'&&!a.subject)throw new ExtractionError(401,'chat_account_required','Sign in to request AI planning.');const controller=new AbortController();const close=()=>{if(!res.writableEnded)controller.abort();};res.once('close',close);
     try{res.json(await planning().run(a,threadId,input,controller.signal));}finally{res.off('close',close);}
   });
   router.post('/threads/:id/requests/:requestId/cancel',async(req,res)=>{await planning().cancel(await actor(req),id(req),parse(recordId,req.params.requestId));res.json({ok:true});});
   router.post('/threads/:id/requests/:requestId/apply',async(req,res)=>res.json(await store().apply(await actor(req),id(req),parse(recordId,req.params.requestId),parse(chatApplySchema,req.body))));
+  router.get('/threads/:id/version',async(req,res)=>res.json({version:await store().version(await actor(req),id(req))}));
   router.get('/threads/:id/events',async(req,res)=>{
     const a=await actor(req),threadId=id(req);let version=await store().version(a,threadId),closed=false,checking=false;
     if(streams>=40)throw new ExtractionError(429,'chat_stream_limit','Too many live views. Close an extra tab and reconnect deliberately.');streams++;

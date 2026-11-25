@@ -1,3 +1,4 @@
+import { newRecordId } from '@fuzl/planning';
 import { useEffect, useRef, useState } from 'react';
 import { ballotViewSchema, voteSchema } from '@fuzl/planning';
 import type { BallotView, OwnVote } from '@fuzl/planning';
@@ -42,7 +43,7 @@ export default function GuestBallot({ inviteToken, request = ballotRequest, embe
       // another vote. A name, option or shared invite is never edit authority.
       localStorage.setItem(key.current, JSON.stringify(credential)); permission.current = credential;
       const attemptKey = JSON.stringify([own?.revision, selected]);
-      if (!editAttempt.current || editAttempt.current.key !== attemptKey) editAttempt.current = { key: attemptKey, requestId: crypto.randomUUID() };
+      if (!editAttempt.current || editAttempt.current.key !== attemptKey) editAttempt.current = { key: attemptKey, requestId: newRecordId() };
       const raw = await request(own ? '/vote' : '/votes', own ? credential.editToken : inviteToken, controller.signal, own ? 'PUT' : 'POST', own ? { revision: own.revision, requestId: editAttempt.current.requestId, optionId: selected } : { ...credential, optionId: selected }, own ? inviteToken : undefined);
       const result = voteSchema.parse(raw); if (!ballot.options.some(o => o.id === result.optionId)) throw Error('The returned vote did not match this ballot.');
       if (controller.signal.aborted) return;

@@ -1,3 +1,7 @@
+import PlannerResult from './PlannerResult';
+import type { OutingProposal } from '@fuzl/planning';
+import {homepageCopy} from './homepageCopy';
+import { newRecordId } from '@fuzl/planning';
 import type { SavedProvenance } from '@fuzl/planning';
 import type { TranscriptSnapshot } from '@fuzl/planning';
 import { useEffect, useRef, useState } from 'react';
@@ -47,7 +51,7 @@ function FactCard({ fact, summary, sourceKind, transcript, provenance, available
   </article>;
 }
 
-export default function SummaryReview({ summary, sourceKind = 'sample', sampleId, transcript, active = true, provenance = [], availableScreenshots = [], onChange, saveAction, proposal }: {
+export default function SummaryReview({ planned, proposalStale = false, summary, sourceKind = 'sample', sampleId, transcript, active = true, provenance = [], availableScreenshots = [], onChange, saveAction, proposal }: { planned?: OutingProposal; proposalStale?: boolean;
   proposal?: ProposalContext; saveAction?: { label: string; onClick: () => void }; summary: PlanningSummary; active?: boolean; onChange: (summary: PlanningSummary) => void;
   sampleId?: string; sourceKind?: 'sample' | 'manual' | 'ai'; transcript?: TranscriptSnapshot | null; provenance?: SavedProvenance; availableScreenshots?: string[];
 }) {
@@ -91,7 +95,7 @@ export default function SummaryReview({ summary, sourceKind = 'sample', sampleId
       const edit = card?.querySelector<HTMLButtonElement>(target.kind === 'fact' ? '.fact-actions button' : '[data-edit-question]');
       if (edit?.getAttribute('aria-expanded') !== 'true') edit?.click();
     } else if (target.kind === 'add' && !newFact) {
-      setNewKind(target.factKind); setNewFact(blankFact(target.factKind, crypto.randomUUID()));
+      setNewKind(target.factKind); setNewFact(blankFact(target.factKind, newRecordId()));
     }
     if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
     focusFrame.current = requestAnimationFrame(() => {
@@ -102,7 +106,8 @@ export default function SummaryReview({ summary, sourceKind = 'sample', sampleId
     });
   }
   return <div className="summary-review" data-active={active} ref={root} onInputCapture={() => {localEdits.current++;}} onClickCapture={() => { if (shortcutNotice) setShortcutNotice(''); }}>
-    <PlanOutings summary={summary} sample={sourceKind==='sample'} sampleId={sampleId} context={{...proposal,getEditRevision:()=> (proposal?.getEditRevision?.()??0)+localEdits.current}} saveAction={saveAction} onClarify={()=>takeNextStep()} clarifyLabel={next.label}/>
+    {planned&&<PlannerResult plan={planned} stale={proposalStale} saveAction={saveAction} reviewLabel={next.label} onReview={()=>takeNextStep()}/>}
+    {planned?<details className="planner-other-ideas"><summary>{homepageCopy.proposal.other}</summary><PlanOutings summary={summary} sample={sourceKind==='sample'} sampleId={sampleId} context={{...proposal,getEditRevision:()=> (proposal?.getEditRevision?.()??0)+localEdits.current}} saveAction={saveAction} onClarify={()=>takeNextStep()} clarifyLabel={next.label}/></details>:<PlanOutings summary={summary} sample={sourceKind==='sample'} sampleId={sampleId} context={{...proposal,getEditRevision:()=> (proposal?.getEditRevision?.()??0)+localEdits.current}} saveAction={saveAction} onClarify={()=>takeNextStep()} clarifyLabel={next.label}/>}
     {shortcutNotice&&<p role="status">{shortcutNotice}</p>}
     <AskFuzl summary={summary} sample={sourceKind==='sample'} context={{...proposal,getEditRevision:()=> (proposal?.getEditRevision?.()??0)+localEdits.current}} onEdit={id=>takeNextStep({kind:'fact',id,label:'Edit fact',hint:''})} onSource={id=>{
       if(advanced.current)advanced.current.open=true;if(facts.current)facts.current.open=true;
@@ -114,7 +119,7 @@ export default function SummaryReview({ summary, sourceKind = 'sample', sampleId
       onEditFact={(id,personId) => takeNextStep({kind:'fact',id,label:'Edit fact',hint:''}, personId)}
       onEditName={id => { if (root.current?.querySelector('.fact-form')) {setShortcutNotice('Apply or cancel the open edit first. Your fields were kept.');return;} revealDetails(people.current); focusAndReveal(people.current?.querySelectorAll<HTMLInputElement>('.participant-fields input')[summary.participants.findIndex(p=>p.id===id)] ?? null); }}/>
     </details>
-    <details className="open-questions compact-disclosure" ref={questions}><summary>Open questions ({summary.questions.filter(q=>q.resolution===null).length})</summary><Questions summary={summary} onChange={onChange} showEmptyNotice={true}/></details>
+    <details className="open-questions compact-disclosure" ref={questions}><summary>Open questions ({summary.questions.filter(q=>q.resolution===null).length})</summary><Questions summary={summary} onChange={onChange} showEmptyNotice={!planned}/></details>
     <details className="planning-tools compact-disclosure"><summary>Planning tools</summary><PlanSuggestions {...proposal} summary={summary} getEditRevision={() => (proposal?.getEditRevision?.() ?? 0) + localEdits.current}/></details>
     {!!summary.organizerDecisions?.length && <details className="review-section organizer-decisions"><summary>Organizer decisions ({summary.organizerDecisions.length})</summary><p className="note">Explicit working-session decisions, separate from original conversation evidence. They do not change a published plan or any RSVP.</p><ul>{summary.organizerDecisions.map(d => <li key={d.id}><strong>{d.before} → {d.after}</strong><p>{d.reason}</p><p className="note">{new Date(d.recordedAt).toLocaleString()} · Original source references: {d.sourceIds.join(', ') || 'Manual fact'}</p>{d.checks?.flatMap(c => [c.evidence.travel, c.evidence.booking].filter(Boolean).map((e, i) => <p key={`${c.key}:${i}`}><a href={e!.sourceUrl} target="_blank" rel="noreferrer">Organizer-recorded check source</a> · Checked {e!.checkedOn} · {e!.destination}</p>))}</li>)}</ul></details>}
     <details className="plan-details" ref={advanced}><summary>Sources</summary>
@@ -129,7 +134,7 @@ export default function SummaryReview({ summary, sourceKind = 'sample', sampleId
             ...summary, participants: summary.participants.map((item) => item.id === person.id ? { ...item, name: event.target.value || null } : item),
           })} />)}
       </div>
-      <button onClick={() => onChange({ ...summary, participants: [...summary.participants, { id: crypto.randomUUID(), name: null }] })}>Add participant</button>
+      <button onClick={() => onChange({ ...summary, participants: [...summary.participants, { id: newRecordId(), name: null }] })}>Add participant</button>
       {summary.speakers.length > 0 && <div className="form-grid participant-fields">
         {summary.speakers.map((speaker) => <label className="field" key={speaker.id}><span>Speaker “{speaker.label}” is</span>
           <select value={speaker.participantId ?? ''} onChange={(event) => onChange({ ...summary,
@@ -174,7 +179,7 @@ export default function SummaryReview({ summary, sourceKind = 'sample', sampleId
           const kind = factKinds.find((value) => value === event.target.value);
           if (kind) setNewKind(kind);
         }}>{factKinds.map((kind) => <option key={kind} value={kind}>{kindLabels[kind]}</option>)}</select></label>
-        <button onClick={() => setNewFact(blankFact(newKind, crypto.randomUUID()))}>Add information</button>
+        <button onClick={() => setNewFact(blankFact(newKind, newRecordId()))}>Add information</button>
       </div>}
     </details></details>
   </div>;

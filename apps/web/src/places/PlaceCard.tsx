@@ -1,3 +1,4 @@
+import { newRecordId } from '@fuzl/planning';
 import SavedIdeaSource from '../ideas/SavedIdeaSource';
 import RecordedVisit from '../adjustments/RecordedVisit';
 import { useShortlist } from '../ballots/context';
@@ -21,7 +22,7 @@ export default function PlaceCard({ place, balanceReason, busy = false, onReview
     {onSaveLater && <button onClick={onSaveLater}>Save for later</button>}
     {details.official && <p><a href={details.official.value} target="_blank" rel="noreferrer">Official venue page — organizer matched</a><span className="note"> · Checked {details.official.source.checkedOn} · {details.official.matchNote}</span></p>}
     {onReview && <PlaceEvidenceEditor candidate={c} disabled={busy} onReview={onReview} />}
-    {onShortlist && <button onClick={() => onShortlist(() => shortlistPlace(place, crypto.randomUUID()))}>Add to shortlist</button>}
+    {onShortlist && <button onClick={() => onShortlist(() => shortlistPlace(place, newRecordId()))}>Add to shortlist</button>}
     <DiscoveryChecks checks={place.checks} ranking={place.ranking} />
   </article>;
 }

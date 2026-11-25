@@ -14,7 +14,7 @@ import type { ChatActor } from '@fuzl/planning';
 const enabled=process.env.FUZL_DISPOSABLE_DATABASE==='owned-by-test-runner'&&!!process.env.FUZL_TEST_DATABASE_URL;
 const key=()=>Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
 test('native conversations: actual PostgreSQL ownership, idempotency, ordering, credentials, SSE, AI receipts, approval and deletion',{skip:!enabled},async t=>{
-  const url=process.env.FUZL_TEST_DATABASE_URL!;assert.equal(new URL(url).hostname,'127.0.0.1');const db=new PrismaClient({adapter:new PrismaPg({connectionString:url},{schema:'fuzl'}),log:[]});t.after(()=>db.$disconnect());
+  const url=process.env.FUZL_TEST_DATABASE_URL!;assert.equal(new URL(url).hostname,'127.0.0.1');const db=new PrismaClient({adapter:new PrismaPg({connectionString:url,max:1},{schema:'fuzl'}),log:[]});t.after(()=>db.$disconnect());
   let now=Date.now();const store=new ChatStore(db,()=>now),owners=new OrganizerStore(db),a=crypto.randomUUID(),b=crypto.randomUUID(),c=crypto.randomUUID();
   const actor:ChatActor={subject:a},other:ChatActor={subject:b};const group=await owners.createGroup(a,{name:'Synthetic Friday friends',aliases:['Editable Sam alias']}),foreign=await owners.createGroup(b,{name:'Other private group',aliases:[]});
   const secretSummary=emptySummary();secretSummary.participants=[{id:'private-person',name:'PRIVATE CANARY'}];secretSummary.speakers=[{id:'private-speaker',label:'PRIVATE CANARY',participantId:'private-person'}];secretSummary.sources=[{id:'private-quote',speakerId:'private-speaker',text:'PRIVATE CANARY: My private limit is USD 17.31.'}];secretSummary.facts=[{id:'private-budget',subject:{kind:'participant',participantId:'private-person'},kind:'budget',amount:17.31,currency:'USD',status:'confirmed',strength:'firm',sourceIds:['private-quote']}];
@@ -89,4 +89,29 @@ test('native thread → reviewed plan → shortlist → vote → published plan 
   await assert.rejects(chat.invitations(guest,id));assert.ok((await chat.invitations(actor,id)).every(i=>!JSON.stringify(i).includes(inviteToken)));
   // Another member cannot cancel an organizer request, including after completion.
   await assert.rejects(planner.cancel(guest,id,next.id));
+});
+
+test('hosted beta uses persistent account quotas, cross-instance concurrency and an explicit Nashville destination',{skip:!enabled},async t=>{
+ const db=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.FUZL_TEST_DATABASE_URL!},{schema:'fuzl'}),log:[]});t.after(()=>db.$disconnect());
+ const previous=process.env.NODE_ENV;process.env.NODE_ENV='production';t.after(()=>{if(previous===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=previous;});
+ let now=Date.now();const subject=crypto.randomUUID(),actor={subject},owners=new OrganizerStore(db),store=new ChatStore(db,()=>now),otherInstance=new ChatStore(db,()=>now);
+ const group=await owners.createGroup(subject,{name:'Synthetic Nashville quota check',aliases:[]});
+ const ids=await Promise.all([0,1,2,3].map(i=>store.create(subject,{creationId:crypto.randomUUID(),groupId:group.id,title:`Nashville ${i}`,displayName:'Synthetic organizer',destination:{label:'Nashville, TN',timeZone:'America/Chicago'}})));
+ const thread=await store.thread(actor,ids[0]);assert.deepEqual(thread.destination,{label:'Nashville, TN',timeZone:'America/Chicago'});
+ assert.match((await store.page(actor,ids[0])).messages[0].text!,/Nashville, TN.*America\/Chicago/);
+ const request=()=>({requestId:crypto.randomUUID(),kind:'plan' as const,contentVersion:1,sharedVersion:0});const first=request(),second=request();
+ await store.begin(actor,ids[0],first);await otherInstance.begin(actor,ids[1],second);
+ assert.equal((await otherInstance.begin(actor,ids[0],first)).existing,true,'receipt replay never acquires another lease');
+ await assert.rejects(otherInstance.begin(actor,ids[2],request()),(e:unknown)=>e instanceof ExtractionError&&e.code==='chat_ai_busy');
+ await db.aiRequestLease.updateMany({where:{authSubject:subject},data:{expiresAt:new Date(now)}});
+ await otherInstance.begin(actor,ids[2],request());
+ await assert.rejects(store.begin(actor,ids[3],request()),(e:unknown)=>e instanceof ExtractionError&&e.code==='chat_ai_limit');
+ assert.equal(await db.aiRequestLease.count({where:{authSubject:subject}}),3);
+ await db.aiRequestLease.createMany({data:Array.from({length:17},()=>({id:crypto.randomUUID(),authSubject:subject,createdAt:new Date(now-600000),expiresAt:new Date(now-600000)}))});
+ await owners.deleteGroup(subject,group.id);now+=61000;
+ const nextGroup=await owners.createGroup(subject,{name:'New group cannot reset quota',aliases:[]});const nextId=await store.create(subject,{creationId:crypto.randomUUID(),groupId:nextGroup.id,title:'Next outing',displayName:'Synthetic organizer'});
+ await assert.rejects(store.begin(actor,nextId,request()),(e:unknown)=>e instanceof ExtractionError&&e.code==='chat_ai_limit');
+ await assert.rejects(store.thread({subject:crypto.randomUUID()},nextId));
+ assert.equal(await db.aiRequestLease.count({where:{authSubject:subject}}),20);
+ await owners.deleteGroup(subject,nextGroup.id);await db.aiRequestLease.deleteMany({where:{authSubject:subject}});
 });

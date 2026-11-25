@@ -1,9 +1,10 @@
+import { newRecordId } from '@fuzl/planning';
 import { demoPlaces, demoPlaceQuery, emptyIdea, groupHistoryFixture, memoryEditSchema, outingEditSchema, outingOwnerSchema } from '@fuzl/planning';
 import { ideaDemo } from '../ideas/demo';
 export function historyDemo(){
   const f=groupHistoryFixture(),found=demoPlaces(demoPlaceQuery,'2026-11-14T12:00:00Z');if(!('area'in found))throw Error('Synthetic area missing');const ideas=ideaDemo(found.candidates[0],f.groups.map(g=>g.id));
   // Keep one fixed mapping per fixture group; no name-based identity inference.
-  const ready=Promise.all(ideas.transports.map((transport,i)=>transport('','POST',{requestId:crypto.randomUUID(),content:{...emptyIdea(),name:i===0?'Synthetic night market to try':'Synthetic Group B pottery idea',kind:'idea',link:`https://example.com/synthetic-next-${i}`,note:'PRIVATE saved idea note'},allowDuplicate:false},new AbortController().signal)));
+  const ready=Promise.all(ideas.transports.map((transport,i)=>transport('','POST',{requestId:newRecordId(),content:{...emptyIdea(),name:i===0?'Synthetic night market to try':'Synthetic Group B pottery idea',kind:'idea',link:`https://example.com/synthetic-next-${i}`,note:'PRIVATE saved idea note'},allowDuplicate:false},new AbortController().signal)));
   const history=f.groups.map(group=>async(signal:AbortSignal)=>{void signal;await ready;return f.records.filter(row=>row.groupId===group.id&&row.plan.status==='completed').map(f.recap).sort((a,b)=>b.actual.date!.localeCompare(a.actual.date!)||b.actual.time!.localeCompare(a.actual.time!));});
   const details=(sessionId:string)=>{const record=f.records.find(r=>r.outing.sessionId===sessionId);if(!record)throw Error('Unknown synthetic outing');const requests=new Map<string,string>();
     const outing=async(path:string,method:string,raw?:unknown)=>{void method;if(path==='')return structuredClone(record.outing);const body=raw as{revision:number;requestId:string},fingerprint=JSON.stringify([path,raw]);if(requests.has(body.requestId)){if(requests.get(body.requestId)!==fingerprint)throw Error('Synthetic retry changed.');return structuredClone(record.outing);}if(body.revision!==record.outing.revision)throw Error('Synthetic outing changed. Reload deliberately.');

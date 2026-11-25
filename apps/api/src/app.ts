@@ -1,3 +1,4 @@
+import { makeConversationPlan } from './extraction/planner.js';
 import { chatRouter } from './chat/router.js';
 import type { ChatOptions } from './chat/router.js';
 import { publicOutingRouter } from './outings/router.js';
@@ -27,7 +28,7 @@ import { planProposalRequestSchema, planProposalResponseSchema } from '@fuzl/pla
 import type { PlanProposalRequest } from '@fuzl/planning';
 
 type Extractor = (request: AnalysisRequest, signal: AbortSignal) => Promise<AnalysisResponse>;
-export function createApp(options: { chat?:ChatOptions; proposals?: ProposalOptions; outings?: OutingOptions; plans?: PlanOptions; ballots?: BallotOptions; guests?: GuestOptions; accounts?: Parameters<typeof accountRouter>[0]; transcribe?: (request: ScreenshotReadRequest, signal: AbortSignal) => Promise<TranscriptionResponse>; extract?: Extractor; checkConfiguration?: () => void; now?: () => number; timeoutMs?: number } = {}) {
+export function createApp(options: { makePlan?: (request: AnalysisRequest, signal: AbortSignal) => Promise<AnalysisResponse>; chat?:ChatOptions; proposals?: ProposalOptions; outings?: OutingOptions; plans?: PlanOptions; ballots?: BallotOptions; guests?: GuestOptions; accounts?: Parameters<typeof accountRouter>[0]; transcribe?: (request: ScreenshotReadRequest, signal: AbortSignal) => Promise<TranscriptionResponse>; extract?: Extractor; checkConfiguration?: () => void; now?: () => number; timeoutMs?: number } = {}) {
   const app = express();
   app.disable('x-powered-by');
   const extract = options.extract ?? extractConversation;
@@ -47,11 +48,11 @@ export function createApp(options: { chat?:ChatOptions; proposals?: ProposalOpti
     response.json(getAIConfiguration()); // Public allowlist: provider/model only.
   });
 
-  app.post(['/api/analyze', '/api/transcribe', '/api/suggest-plan', '/api/check-plan', '/api/ask-plan'], (request, response, next) => {
+  app.post(['/api/analyze', '/api/make-plan', '/api/transcribe', '/api/suggest-plan', '/api/check-plan', '/api/ask-plan'], (request, response, next) => {
     response.set('Cache-Control', 'no-store');
     const origin = request.get('origin');
-    if (origin && !/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin)) {
-      const error = new ExtractionError(403, 'origin_rejected', 'Analysis requires the local Fuzl app. On the Mac running Fuzl, open http://127.0.0.1:5173. LAN previews can use offline samples. Your draft was kept; no AI provider was called.');
+    if (process.env.NODE_ENV === 'production' || origin && !/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin)) {
+      const error = new ExtractionError(403, 'origin_rejected', process.env.NODE_ENV==='production'?'For hosted AI planning, sign in and open Conversations in your group. This temporary-import endpoint is local-only. Your draft was kept; no AI provider was called.':'Analysis requires the local Fuzl app. On the Mac running Fuzl, open http://127.0.0.1:5173. LAN previews can use offline samples. Your draft was kept; no AI provider was called.');
       // Log only this pre-provider guard, never unrelated private-route errors.
       console.error(JSON.stringify({ event: 'analysis_origin_rejected', reference: error.reference, code: error.code, status: error.status, providerCalled: false }));
       throw error;
@@ -65,6 +66,7 @@ export function createApp(options: { chat?:ChatOptions; proposals?: ProposalOpti
     response.once('close', () => { receivingImages = false; });
     next();
   }, (request, response, next) => express.json({ limit: request.path === '/api/transcribe' ? '21mb' : ['/api/suggest-plan', '/api/check-plan', '/api/ask-plan'].includes(request.path) ? '128kb' : '32kb', inflate: false })(request, response, next), async (request, response, next) => {
+    const isPlanning = request.path === '/api/make-plan';
     const isTranscription = request.path === '/api/transcribe';
     const isAsk=request.path==='/api/ask-plan';
     const isProposal = ['/api/suggest-plan', '/api/check-plan'].includes(request.path), checksOnly = request.path === '/api/check-plan'||isAsk;
@@ -101,9 +103,10 @@ export function createApp(options: { chat?:ChatOptions; proposals?: ProposalOpti
         }, { once: true });
       });
       timer = setTimeout(() => controller!.abort(new DOMException('Analysis deadline exceeded', 'TimeoutError')), options.timeoutMs ?? PROVIDER_TIMEOUT_MS);
-      const result = await Promise.race([isAsk ? askPlan(parsed.data as PlanQuestionRequest,controller.signal,{authorization:request.get('authorization'),origin:request.get('origin')},options.proposals) : isProposal ? proposePlan(parsed.data as PlanProposalRequest, controller.signal, { authorization: request.get('authorization'), origin: request.get('origin') }, checksOnly, options.proposals) : isTranscription ? (options.transcribe ?? readScreenshots)(parsed.data as ScreenshotReadRequest, controller.signal) : extract(parsed.data as AnalysisRequest, controller.signal), abort]);
+      const result = await Promise.race([isPlanning ? (options.makePlan ?? ((input, abortSignal) => makeConversationPlan(input, abortSignal, extract)))(parsed.data as AnalysisRequest, controller.signal) : isAsk ? askPlan(parsed.data as PlanQuestionRequest,controller.signal,{authorization:request.get('authorization'),origin:request.get('origin')},options.proposals) : isProposal ? proposePlan(parsed.data as PlanProposalRequest, controller.signal, { authorization: request.get('authorization'), origin: request.get('origin') }, checksOnly, options.proposals) : isTranscription ? (options.transcribe ?? readScreenshots)(parsed.data as ScreenshotReadRequest, controller.signal) : extract(parsed.data as AnalysisRequest, controller.signal), abort]);
       const valid = isAsk ? planAnswerSchema.safeParse(result) : isProposal ? planProposalResponseSchema.safeParse(result) : isTranscription ? transcriptionResponseSchema.safeParse(result) : analysisResponseSchema.safeParse(result);
       if (!valid.success) schemaFailure('response_contract', valid.error);
+      if (isPlanning && !('proposal' in valid.data && valid.data.proposal)) throw new ExtractionError(502, 'invalid_proposal', 'The planner returned no plan. Your existing work was kept.');
       if (!response.destroyed) response.json(valid.data);
     } catch (error) { if (!response.destroyed) next(error); }
     finally {

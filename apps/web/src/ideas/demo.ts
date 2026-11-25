@@ -1,8 +1,9 @@
+import { newRecordId } from '@fuzl/planning';
 import { createIdeaSchema, updateIdeaSchema, controlIdeaSchema, cardIdeaSchema, duplicateIdea, ideaDateState, ideaSchema, ideaPlace, ideaEvent } from '@fuzl/planning';
 import type { SavedIdea, IdeaReference, PlaceCandidate } from '@fuzl/planning';
 import type { IdeaTransport } from './SavedIdeas';
 // UI simulation only. Real ownership, SQL, locks and privacy have separate tests.
-export function ideaDemo(card: PlaceCandidate, groups: string[] = [crypto.randomUUID(), crypto.randomUUID()]) {
+export function ideaDemo(card: PlaceCandidate, groups: string[] = [newRecordId(), newRecordId()]) {
   const rows: SavedIdea[] = [], ids = new Map<string, SavedIdea>();
   const transports = groups.map(groupId => {
     const transport: IdeaTransport = async (path, method, raw) => {
@@ -15,7 +16,7 @@ export function ideaDemo(card: PlaceCandidate, groups: string[] = [crypto.random
         let content = input.content, origin: SavedIdea['origin'] = { provider: 'manual', itemId: null, referenceUrl: content.link };
         if (path) { content = { ...content, link: card.sourceUrl, kind: 'venue', address: card.address, category: card.category, lat: card.lat, lon: card.lon, timeZone: card.timeZone ?? null, lastCheckedOn: card.retrievedAt.slice(0, 10) }; origin = { provider: 'demo', itemId: card.id, referenceUrl: card.sourceUrl }; }
         if (!input.allowDuplicate && rows.some(r => r.groupId === groupId && duplicateIdea(r, { content, origin }))) throw Error('Already saved in this group. Explicitly allow a separate repeat/date.');
-        const row = ideaSchema.parse({ id: crypto.randomUUID(), groupId, revision: 1, content, origin, archived: false, edited: false, dateState: ideaDateState(content), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); rows.push(row); ids.set(input.requestId, row); return structuredClone(row);
+        const row = ideaSchema.parse({ id: newRecordId(), groupId, revision: 1, content, origin, archived: false, edited: false, dateState: ideaDateState(content), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); rows.push(row); ids.set(input.requestId, row); return structuredClone(row);
       }
       const ideaId = path.split('/')[1], row = rows.find(r => r.groupId === groupId && r.id === ideaId); if (!row) throw Error('Idea unavailable for this group');
       const v = raw as { revision: number }; if (row.revision !== v.revision) throw Error('Idea changed. Refresh and review.');

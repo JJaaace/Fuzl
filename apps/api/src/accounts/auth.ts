@@ -10,7 +10,7 @@ export function publicAccountConfiguration() {
   if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('.supabase.co') || parsed.username || parsed.password || parsed.search || parsed.hash) throw new ExtractionError(503, 'auth_configuration', 'Use the Supabase project HTTPS URL and publishable key in the backend configuration.');
   // Only explicitly public configuration may cross this boundary. No service key.
   if (!publishableKey.startsWith('sb_publishable_')) throw new ExtractionError(503, 'auth_configuration', 'Use the project’s sb_publishable_ key, never a secret/service-role key.');
-  return { configured: true as const, url: parsed.origin, publishableKey };
+  return { configured: true as const, url: parsed.origin, publishableKey, appOrigin: process.env.APP_ORIGIN ?? 'http://127.0.0.1:5173' };
 }
 export const verifyOrganizer: VerifyOrganizer = async (token) => {
   const configuration = publicAccountConfiguration();

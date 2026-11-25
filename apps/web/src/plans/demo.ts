@@ -1,3 +1,4 @@
+import { newRecordId } from '@fuzl/planning';
 import { canPlanTransition, detailsFromOption, materialPlanKey, publicPlanSchema, publishablePlan, rsvpCreateSchema, rsvpEditSchema } from '@fuzl/planning';
 import type { BallotDashboard, OwnRsvp, OwnerPlan, PlanDraft, PublicPlan } from '@fuzl/planning';
 // Explicitly simulated UI transport; the actual store/credentials/SQL paths have
@@ -24,7 +25,7 @@ export function planDemo(ballots: () => Promise<unknown>, onLink: (token: string
       const data = await ballots() as BallotDashboard, b = data.ballots.find(b => b.id === input.ballotId), option = b?.options.find(o => o.id === input.optionId); if (!option) throw Error('Choose a published option');
       const draft = { ballotId: b!.id, option: structuredClone(option), details: detailsFromOption(option) };
       if (plan) { if (['cancelled', 'completed'].includes(plan.status)) throw Error('Terminal plan'); plan.draft = draft; plan.draftKey = await key(draft); }
-      else plan = { id: crypto.randomUUID(), revision: 0, status: 'proposed', draft, draftKey: await key(draft), published: null, history: [], link: null, attendance: [], counts: { going: 0, maybe: 0, cant: 0, needsReconfirmation: 0, totalResponses: 0 } };
+      else plan = { id: newRecordId(), revision: 0, status: 'proposed', draft, draftKey: await key(draft), published: null, history: [], link: null, attendance: [], counts: { going: 0, maybe: 0, cant: 0, needsReconfirmation: 0, totalResponses: 0 } };
     } else {
       if (!plan) throw Error('Choose an option first');
       if (path === '/draft') { if (['cancelled', 'completed'].includes(plan.status)) throw Error('Terminal plan'); plan.draft.details = structuredClone(input.details) as PlanDraft['details']; plan.draftKey = await key(plan.draft); }
@@ -51,13 +52,13 @@ export function planDemo(ballots: () => Promise<unknown>, onLink: (token: string
     const dto = (r: OwnRsvp) => ({ alias: r.alias, choice: r.choice, revision: r.revision, answeredMaterialVersion: r.answeredMaterialVersion, needsReconfirmation: r.answeredMaterialVersion !== plan!.published!.materialVersion, updatedAt: r.updatedAt });
     if (path === '/rsvp' && method === 'GET') return row ? dto(row) : null;
     if (!plan.published.rsvpOpen) throw Error('RSVPs closed');
-    if (path === '/rsvps') { const p = rsvpCreateSchema.parse(raw); if (p.payload.planVersion !== plan.published.version) throw Error('Plan changed. Reload and review.'); const old = rows.get(p.editToken); if (old) return dto(old); const r = { id: crypto.randomUUID(), submissionId: p.submissionId, alias: p.payload.alias, choice: p.payload.choice, revision: 1, answeredMaterialVersion: plan.published.materialVersion, needsReconfirmation: false, updatedAt: new Date().toISOString() }; rows.set(p.editToken, r); return dto(r); }
+    if (path === '/rsvps') { const p = rsvpCreateSchema.parse(raw); if (p.payload.planVersion !== plan.published.version) throw Error('Plan changed. Reload and review.'); const old = rows.get(p.editToken); if (old) return dto(old); const r = { id: newRecordId(), submissionId: p.submissionId, alias: p.payload.alias, choice: p.payload.choice, revision: 1, answeredMaterialVersion: plan.published.materialVersion, needsReconfirmation: false, updatedAt: new Date().toISOString() }; rows.set(p.editToken, r); return dto(r); }
     const p = rsvpEditSchema.parse(raw); if (!row || p.payload.planVersion !== plan.published.version || row.revision !== p.revision && row.lastRequestId !== p.requestId) throw Error('Plan or RSVP changed. Reload.'); const next = { ...row, alias: p.payload.alias, choice: p.payload.choice, answeredMaterialVersion: plan.published.materialVersion, revision: row.lastRequestId === p.requestId ? row.revision : row.revision + 1, lastRequestId: p.requestId, updatedAt: new Date().toISOString() }; rows.set(auth, next); return dto(next);
   };
   const replace = async (draft: PlanDraft, notice: string, revision: number) => {
     if (!plan || plan.revision !== revision || plan.status !== 'confirmed' || !publishablePlan(draft.details)) throw Error('Demo plan changed. Preview again.');
     plan.draft = structuredClone(draft); plan.draftKey = await key(draft);
-    return owner('/publish', 'POST', { requestId: crypto.randomUUID(), revision, previewKey: plan.draftKey, approved: true, notice });
+    return owner('/publish', 'POST', { requestId: newRecordId(), revision, previewKey: plan.draftKey, approved: true, notice });
   };
   return { owner, guest, ballots, replace };
 }

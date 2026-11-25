@@ -1,3 +1,5 @@
+import ProviderPrivacy from '../ui/ProviderPrivacy';
+import { newRecordId } from '@fuzl/planning';
 import { focusAndReveal } from '../ui/presentation';
 import FuseDots from '../ui/FuseDots';
 import { useEffect, useRef, useState } from 'react';
@@ -69,7 +71,7 @@ export default function ScreenshotPanel({ onUse, onTranscriptChange, onFilesChan
       if (controller.signal.aborted || pending.current !== controller) return;
       if (!readStillCurrent({ revision: submitted, key }, revision.current, currentFiles.current)) { setStatus('stale'); return; }
       setResult(response);
-      setSnapshot({ id: crypto.randomUUID(), draft: transcriptDraft(response.messages), messages: structuredClone(response.messages), original: structuredClone(response) });
+      setSnapshot({ id: newRecordId(), draft: transcriptDraft(response.messages), messages: structuredClone(response.messages), original: structuredClone(response) });
       focusNewTranscript.current = true; setStatus('done'); onReady?.();
     } catch (error) {
       if (controller.signal.aborted || pending.current !== controller) return;
@@ -96,7 +98,7 @@ export default function ScreenshotPanel({ onUse, onTranscriptChange, onFilesChan
         <details><summary>Image reference</summary><p className="note">{file.id}</p></details>
       </li>)}</ol>
       <p className="composer-note"><span className="state-dot" />Temporary screenshots · not saved</p>
-      <p id="screenshot-privacy" className="provider-disclosure"><Icon name="spark" /><span><strong>Read screenshots</strong> sends these images to <strong>Google Gemini</strong>. Use synthetic images only; unpaid Google content may be used for improvement and human review. Reading and planning analysis are separate AI requests.</span></p>
+      <p id="screenshot-privacy" className="provider-disclosure"><Icon name="spark" /><span><strong>Read screenshots</strong> sends these images to <strong>Google Gemini</strong>. Synthetic images only.</span></p><ProviderPrivacy><p>Read screenshots sends the selected images for transcription. Reading images and analyzing the reviewed transcript are separate, explicit AI requests. Raw images remain temporary in Fuzl; saving a session stores only approved summary details and supporting excerpts.</p></ProviderPrivacy>
       {!configuration && <p className="notice">Provider configuration unavailable. <button onClick={() => setConfigurationVersion((value) => value + 1)}>Reload screenshot provider</button></p>}
       {configuration && configuration.provider !== 'gemini' && <p className="notice">Screenshot reading requires Gemini selected on the backend. Pasted-text analysis with OpenAI is available. No automatic provider switch.</p>}
       <div className="actions"><button ref={readButton} className="primary" disabled={!files.length || status === 'loading' || preparing || configuration?.provider !== 'gemini'} aria-busy={status === 'loading'} onClick={() => void read()}>{status === 'loading' ? <FuseDots /> : <Icon name="image" />}{status === 'loading' ? 'Reading screenshots…' : 'Read screenshots'}</button>
@@ -121,7 +123,7 @@ export default function ScreenshotPanel({ onUse, onTranscriptChange, onFilesChan
       }} onRemove={() => { const messages = snapshot.messages.filter((message) => message.id !== item.id); updateTranscript({ ...snapshot, messages, draft: transcriptDraft(messages) }); }} />)}</div>
       <details className="missing-message"><summary><Icon name="plus" />Add a missing message</summary><label className="field"><span>Source screenshot for a missing message</span><select value={manualSource} onChange={(event) => setManualSource(event.target.value)}><option value="">Choose its source screenshot</option>{snapshot.original.screenshots.map((image) => <option key={image.id} value={image.id}>{image.id}</option>)}</select></label>
         <button disabled={snapshot.messages.length >= 100 || !snapshot.original.screenshots.some((image) => image.id === manualSource)} onClick={() => {
-          const id = crypto.randomUUID(); const messages = [...snapshot.messages, { id, screenshotId: manualSource, speakerLabel: null, text: '', visibleDateTime: null, uncertainty: null, possibleDuplicateOf: null }]; updateTranscript({ ...snapshot, messages, draft: transcriptDraft(messages) }); requestAnimationFrame(() => document.getElementById(`transcript-${id}`)?.querySelector('textarea')?.focus());
+          const id = newRecordId(); const messages = [...snapshot.messages, { id, screenshotId: manualSource, speakerLabel: null, text: '', visibleDateTime: null, uncertainty: null, possibleDuplicateOf: null }]; updateTranscript({ ...snapshot, messages, draft: transcriptDraft(messages) }); requestAnimationFrame(() => document.getElementById(`transcript-${id}`)?.querySelector('textarea')?.focus());
         }}>Add missing message manually</button><p className="note">Manual additions keep their selected source and are labeled separately.</p></details>
       {selectionKey(files) !== snapshot.original.screenshots.map((image) => image.id).join('|') && <p className="source-warning">Selected images or order differ from this transcript’s original read. Read again deliberately to use the new selection.</p>}
       {missingImages && <p className="source-warning">Some source images were removed. Transcript references remain; previews are unavailable.</p>}

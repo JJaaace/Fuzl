@@ -1,3 +1,4 @@
+import { newRecordId } from '@fuzl/planning';
 import { useEffect, useRef, useState } from 'react';
 import { scopeDashboardSchema, scopeWindowSchema, availabilityFor } from '@fuzl/planning';
 import type { ScopeDashboard, ScopeWindow, SavedSession, PlanningSummary } from '@fuzl/planning';
@@ -20,7 +21,7 @@ export default function ParticipationPanel({ token, loaded, summary, onChanged, 
     if (lock.current || !data) return;
     if (JSON.stringify(summary.participants) !== JSON.stringify(loaded.payload.summary.participants)) { setMessage('Save/reopen the current intended roster before collecting or reviewing opt-ins. Unsaved roster edits were kept.'); return; }
     lock.current = true; setBusy(true); const c = life.current, at = edits.current, input = { revision: data.revision, sessionRevision: loaded.revision, approved: true, ...extra }, key = JSON.stringify([path, input]);
-    if (attempt.current?.key !== key) attempt.current = { key, body: { ...input, requestId: crypto.randomUUID(), ...(path === '/window' ? { inviteToken: newEditPermission().editToken } : {}) } };
+    if (attempt.current?.key !== key) attempt.current = { key, body: { ...input, requestId: newRecordId(), ...(path === '/window' ? { inviteToken: newEditPermission().editToken } : {}) } };
     try { const raw = await call(path, 'POST', attempt.current.body, c.signal); if (c.signal.aborted) return; const result = path === '/window' ? raw as { dashboard: unknown; token: string } : { dashboard: raw, token: null }; apply(result.dashboard, at === edits.current); attempt.current = null; if (result.token) setLink(request ? 'Simulated link — use Guest availability demo below' : `${globalThis.location.origin}/guest#invite=${result.token}`); if (path === '/revoke') setLink(''); setMessage('Participation saved. Recheck the current candidates; selected shortlist snapshots, published plans and RSVPs are unchanged.'); }
     catch (e) { if (!c.signal.aborted) { setMessage(e instanceof Error && e.name !== 'ZodError' ? e.message : 'Participation response could not be verified. Fields kept.'); onChanged(true); } }
     finally { lock.current = false; setBusy(false); }

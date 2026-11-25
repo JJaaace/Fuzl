@@ -62,13 +62,16 @@ export class ChatPlanner{
         return await this.store.finish(actor,id,input.requestId,{answer},snapshot.thread.sharedSources as Record<string,string>);
       }
       const time=this.now();this.attempts=this.attempts.filter(a=>time-a.at<60000);
-      if(this.total>=10||this.attempts.filter(a=>a.member===snapshot.me.id).length>=3)throw new ExtractionError(429,'chat_ai_limit','The development AI limit was reached. Wait for the minute limit or review usage before restarting; no automatic retry.');
+      if(process.env.NODE_ENV!=='production'&&(this.total>=10||this.attempts.filter(a=>a.member===snapshot.me.id).length>=3))throw new ExtractionError(429,'chat_ai_limit','The development AI limit was reached. Wait for the minute limit or review usage before restarting; no automatic retry.');
       const config=this.check();if(config.provider!=='gemini')throw new ExtractionError(503,'chat_gemini_required','Select Gemini on the backend for conversation planning. No other provider was called.');
       const privateSession=await this.store.db.planningSession.findUniqueOrThrow({where:{id:snapshot.thread.sessionId}}),privateSummary=savedSummarySchema.parse(privateSession.summary),privateStore=new PlaceStore(this.store.db,this.now);
       const baseline=await privateStore.context(snapshot.thread.group.owner.authSubject,snapshot.thread.sessionId,{summary:privateSummary,sessionRevision:snapshot.sessionRevision});
       const context=nativeContext(snapshot);await this.store.db.chatRequest.update({where:{id:input.requestId},data:{contextHash:baseline.version,sourceVersions:context.lines.map(line=>({id:line.messageId,version:snapshot.messages.find(m=>m.id===line.messageId)!.changeVersion}))}});if(!context.lines.length)throw new ExtractionError(422,'chat_messages_needed','Add an outing message first. Questions and Fuzl responses are not extracted as new claims.');
       this.total++;this.attempts.push({at:time,member:snapshot.me.id});
       const response=analysisResponseSchema.parse(await this.extract({conversation:context.conversation,expectedProvider:'gemini',referenceDate:input.referenceDate??null},AbortSignal.any([controller.signal,AbortSignal.timeout(50000)])));
+      // Operational evidence only: no message, participant, private constraint,
+      // authorization header or provider response body enters logs.
+      if(process.env.NODE_ENV==='production')console.info(JSON.stringify({event:'chat_plan_provider_completed',requestId:input.requestId,metrics:response.metrics}));
       if(controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
       const bound=bindNativeSummary(response.summary,snapshot,context),shared=mergeNativeSummary(savedSummarySchema.parse(snapshot.thread.sharedSummary),bound.summary);
       const candidates=manualPlaces(ideaChoices(shared,undefined,0).map(c=>c.candidate),new Date(this.now()).toISOString());
@@ -80,7 +83,7 @@ export class ChatPlanner{
       const plan=chatPlanResultSchema.parse({summary:shared,suggestions,followUp:shared.questions.find(q=>q.resolution===null)?.text??'Choose an idea, then check its venue, cost, timing and travel before agreeing.',usedMessages:context.lines.length});
       return await this.store.finish(actor,id,input.requestId,{plan},{...snapshot.thread.sharedSources as Record<string,string>,...bound.sourceMap});
     }catch(error){await this.store.fail(actor,id,input.requestId,controller.signal.aborted).catch(()=>{});if(error instanceof ExtractionError)throw error;if(controller.signal.aborted)throw new ExtractionError(499,'chat_cancelled','Request cancelled; already-started AI may use quota. Your messages and plan were kept.');throw new ExtractionError(502,'chat_generation_failed','Fuzl could not verify a response. Your messages and plan were kept; retry deliberately.');}
-    finally{outer.removeEventListener('abort',abort);this.running.delete(input.requestId);}
+    finally{if(process.env.NODE_ENV==='production')await this.store.db.aiRequestLease.updateMany({where:{id:input.requestId},data:{expiresAt:new Date(this.now())}}).catch(()=>{});outer.removeEventListener('abort',abort);this.running.delete(input.requestId);}
   }
   async cancel(actor:ChatActor,id:string,requestId:string){if(await this.store.fail(actor,id,requestId,true))this.running.get(requestId)?.abort();}
 }

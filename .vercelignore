@@ -1,0 +1,14 @@
+artifacts/
+.git/
+.agents/
+.codex/
+**/.env
+**/.env.*
+**/*.pem
+**/*.crt
+**/*.key
+**/node_modules/
+**/dist/
+**/*.test.ts
+**/*.test.tsx
+**/generated/

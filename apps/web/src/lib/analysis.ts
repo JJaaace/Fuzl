@@ -21,9 +21,9 @@ export async function fetchAIConfiguration(signal: AbortSignal): Promise<AIConfi
   return result.data;
 }
 
-export async function analyzeConversation(request: AnalysisRequest, signal: AbortSignal): Promise<AnalysisResponse> {
+export async function analyzeConversation(request: AnalysisRequest, signal: AbortSignal, makePlan = false): Promise<AnalysisResponse> {
   if (!analysisRequestSchema.safeParse(request).success) throw new Error('Use 1–6000 characters and a valid optional reference date.');
-  const response = await fetch('/api/analyze', {
+  const response = await fetch(makePlan ? '/api/make-plan' : '/api/analyze', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request),
     signal: AbortSignal.any([signal, AbortSignal.timeout(55000)]), cache: 'no-store',
   });
@@ -39,6 +39,7 @@ export async function analyzeConversation(request: AnalysisRequest, signal: Abor
   }
   const result = analysisResponseSchema.safeParse(body);
   if (!result.success) throw new Error('The API returned an invalid summary. Your existing work was kept.');
+  if (makePlan && !result.data.proposal) throw new Error('The API returned no plan. Your existing work was kept.');
   if (request.expectedProvider && result.data.metrics.provider !== request.expectedProvider) throw new Error('The response provider does not match your submission. Your existing work was kept.');
   return result.data;
 }

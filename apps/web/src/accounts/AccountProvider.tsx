@@ -1,18 +1,20 @@
+import {clearRenderFailures} from '../ui/RenderBoundary';
 import { clearChatCredentials } from '../chat/client';
 import { AccountIdentity } from './api';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import type { LinkResult, MagicLinkCallback } from './magicLink';
-interface Account { session: Session | null; client: SupabaseClient | null; loading: boolean; privacyEpoch: number; error: string; reload: () => void; logout: () => Promise<void> }
-const Context = createContext<Account>({ session: null, client: null, loading: true, privacyEpoch: 0, error: '', reload: () => {}, logout: async () => {} });
+interface Account { appOrigin: string; session: Session | null; client: SupabaseClient | null; loading: boolean; privacyEpoch: number; error: string; reload: () => void; logout: () => Promise<void> }
+const Context = createContext<Account>({ appOrigin: '', session: null, client: null, loading: true, privacyEpoch: 0, error: '', reload: () => {}, logout: async () => {} });
 const storageKey = 'fuzl-organizer-auth';
 export function AccountProvider({ children, magicLink = null }: { children: ReactNode; magicLink?: MagicLinkCallback | null }) {
-  const [linkMessage, setLinkMessage] = useState(magicLink ? 'Completing email-link sign-in…' : '');
+  const [linkMessage, setLinkMessage] = useState(magicLink ? 'Completing sign-in…' : '');
   const [privacyEpoch, setPrivacyEpoch] = useState(0);
   const identity = useRef(new AccountIdentity()), lastIdentityEpoch=useRef(0);
   const [session, setSession] = useState<Session | null>(null);
   const [client, setClient] = useState<SupabaseClient | null>(null);
+  const [appOrigin, setAppOrigin] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [version, setVersion] = useState(0);
@@ -22,7 +24,7 @@ export function AccountProvider({ children, magicLink = null }: { children: Reac
     const nextId = next?.user.id ?? null;
     const previous=lastIdentityEpoch.current;
     const epoch=identity.current.accept(nextId);
-    if(epoch!==previous){try{clearChatCredentials();}catch{/* Private browser storage may be unavailable. */}}
+    if(epoch!==previous){clearRenderFailures();try{clearChatCredentials();}catch{/* Private browser storage may be unavailable. */}}
     lastIdentityEpoch.current=epoch;setPrivacyEpoch(epoch); setSession(next);
   }
   useEffect(() => {
@@ -39,6 +41,7 @@ export function AccountProvider({ children, magicLink = null }: { children: Reac
           if (magicLink && !linkHandled.current) setLinkMessage('Sign-in could not complete because account configuration is missing. Configure the API, then request a fresh link.');
           return;
         }
+        setAppOrigin(configuration.appOrigin ?? 'http://127.0.0.1:5173');
         const { createClient } = await import('@supabase/supabase-js');
         if (controller.signal.aborted) return;
         auth = createClient(configuration.url, configuration.publishableKey, { auth: { storageKey, persistSession: true, autoRefreshToken: true, flowType: 'implicit', detectSessionInUrl: false, debug: false }, global: {
@@ -91,6 +94,6 @@ export function AccountProvider({ children, magicLink = null }: { children: Reac
       await departing?.auth.dispose(); setVersion((value) => value + 1);
     }
   }
-  return <Context.Provider value={{ session, client, loading, privacyEpoch, error, reload, logout }}>{linkMessage && <section className="account-card" role="status" aria-live="polite"><p>{linkMessage}</p></section>}{children}</Context.Provider>;
+  return <Context.Provider value={{ session, client, appOrigin, loading, privacyEpoch, error, reload, logout }}>{linkMessage && <section className="account-card" role="status" aria-live="polite"><p>{linkMessage}</p></section>}{children}</Context.Provider>;
 }
 export const useAccount = () => useContext(Context);

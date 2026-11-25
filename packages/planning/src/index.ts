@@ -41,3 +41,6 @@ export * from './plan-questions.js';
 export { examples } from './examples.js';
 export * from './chat.js';
 export * from './planning-ideas.js';
+
+export { newRecordId } from './record-id.js';
+export * from './proposed-plan.js';

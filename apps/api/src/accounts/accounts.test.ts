@@ -13,7 +13,7 @@ function configured(t: TestContext) {
   }
 }
 test('account configuration exposes only designated public values; secret keys are rejected', (t) => {
-  configured(t); assert.deepEqual(publicAccountConfiguration(), { configured: true, url: 'https://synthetic-project.supabase.co', publishableKey: 'sb_publishable_test-only' });
+  configured(t); assert.deepEqual(publicAccountConfiguration(), { configured: true, url: 'https://synthetic-project.supabase.co', publishableKey: 'sb_publishable_test-only', appOrigin: 'http://127.0.0.1:5173' });
   process.env.SUPABASE_PUBLISHABLE_KEY = 'sb_secret_do-not-expose';
   assert.throws(publicAccountConfiguration, (error: unknown) => error instanceof ExtractionError && !error.message.includes('sb_secret'));
   delete process.env.SUPABASE_PUBLISHABLE_KEY; assert.deepEqual(publicAccountConfiguration(), { configured: false });

@@ -19,3 +19,12 @@ test('only dedicated credentials persist; scroll math preserves older-history po
 test('AI completion has a bounded damped brand-color burst and settles without retaining dead particles',()=>{
   const sparks=aiBurst(100,200,0);assert.equal(sparks.length,24);assert.equal(aiBurst(100,200,0,true).length,12);assert.equal(new Set(sparks.map(s=>s.color)).size,3);for(const spark of sparks){assert.equal(aiSparkPose(spark,0).opacity,1);assert.equal(aiSparkPose(spark,2).alive,false);assert.ok(aiSparkPose(spark,.6).opacity<aiSparkPose(spark,.2).opacity);}
 });
+import {captureChatEntry} from './entry';
+
+test('reopening a signed-in thread preserves its URL; invitation fragments are scrubbed before requests',()=>{
+ const stored=new Map<string,string>(),storage={getItem:(k:string)=>stored.get(k)??null,setItem:(k:string,v:string)=>{stored.set(k,v);}};let replacements=0;
+ const id='11111111-1111-4111-8111-111111111111';
+ assert.equal(captureChatEntry(`https://beta.example/chat?thread=${id}`,()=>{replacements++;},storage),null);assert.equal(replacements,0);
+ const token='a'.repeat(43);assert.equal(captureChatEntry(`https://beta.example/chat#invite=${token}`,path=>{replacements++;assert.equal(path,'/chat');},storage),token);
+ assert.equal(replacements,1);assert.equal(stored.get('fuzl-chat-invite'),token);
+});

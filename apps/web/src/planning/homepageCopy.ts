@@ -1,0 +1,14 @@
+// Homepage and proposal presentation copy. Fixture facts remain separate.
+export const homepageCopy={
+ headline:["Group can't decide?",'Fuzl can.'],brand:'Fuzl',ending:' can.',tagline:'Fuzl picks the where, the when, and what to say.',
+ placeholder:'Paste the chat. Fuzl will take it from here.',action:'Make the plan',scratch:'Start a plan from scratch',
+ dateHint:'Add the date of the messages if you know it. Source facts stay unresolved without it; a proposed date may use today as an explicit planning assumption.',
+ loading:['Fuzl is planning…','Finding a spot everyone can live with…','Settling the Friday debate…'],
+ replay:'Replay the Fuzl animation',bubbles:['Bowling Saturday?',"I can't go over $20",'Friday… maybe??'],
+ scene:{label:"FUZL’S PLAN",title:'Bowling, Saturday 7 PM',venue:'Pinwheel Lanes · 12 min from everyone',cost:'$18 each, under your $20 cap',message:"bowling sat 7, $18 each. who's in??",sample:'Sample illustration · fictional venue and travel',open:'Open sample plan: Saturday bowling'},
+ galleryTitle:'Try a sample plan.',galleryLabel:'Sample proposals · manually authored',
+ galleryDetails:{straightforward:"Fuzl's pick: bowling, under $20 each",tentative:"Fuzl locked in Friday 7 PM, with a nudge to confirm",conflicts:"Fuzl's compromise: a covered patio"},
+ sections:{plan:"Fuzl’s plan",details:'The details',why:'Why it works',backup:'Backup plan',message:'Send to the chat',questions:'Still need from the group'},
+ proposal:{addToShortlist:'Add proposed plan to shortlist',reviewQuestions:'Review open questions →',messageLabel:'Ready-to-send proposed message',firmConflict:'Known firm conflict · resolve before using this plan',shortlistCheck:'Estimated cost; verify total, fees, availability and meeting point before publishing.',sample:'Sample proposal · manually authored',ai:'AI proposal · unreviewed',status:'Suggested · not booked',copy:'Copy message',copied:'Copied',copyFailed:'Could not copy. Select the message and copy it manually.',assumptions:'Assumptions & checks',other:'Compare other ideas',stale:'Planning facts changed. This proposal is out of date; recheck the current constraints in Planning tools.',unknownCost:'Cost still needs checking',unknownCurrency:'confirm currency',venueType:'Suggested activity / venue type',questionsEmpty:'No open questions recorded',unknownDate:'Confirm the exact date',unknownTime:'Confirm the time',unsaved:'This proposal is temporary. Saving currently stores the source summary; add a reviewed option to the shortlist to carry its public details forward.'},
+ privacy:{intro:'Make the plan sends this draft and optional date to the selected provider for source-checked facts, then a separate proposed outing. Up to two provider requests; no automatic retry or fallback.',google:'Unpaid Google content may be used for improvement and human review. Use synthetic conversations only. Check Free Tier eligibility and quotas before sending.'},
+} as const;

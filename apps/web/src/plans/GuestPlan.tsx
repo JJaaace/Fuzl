@@ -1,3 +1,4 @@
+import { newRecordId } from '@fuzl/planning';
 import GuestFeedback from '../outings/GuestFeedback';
 import { useEffect, useRef, useState } from 'react';
 import { ownRsvpSchema, publicPlanSchema, rsvpPayloadSchema } from '@fuzl/planning';
@@ -29,7 +30,7 @@ export default function GuestPlan({ inviteToken, request = planRequest, embedded
     sending.current = true; setBusy(true); setError(''); pending.current = new AbortController(); const c = pending.current;
     try {
       const credential = permission.current ?? newEditPermission(); localStorage.setItem(key.current, JSON.stringify(credential)); permission.current = credential;
-      const fingerprint = JSON.stringify([own?.revision, parsed.data]); if (!attempt.current || attempt.current.key !== fingerprint) attempt.current = { key: fingerprint, requestId: crypto.randomUUID() };
+      const fingerprint = JSON.stringify([own?.revision, parsed.data]); if (!attempt.current || attempt.current.key !== fingerprint) attempt.current = { key: fingerprint, requestId: newRecordId() };
       const raw = await request(own ? '/rsvp' : '/rsvps', own ? credential.editToken : inviteToken, c.signal, own ? 'PUT' : 'POST', own ? { revision: own.revision, requestId: attempt.current.requestId, payload: parsed.data } : { ...credential, payload: parsed.data }, own ? inviteToken : undefined);
       const saved = ownRsvpSchema.parse(raw); if (c.signal.aborted) return; setOwn(saved); attempt.current = null; setApprove(false);
       setMessage(saved.alias === parsed.data.alias && saved.choice === parsed.data.choice && !saved.needsReconfirmation ? 'RSVP saved for the current plan. This is separate from your vote; tickets and booking may still need checking.' : 'An earlier RSVP already arrived. Your current entries were kept; submit an update if needed.'); notice.current?.focus();

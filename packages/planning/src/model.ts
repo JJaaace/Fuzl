@@ -1,3 +1,4 @@
+import type { OutingProposal } from './proposed-plan.js';
 export const factStatuses = ['proposed', 'tentative', 'confirmed', 'conflicting'] as const;
 export type FactStatus = typeof factStatuses[number];
 export const strengths = ['unknown', 'firm', 'flexible'] as const;
@@ -68,6 +69,8 @@ export interface ReviewState {
     origin: 'sample' | 'manual' | 'ai';
     title: string;
     sourceDraft: string;
+    proposal?: OutingProposal;
+    proposalSummaryKey?: string;
     summary: PlanningSummary;
   } | null;
 }

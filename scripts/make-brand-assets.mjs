@@ -25,7 +25,6 @@ for (const tone of ['dark', 'light']) {
   const svg = mascotSvg(selectedLogo.id, { favicon: true, tone });
   const frames = await Promise.all([16, 32, 48].map(size => sharp(Buffer.from(svg)).resize(size, size).png().toBuffer()));
   for (const [index, size] of [16, 32].entries()) {
-    await writeFile(new URL(`../apps/web/public/brand/favicon-${tone}-${size}.png`, import.meta.url), frames[index]);
     await writeFile(new URL(`../apps/web/public/brand/fuzl-mark-v3-${tone}-${size}.png`, import.meta.url), frames[index]);
   }
   await writeFile(new URL(`../apps/web/public/brand/fuzl-mark-v3-${tone}.ico`, import.meta.url), ico(frames));

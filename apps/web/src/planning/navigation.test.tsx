@@ -1,3 +1,4 @@
+import {samplePlanFor} from './samplePlans';
 import { WorkspaceEdits } from '../accounts/api';
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
@@ -27,7 +28,7 @@ function extraction() {
     fact.extraction = { reviewed: false, reportedStatus: fact.status, scope: 'current', uncertainty: 'Synthetic candidate; needs review.', supersedes: [] };
     if (fact.status === 'confirmed') fact.status = 'proposed';
   }
-  return analysisResponseSchema.parse({ summary, warnings: [], metrics });
+  return analysisResponseSchema.parse({ summary, proposal:{...samplePlanFor('tentative',summary),origin:'ai'},warnings: [], metrics });
 }
 function visible(element: Element): boolean {
   if (element.closest('[hidden]')) return false;
@@ -43,7 +44,7 @@ async function click(element: Element | null) {
   await act(async () => { (element as HTMLElement).click(); await settle(); });
 }
 function button(text: string): HTMLButtonElement {
-  const found = [...document.querySelectorAll<HTMLButtonElement>('button')].find((item) => visible(item) && item.textContent?.trim() === text);
+  const found = [...document.querySelectorAll<HTMLButtonElement>('button, a.nav-button')].find((item) => visible(item) && item.textContent?.trim() === text);
   assert.ok(found, `visible button: ${text}`); return found;
 }
 function input(label: string): HTMLInputElement {
@@ -91,12 +92,12 @@ test('stage navigation does not steal attention when a background result arrives
 test('the opening composer is empty and explicit; samples reveal a compact plan with people and pasted text skips transcript navigation', async (t) => {
   const { calls } = await mount(t);
   const draft = document.querySelector<HTMLTextAreaElement>('#draft')!;
-  assert.equal(draft.value, ''); assert.equal(draft.placeholder, 'Paste your group chat here.');
+  assert.equal(draft.value, ''); assert.equal(draft.placeholder, 'Paste the chat. Fuzl will take it from here.');
   assert.equal([...document.querySelectorAll('.stage-nav button')].filter(visible).length, 0);
   assert.equal(document.querySelectorAll('.draft-heading .composer-examples').length, 1);
   assert.ok(document.querySelector('.character-count')!.textContent!.includes('0 / 6000'));
   await enter(draft, 'Sam: Synthetic input.');
-  assert.equal(button('Analyze conversation').disabled, false);
+  assert.equal(button('Make the plan').disabled, false);
   assert.equal([...document.querySelectorAll('.stage-nav button')].filter(visible).length, 0, 'a disabled next step is not useful navigation yet');
   await sample();
   assert.equal(document.querySelector('#summary-title')!.textContent, 'Friday, maybe');
@@ -110,7 +111,7 @@ test('the opening composer is empty and explicit; samples reveal a compact plan 
   assert.ok(document.querySelector('.summary-panel')!.textContent!.includes('synthetic organizer correction'));
   assert.ok(visible(button('Sign in to save session')), 'the current sample/edit flow still reaches saving');
   assert.ok(document.querySelector('.save-session')!.textContent!.includes('Save this session to create a link'));
-  assert.equal(calls.filter((url) => url === '/api/analyze' || url === '/api/transcribe').length, 0);
+  assert.equal(calls.filter((url) => url === '/api/make-plan' || url === '/api/transcribe').length, 0);
 });
 
 test('example disclosure closes with Escape and restores keyboard focus; loading a sample focuses its summary', async (t) => {
@@ -199,24 +200,24 @@ test('the summary entrance settles once and does not restart after editing or a 
 
 test('AI preview acceptance is explicit; declined replacement keeps the exact editor, and edit-back cannot bypass staleness', async (t) => {
   let analyses = 0;
-  await mount(t, async (url) => { assert.equal(url, '/api/analyze'); analyses += 1; return Response.json(extraction()); });
+  await mount(t, async (url) => { assert.equal(url, '/api/make-plan'); analyses += 1; return Response.json(extraction()); });
   await sample(); await reviewFacts(); await click(button('Edit fact'));
   const original = document.querySelector('.summary-panel .fact-form')!;
   await stage('Conversation'); const draft = document.querySelector<HTMLTextAreaElement>('#draft')!;
   await enter(draft, examples[1].conversation);
-  await click(button('Analyze conversation'));
+  await click(button('Make the plan'));
   assert.equal(analyses, 1); assert.ok(visible(document.querySelector('.analysis-result')!));
   t.mock.method(window, 'confirm', () => false);
-  await click(button('Use extracted summary'));
+  await click(button('Use this proposed plan'));
   assert.equal(document.querySelector('.summary-panel .fact-form'), original); assert.ok(visible(document.querySelector('.analysis-result')!));
   await click(button('Keep current work')); assert.ok(visible(original));
   await stage('Conversation');
   await enter(draft, 'Changed source'); await enter(draft, examples[1].conversation);
   await click(button('Review last AI result'));
-  assert.equal(button('Use extracted summary').disabled, true);
+  assert.equal(button('Use this proposed plan').disabled, true);
   assert.ok([...document.querySelectorAll('.source-warning')].some((item) => visible(item) && item.textContent?.includes('cannot replace')));
   await stage('Conversation'); t.mock.method(window, 'confirm', () => true);
-  await click(button('Analyze conversation')); await click(button('Use extracted summary'));
+  await click(button('Make the plan')); await click(button('Use this proposed plan'));
   assert.equal(analyses, 2); assert.ok(visible(document.querySelector('.summary-panel')!));
   assert.ok(document.querySelector('.summary-panel')!.textContent!.includes('AI claim — unreviewed'));
   assert.equal(document.querySelector('#summary-title')?.textContent,'Bowling suggested');
@@ -225,9 +226,9 @@ test('AI preview acceptance is explicit; declined replacement keeps the exact ed
 
 test('late AI results cannot replace newer text or switch away from screenshot input', async (t) => {
   let finish: ((response: Response) => void) | undefined;
-  await mount(t, (url) => { assert.equal(url, '/api/analyze'); return new Promise((resolve) => { finish = resolve; }); });
+  await mount(t, (url) => { assert.equal(url, '/api/make-plan'); return new Promise((resolve) => { finish = resolve; }); });
   const draft = document.querySelector<HTMLTextAreaElement>('#draft')!;
-  await enter(draft, examples[1].conversation); await click(button('Analyze conversation'));
+  await enter(draft, examples[1].conversation); await click(button('Make the plan'));
   assert.equal(document.querySelectorAll('.fuse-waiting .fuse-dot').length, 3);
   await enter(draft, 'Alex: Newer work.'); await click(button('Upload screenshots'));
   await act(async () => { finish!(Response.json(extraction())); await settle(); });
@@ -235,47 +236,47 @@ test('late AI results cannot replace newer text or switch away from screenshot i
   assert.equal(draft.value, 'Alex: Newer work.'); assert.equal(document.querySelector('.summary-panel'), null);
   assert.equal(document.querySelector('.stage-nav [aria-current=step]')?.textContent?.includes('Conversation'), true);
   assert.equal(button('Upload screenshots').getAttribute('aria-pressed'), 'true');
-  await stage('Plan'); assert.equal(button('Use extracted summary').disabled, true);
+  await stage('Plan'); assert.equal(button('Use this proposed plan').disabled, true);
 });
 
 test('a current AI result focuses its visible preview after rendering, while keeping acceptance explicit', async (t) => {
   await mount(t, async () => Response.json(extraction()));
   await enter(document.querySelector<HTMLTextAreaElement>('#draft')!, examples[1].conversation);
-  button('Analyze conversation').focus(); await click(button('Analyze conversation'));
+  button('Make the plan').focus(); await click(button('Make the plan'));
   for (let attempt = 0; attempt < 40 && document.activeElement !== document.querySelector('.analysis-result h2'); attempt += 1) await act(async () => { await new Promise((resolve) => setTimeout(resolve, 5)); });
   assert.ok(document.activeElement === document.querySelector('.analysis-result h2'), 'visible preview heading receives focus');
-  assert.equal(document.querySelector('.summary-panel'), null); assert.equal(button('Use extracted summary').disabled, false);
+  assert.equal(document.querySelector('.summary-panel'), null); assert.equal(button('Use this proposed plan').disabled, false);
 });
 
 test('a stale response leaves the active paste editor and keyboard focus in place', async (t) => {
   let finish: ((response: Response) => void) | undefined;
   await mount(t, () => new Promise((resolve) => { finish = resolve; }));
   const draft = document.querySelector<HTMLTextAreaElement>('#draft')!;
-  await enter(draft, examples[1].conversation); await click(button('Analyze conversation'));
+  await enter(draft, examples[1].conversation); await click(button('Make the plan'));
   draft.focus(); await enter(draft, 'Sam: Newer text being edited.');
   await act(async () => { finish!(Response.json(extraction())); await settle(); });
   assert.equal(document.activeElement, draft); assert.ok(visible(draft));
   assert.ok(!visible(document.querySelector('.analysis-result')!));
   assert.ok([...document.querySelectorAll('.source-warning')].some((item) => visible(item) && item.textContent?.includes('cannot replace')));
   await click(button('Review last AI result'));
-  assert.ok(visible(document.querySelector('.analysis-result')!)); assert.equal(button('Use extracted summary').disabled, true);
+  assert.ok(visible(document.querySelector('.analysis-result')!)); assert.equal(button('Use this proposed plan').disabled, true);
 });
 
 test('failure stops the fuse immediately, shows the error, and leaves the draft available for an explicit retry', async (t) => {
   const { calls } = await mount(t, async () => Response.json({ error: { code: 'quota_exceeded', message: 'Synthetic quota exhausted; check the selected project.' } }, { status: 429 }));
   const draft = document.querySelector<HTMLTextAreaElement>('#draft')!;
-  await enter(draft, examples[1].conversation); await click(button('Analyze conversation'));
+  await enter(draft, examples[1].conversation); await click(button('Make the plan'));
   assert.equal(document.querySelectorAll('.fuse-waiting').length, 0);
   assert.ok(document.querySelector('.analysis-panel .analysis-error')!.textContent!.includes('Synthetic quota exhausted'));
-  assert.equal(button('Analyze conversation').disabled, false); assert.equal(draft.value, examples[1].conversation);
-  assert.equal(calls.filter((url) => url === '/api/analyze').length, 1, 'no automatic retry');
+  assert.equal(button('Make the plan').disabled, false); assert.equal(draft.value, examples[1].conversation);
+  assert.equal(calls.filter((url) => url === '/api/make-plan').length, 1, 'no automatic retry');
 });
 
 test('cancellation removes the waiting dots and ignores a late successful response', async (t) => {
   let finish: ((response: Response) => void) | undefined;
   await mount(t, () => new Promise((resolve) => { finish = resolve; }));
   const draft = document.querySelector<HTMLTextAreaElement>('#draft')!;
-  await enter(draft, examples[1].conversation); await click(button('Analyze conversation'));
+  await enter(draft, examples[1].conversation); await click(button('Make the plan'));
   assert.equal(document.querySelectorAll('.fuse-waiting .fuse-dot').length, 3);
   await click(button('Cancel analysis')); assert.equal(document.querySelectorAll('.fuse-waiting').length, 0);
   await act(async () => { finish!(Response.json(extraction())); await settle(); });
@@ -317,7 +318,7 @@ test('screenshot read opens compact review; hidden message editors retain correc
   await click(button('Use reviewed transcript as draft'));
   const draft = document.querySelector<HTMLTextAreaElement>('#draft')!; assert.ok(draft.value.includes('Alicia: Corrected synthetic text.'));
   await stage('Transcript'); await enter(text, 'Another correction.'); await stage('Conversation');
-  assert.ok(draft.value.includes('Another correction.')); assert.equal(calls.filter((url) => url === '/api/transcribe').length, 1); assert.equal(calls.filter((url) => url === '/api/analyze').length, 0);
+  assert.ok(draft.value.includes('Another correction.')); assert.equal(calls.filter((url) => url === '/api/transcribe').length, 1); assert.equal(calls.filter((url) => url === '/api/make-plan').length, 0);
 });
 
 
@@ -372,7 +373,7 @@ test('the single composer keeps mode/example controls together, date and disclos
   assert.equal(composer.querySelectorAll('.composer-topbar .input-modes button').length, 2);
   assert.ok(composer.querySelector('.composer-topbar .composer-examples'));
   const controls = [...composer.querySelectorAll('#draft, #analysis-disclosure, .reference-details, .analyze-button')];
-  assert.deepEqual(controls.map(e => e.id || e.className), ['draft', 'analysis-disclosure', 'reference-details', 'primary analyze-button']);
+  assert.deepEqual(controls.map(e => e.id || e.className), ['draft', 'reference-details', 'primary analyze-button', 'analysis-disclosure']);
   const draft = composer.querySelector('#draft'); await click(button('Upload screenshots')); await click(button('Paste conversation')); assert.equal(document.querySelector('#draft'), draft);
   await sample();
   const summary = document.querySelector('.summary-panel')!;
@@ -386,7 +387,7 @@ test('the single composer keeps mode/example controls together, date and disclos
 for (const reduced of [false, true]) for (const [index, example] of examples.entries()) test(`sample gallery opens ${example.title} through the replacement guard without AI (reduced motion: ${reduced})`, async t => {
   t.mock.method(window, 'matchMedia', () => ({ matches: reduced, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList);
   const { calls } = await mount(t);
-  assert.deepEqual([...document.querySelectorAll('.headline-line')].map(e=>e.textContent),['Turn your group chat','into a plan.']);
+  assert.deepEqual([...document.querySelectorAll('.headline-line')].map(e=>e.textContent),["Group can't decide?",'Fuzl can.']);
   const gallery=document.querySelector('.sample-gallery')!, original=gallery.textContent;
   assert.equal(gallery.querySelector('h2')?.textContent,'Try a sample plan.');assert.equal(gallery.querySelectorAll('.sample-card').length,examples.length);
   assert.ok(original?.includes('Try a sample plan.'));assert.equal(document.querySelector('.sample-gallery-heading .eyebrow'),null);assert.equal(document.querySelector('.development-details'),null);assert.ok(!document.body.textContent?.includes('Development & details'));
@@ -467,7 +468,7 @@ test('conflict shortcut opens its existing question and never resolves requireme
 });
 
 test('blank summary has an immediate manual-entry action and keeps its unapplied fields on repeated navigation', async t => {
-  const { calls } = await mount(t); await click(button('Start blank summary'));
+  const { calls } = await mount(t); await click(button('Start a plan from scratch'));
   assert.ok(document.querySelector('.plan-outings')?.textContent?.includes('Outings to consider'));
   await click(button('Add planning details'));
   await act(async () => { await new Promise(r => setTimeout(r, 25)); });
@@ -496,10 +497,10 @@ test('draft count and save status stay beside the input; invalid length disables
   assert.equal(document.querySelectorAll('.character-count').length, 1);
   assert.equal(document.querySelector('#draft-count')?.parentElement, document.querySelector('.composer-foot'));
   assert.equal(document.querySelector('#draft-note')?.textContent, 'Draft not saved');
-  assert.equal(button('Clear draft').disabled, true); assert.equal(button('Analyze conversation').disabled, true);
+  assert.equal(button('Clear draft').disabled, true); assert.equal(button('Make the plan').disabled, true);
   await enter(draft, 'a'.repeat(6001));
   assert.equal(draft.getAttribute('aria-invalid'), 'true'); assert.ok(document.querySelector('#draft-count')?.textContent?.includes('6001 / 6000'));
-  assert.equal(button('Analyze conversation').disabled, true);
+  assert.equal(button('Make the plan').disabled, true);
   await click(button('Clear draft')); assert.equal(draft.value, ''); assert.equal(draft.hasAttribute('aria-invalid'), false);
   assert.equal(calls.filter(url => url !== '/api/ai-config').length, 0);
 });
@@ -507,7 +508,7 @@ test('draft count and save status stay beside the input; invalid length disables
 test('origin rejection keeps the draft and loaded sample, shows local recovery beside Analyze and preserves its reference', async t => {
   const reference = '41d1870e-e760-4b06-9873-b9dc5c952303';
   const { calls } = await mount(t, async url => {
-    assert.equal(url, '/api/analyze');
+    assert.equal(url, '/api/make-plan');
     return Response.json({error:{code:'origin_rejected',message:'Analysis is available only from this local development app.',reference}},{status:403});
   });
   await click(document.querySelector('[aria-label="Open sample: Friday, maybe"]'));
@@ -515,26 +516,26 @@ test('origin rejection keeps the draft and loaded sample, shows local recovery b
   await stage('Conversation');
   const draft = document.querySelector<HTMLTextAreaElement>('#draft')!;
   await enter(draft, 'Alex: A synthetic replacement draft. Maybe Friday.');
-  await click(button('Analyze conversation'));
+  await click(button('Make the plan'));
   const notice = document.querySelector('.analysis-controls .analysis-error')!;
   assert.ok(visible(notice)); assert.ok(notice.textContent?.includes('On the Mac running Fuzl'));
   assert.equal(notice.querySelector('a')?.getAttribute('href'),'http://127.0.0.1:5173');
   assert.equal(notice.querySelector('a')?.getAttribute('target'),'_blank');
   assert.ok(notice.textContent?.includes(reference)); assert.ok(notice.textContent?.includes('Nothing was sent to the AI provider'));
   assert.ok(notice.textContent?.includes('drafts do not transfer'));
-  assert.equal(notice.closest('form')?.querySelector('.analyze-button'),button('Analyze conversation'));
+  assert.equal(notice.closest('form')?.querySelector('.analyze-button'),button('Make the plan'));
   assert.equal(draft.value,'Alex: A synthetic replacement draft. Maybe Friday.');
-  assert.equal(button('Analyze conversation').disabled,false);
+  assert.equal(button('Make the plan').disabled,false);
   await click(button('Open Plan')); await act(async()=>{await new Promise(r=>setTimeout(r,25));});
   assert.equal(document.querySelector('.summary-panel'),review); assert.equal(document.activeElement?.id,'summary-title');
   assert.equal(document.querySelector('#summary-title')?.textContent,'Friday, maybe');
   assert.ok(document.querySelector('.source-warning')?.textContent?.includes('may no longer match'));
-  assert.equal(calls.filter(url=>url==='/api/analyze').length,1,'no retry, analysis on sample load or acceptance shortcut');
+  assert.equal(calls.filter(url=>url==='/api/make-plan').length,1,'no retry, analysis on sample load or acceptance shortcut');
 });
 
 test('origin failure without a summary offers local instructions but no fake summary fallback', async t => {
   await mount(t,async()=>Response.json({error:{code:'origin_rejected',message:'Local only'}},{status:403}));
-  await enter(document.querySelector<HTMLTextAreaElement>('#draft')!,'Sam: Synthetic Friday input.'); await click(button('Analyze conversation'));
+  await enter(document.querySelector<HTMLTextAreaElement>('#draft')!,'Sam: Synthetic Friday input.'); await click(button('Make the plan'));
   assert.equal(document.querySelector('.analysis-error button'),null); assert.equal(document.querySelector('.summary-panel'),null);
   assert.equal(document.querySelectorAll('.analysis-error').length,1);
 });
@@ -558,7 +559,7 @@ test('Saturday title and save shortcut describe the real action, with one empty-
 test('open-question overview leads with the specific Friday issue and manual titles come from their own data', async t => {
   await mount(t); await sample();
   assert.ok(document.querySelector('.outing-clarification p')?.textContent?.startsWith('Which Friday works for everyone?')); assert.equal(document.querySelector<HTMLDetailsElement>('.open-questions')?.open,false); assert.equal(document.querySelector('.open-questions > summary')?.textContent,'Open questions (3)');
-  await stage('Conversation'); await click(button('Start blank summary'));
+  await stage('Conversation'); await click(button('Start a plan from scratch'));
   assert.equal(document.querySelector('#summary-title')?.textContent,'Manual summary');
   assert.ok(!document.querySelector('.summary-panel > .draft-heading')?.textContent?.includes('Sample plan'));
 });
@@ -572,4 +573,17 @@ test('question disclosure opens the existing question editor and focuses it; edi
   assert.ok(question.contains(document.activeElement));assert.ok(question.querySelector('.fact-form'));
   assert.equal(document.querySelector('.open-questions > summary')?.textContent,'Open questions (3)');
   assert.equal(calls.filter(url=>url!=='/api/ai-config').length,0);
+});
+
+test('planner sample has one proposed decision, ordered details, a reusable shortlist snapshot and stale protection after a fact edit',async t=>{
+ await mount(t);await click(document.querySelector('[aria-label="Open sample: Saturday bowling"]'));
+ const result=document.querySelector('.planner-result')!;assert.ok(result);assert.match(result.textContent!,/fictional sample bowling alley/);
+ assert.deepEqual([...result.querySelectorAll(':scope > section > h4')].map(e=>e.textContent),['The details','Why it works','Backup plan','Send to the chat','Still need from the group']);
+ assert.match(result.textContent!,/Estimated \$18\/person/);await click(button('Add proposed plan to shortlist'));assert.match(result.textContent!,/Added to your temporary shortlist/);
+ await reviewFacts();await click(button('Edit fact'));const form=document.querySelector<HTMLFormElement>('.fact-form')!;const date=form.querySelector<HTMLInputElement>('input[type=date]')!;await enter(date,'2026-11-15');await click(button('Apply changes'));
+ assert.match(result.textContent!,/out of date/);assert.equal(button('Copy message').disabled,true);assert.equal(button('Add proposed plan to shortlist').disabled,true);assert.ok(document.querySelector('[data-fact-id="a-date"] .supporting-text')?.textContent?.includes('November 14'));
+});
+test('hero replay is a separate keyboard button, has 28 independently colored dots and opens only the explicitly clicked sample card',async t=>{
+ const{calls}=await mount(t);const replay=document.querySelector<HTMLButtonElement>('[aria-label="Replay the Fuzl animation"]')!;assert.equal(replay.tagName,'BUTTON');assert.equal(document.querySelectorAll('.hero-fuse-dot').length,28);assert.equal(document.querySelector('.summary-panel'),null);await click(replay);assert.equal(document.querySelector('.summary-panel'),null);
+ await click(document.querySelector('[aria-label="Open sample plan: Saturday bowling"]'));assert.equal(document.querySelector('#summary-title')?.textContent,'Saturday bowling');assert.ok(calls.every(u=>u==='/api/ai-config'));
 });

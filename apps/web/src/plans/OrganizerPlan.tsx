@@ -1,3 +1,4 @@
+import { newRecordId } from '@fuzl/planning';
 import BackupPanel from '../backups/BackupPanel';
 import type { BackupRequest } from '../backups/BackupPanel';
 import OrganizerOuting from '../outings/OrganizerOuting';
@@ -30,7 +31,7 @@ export default function OrganizerPlan({ token, loaded, demoRequest, demoBallots,
   async function run(path: string, data: Record<string, unknown>, method = 'POST', applyDraft = false) {
     if (sending.current) return; const n = ++serial.current, at = revision.current; sending.current = true; setBusy(true); setMessage(''); pending.current = new AbortController(); const c = pending.current;
     c.signal.addEventListener('abort', () => { if (serial.current === n) { sending.current = false; setBusy(false); } }, { once: true });
-    const key = JSON.stringify([path, method, data]); if (!attempts.current || attempts.current.key !== key) attempts.current = { key, body: { ...data, requestId: crypto.randomUUID() } };
+    const key = JSON.stringify([path, method, data]); if (!attempts.current || attempts.current.key !== key) attempts.current = { key, body: { ...data, requestId: newRecordId() } };
     try {
       const raw = await request(path, method, attempts.current.body, c.signal); if (c.signal.aborted || n !== serial.current) return;
       const wrapper = path === '/link' ? raw as { plan: unknown; token: unknown } : { plan: raw, token: null };

@@ -1,6 +1,6 @@
-import { PlaceStore } from '../places/store.js';
+import { loadPlaceContext } from '../places/store.js';
 import { createHash, randomUUID } from 'node:crypto';
-import { emptySummary, savedSummarySchema, supportingSummary, chatThreadSchema, chatMessageSchema, chatPageSchema, chatRequestResultSchema } from '@fuzl/planning';
+import { emptySummary, savedSummarySchema, supportingSummary, chatThreadSchema, chatMessageSchema, chatPageSchema, chatRequestResultSchema, chatDestinationSchema } from '@fuzl/planning';
 import type { ChatActor, ChatCreate, ChatJoin, ChatSend, ChatThread, ChatRequest, ChatPlan, PlanAnswer, ChatApply, ChatRequestInput } from '@fuzl/planning';
 import type { Prisma, PrismaClient } from '../generated/prisma/client.js';
 import { ExtractionError } from '../extraction/errors.js';
@@ -41,13 +41,18 @@ export class ChatStore {
       let sessionId=input.sessionId;
       if(sessionId){await tx.$queryRaw`SELECT id FROM fuzl.fuzl_sessions WHERE id=${sessionId}::uuid FOR UPDATE`;const session=await tx.planningSession.findFirst({where:{id:sessionId,groupId:group.id}});if(!session)throw denied();if(await tx.chatThread.findUnique({where:{sessionId}}))throw new ExtractionError(409,'chat_session_thread','This session already has an outing conversation. Open that thread.');}
       else sessionId=(await tx.planningSession.create({data:{groupId:group.id,title:input.title,summary:json(emptySummary()),provenance:[],origin:'manual'}})).id;
-      const thread=await tx.chatThread.create({data:{groupId:group.id,sessionId,title:input.title,creationId:input.creationId,creationHash:hash,sharedSummary:json(emptySummary()),members:{create:{authSubject:subject,joinId:randomUUID(),displayName:input.displayName,role:'organizer',canAI:true}}}});
+      const memberId=randomUUID();
+      const thread=await tx.chatThread.create({data:{groupId:group.id,sessionId,title:input.title,...(input.destination?{destination:json(input.destination),version:2,contentVersion:1,nextSequence:1}:{}),creationId:input.creationId,creationHash:hash,sharedSummary:json(emptySummary()),members:{create:{id:memberId,authSubject:subject,joinId:randomUUID(),displayName:input.displayName,role:'organizer',canAI:true}}}});
+      if(input.destination){
+        const text=`Outing destination: ${input.destination.label}. Local times for this outing use ${input.destination.timeZone}. Proposed times still need confirmation.`;
+        await tx.chatMessage.create({data:{threadId:thread.id,memberId,author:input.displayName,submissionId:randomUUID(),submissionHash:digest(text),sequence:1,changeVersion:2,kind:'person',body:text}});
+      }
       return thread.id;
     });
   }
   async thread(actor:ChatActor,id:string):Promise<ChatThread>{return this.locked(id,actor,async(tx,t,me)=>{
     const requests=await tx.chatRequest.findMany({where:{threadId:id},orderBy:{createdAt:'desc'},take:12});
-    return chatThreadSchema.parse({id:t.id,groupId:t.groupId,groupName:t.group.name,sessionId:t.sessionId,title:t.title,version:t.version,contentVersion:t.contentVersion,sharedVersion:t.sharedVersion,sharedSummary:t.sharedSummary,me:this.memberDTO(me),members:t.members.map(m=>({...this.memberDTO(m),planningParticipantId:me.role==='organizer'?m.planningParticipantId:null})),requests:requests.map(r=>this.requestDTO(r,t))});
+    return chatThreadSchema.parse({id:t.id,groupId:t.groupId,groupName:t.group.name,sessionId:t.sessionId,title:t.title,destination:t.destination?chatDestinationSchema.parse(t.destination):null,version:t.version,contentVersion:t.contentVersion,sharedVersion:t.sharedVersion,sharedSummary:t.sharedSummary,me:this.memberDTO(me),members:t.members.map(m=>({...this.memberDTO(m),planningParticipantId:me.role==='organizer'?m.planningParticipantId:null})),requests:requests.map(r=>this.requestDTO(r,t))});
   });}
   memberDTO(m:MemberRow){return {id:m.id,name:m.displayName,role:m.role,identity:m.authSubject?'account':'guest',canAI:m.canAI,active:this.active(m),planningParticipantId:m.planningParticipantId};}
   messageDTO(m:MessageRow){return chatMessageSchema.parse({id:m.id,submissionId:m.submissionId,memberId:m.memberId,author:m.author,kind:m.kind,sequence:m.sequence,changeVersion:m.changeVersion,text:m.deletedAt?null:m.body,createdAt:m.createdAt.toISOString(),deleted:!!m.deletedAt,requestId:m.requestId});}
@@ -129,6 +134,19 @@ export class ChatStore {
     if(old){if(old.threadId!==id||old.memberId!==me.id||old.inputHash!==hash)throw stale();return{thread:t,me,sessionRevision:session.revision,messages:[],job:old,existing:true};}
     if(t.contentVersion!==input.contentVersion||t.sharedVersion!==input.sharedVersion)throw stale();
     if(input.kind==='plan'&&t.activeUntil&&t.activeUntil.getTime()>this.now())throw new ExtractionError(429,'chat_ai_busy','Fuzl is already planning for this thread. Wait or cancel your current request.');
+    if(input.kind==='plan'&&process.env.NODE_ENV==='production'){
+      if(!actor.subject)throw new ExtractionError(401,'chat_account_required','Sign in to request AI planning. Guest messaging remains available.');
+      // One shared transaction lock makes quotas/leases effective across serverless instances.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(721104)::text`;
+      const now=this.now(), authSubject=actor.subject;
+      await tx.aiRequestLease.deleteMany({where:{createdAt:{lt:new Date(now-86400000)}}});
+      const minute=await tx.aiRequestLease.count({where:{authSubject,createdAt:{gte:new Date(now-60000)}}});
+      const day=await tx.aiRequestLease.count({where:{authSubject,createdAt:{gte:new Date(now-86400000)}}});
+      const active=await tx.aiRequestLease.count({where:{expiresAt:{gt:new Date(now)}}});
+      if(minute>=3||day>=20)throw new ExtractionError(429,'chat_ai_limit','AI limit reached: three requests per minute and twenty per 24 hours per account. No automatic retry or paid fallback.');
+      if(active>=2)throw new ExtractionError(429,'chat_ai_busy','Two planning requests are already running. Wait, then retry deliberately.');
+      await tx.aiRequestLease.create({data:{id:input.requestId,authSubject,createdAt:new Date(now),expiresAt:new Date(now+60000)}});
+    }
     const messages=(await tx.chatMessage.findMany({where:{threadId:id,kind:'person',deletedAt:null},orderBy:{sequence:'desc'},take:40})).reverse();
     const job=await tx.chatRequest.create({data:{id:input.requestId,threadId:id,memberId:me.id,inputHash:hash,kind:input.kind,state:'pending',contentVersion:t.contentVersion,sharedVersion:t.sharedVersion,sessionRevision:session.revision,sourceVersions:json(messages.map(m=>({id:m.id,version:m.changeVersion}))),message:'Working from this thread’s shared context.'}});
     await tx.chatThread.update({where:{id},data:{version:{increment:1},...(input.kind==='plan'?{activeRequestId:job.id,activeUntil:new Date(this.now()+60000)}:{})}});
@@ -146,7 +164,7 @@ export class ChatStore {
   async apply(actor:ChatActor,id:string,jobId:string,input:ChatApply){return this.locked(id,actor,async(tx,t,me)=>{
     this.owner(t,me);const job=await tx.chatRequest.findFirst({where:{id:jobId,threadId:id,kind:'plan'}});if(job?.state==='applied'&&(job.result as {acceptedHash?:string})?.acceptedHash===digest(JSON.stringify(input)))return{sessionId:t.sessionId,revision:job.sessionRevision+1};if(!job||job.state!=='ready'||job.contentVersion!==t.contentVersion||job.sharedVersion!==t.sharedVersion||input.contentVersion!==t.contentVersion||input.sharedVersion!==t.sharedVersion)throw stale();
     await tx.$queryRaw`SELECT id FROM fuzl.fuzl_sessions WHERE id=${t.sessionId}::uuid FOR UPDATE`;
-    if(job.contextHash){const session=await tx.planningSession.findUniqueOrThrow({where:{id:t.sessionId}});const current=await new PlaceStore(this.db).context(t.group.owner.authSubject,t.sessionId,{summary:savedSummarySchema.parse(session.summary),sessionRevision:session.revision});if(current.version!==job.contextHash)throw stale();}
+    if(job.contextHash){const session=await tx.planningSession.findUniqueOrThrow({where:{id:t.sessionId}});const current=await loadPlaceContext(tx,t.group.owner.authSubject,t.sessionId,{summary:savedSummarySchema.parse(session.summary),sessionRevision:session.revision},this.now());if(current.version!==job.contextHash)throw stale();}
     const result=job.result as {plan:ChatPlan},allowed=result.plan.summary;
     if(input.summary.facts.some(f=>f.guest)||input.summary.organizerDecisions?.length||input.summary.participants.some(p=>!allowed.participants.some(a=>a.id===p.id))||input.summary.sources.some(s=>!allowed.sources.some(a=>a.id===s.id&&a.text===s.text&&a.speakerId===s.speakerId))||input.summary.speakers.some(s=>!allowed.speakers.some(a=>a.id===s.id&&a.participantId===s.participantId)))throw new ExtractionError(422,'chat_shared_sources','Share only reviewed thread facts and unchanged native source references. Private session data cannot be added through this action.');
     const session=await tx.planningSession.findUniqueOrThrow({where:{id:t.sessionId}});if(session.revision!==job.sessionRevision)throw stale();

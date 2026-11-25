@@ -33,12 +33,13 @@ export function makeChatClient(token?:string,credential?:string,inviteToken?:str
       while(!signal.aborted){
         if(typeof document!=='undefined'&&document.hidden){await pause(1000,signal);continue;}
         onStatus(failures?'reconnecting':'connecting');
-        try{const response=await fetch(`/api/chat/threads/${id}/events`,{headers:headers(),signal,credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer'});
-          if([401,403,404].includes(response.status)){onStatus('revoked');return;}if(!response.ok||!response.body)throw Error('Connection unavailable');onStatus('live');
-          const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
-          try{while(!signal.aborted){const next=await reader.read();if(next.done)break;buffer+=decoder.decode(next.value,{stream:true});if(buffer.length>16000)throw Error('Unsupported event frame');const parsed=parseEvents(buffer);buffer=parsed.rest;for(const event of parsed.events){if(event.event==='revoked'){onStatus('revoked');return;}onVersion(event.version);}}}finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
-          failures=0;await pause(400,signal); // normal short lease: reverify identity on renewal
-        }catch{if(signal.aborted)return;if(++failures>=4){onStatus('disconnected');return;}onStatus('reconnecting');await pause(Math.min(8000,1000*2**(failures-1)),signal);}
+        try{
+          // Short authenticated polling works across serverless restarts. No open
+          // socket, browser cache or provider request is needed to receive messages.
+          const value=await call<{version:number}>(`/threads/${id}/version`,'GET',undefined,signal);
+          if(!Number.isSafeInteger(value.version)||value.version<0)throw Error('Invalid version');
+          onStatus('live');onVersion(value.version);failures=0;await pause(3500,signal);
+        }catch(error){if(signal.aborted)return;if(error instanceof ChatFailure&&[401,403,404].includes(error.status)){onStatus('revoked');return;}if(++failures>=4){onStatus('disconnected');return;}onStatus('reconnecting');await pause(Math.min(8000,1000*2**(failures-1)),signal);}
       }
     }};
 }

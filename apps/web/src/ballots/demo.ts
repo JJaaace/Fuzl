@@ -1,3 +1,4 @@
+import { newRecordId } from '@fuzl/planning';
 import { ballotPublishSchema, ballotTallySchema, shortlistSaveSchema, voteCreateSchema, voteEditSchema } from '@fuzl/planning';
 import type { BallotDashboard, BallotTally, OwnVote } from '@fuzl/planning';
 // UI-only simulator. No network, authentication or database claims. Real route
@@ -17,7 +18,7 @@ export function ballotDemo(onPublished: (token: string) => void) {
       if (!draft || !draft.content.options.length || draft.revision !== p.shortlistRevision || (previous?.id ?? null) !== p.expectedBallotId) throw Error('Save and preview the current demo shortlist first.');
       const version = (previous?.version ?? 0) + 1;
       if (previous) { previous.state = 'superseded'; previous.supersededByVersion = version; previous.revision++; }
-      const b = { ...structuredClone(draft.content), id: crypto.randomUUID(), version, revision: 1, state: 'open' as const, expiresAt: new Date(Date.now() + p.days * 86400000).toISOString(), supersededByVersion: null, counts: draft.content.options.map(o => ({ optionId: o.id, votes: 0 })), totalResponses: 0, votes: new Map(), token: p.inviteToken, publicationId: p.publicationId };
+      const b = { ...structuredClone(draft.content), id: newRecordId(), version, revision: 1, state: 'open' as const, expiresAt: new Date(Date.now() + p.days * 86400000).toISOString(), supersededByVersion: null, counts: draft.content.options.map(o => ({ optionId: o.id, votes: 0 })), totalResponses: 0, votes: new Map(), token: p.inviteToken, publicationId: p.publicationId };
       ballots.unshift(b); onPublished(p.inviteToken); return { ballot: publicView(b), token: b.token };
     }
     const b = ballots.find(b => path.includes(b.id)); if (!b) throw Error('Demo ballot unavailable'); b.state = path.endsWith('/close') ? 'closed' : 'revoked'; b.revision++; return undefined;

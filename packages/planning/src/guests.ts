@@ -1,3 +1,4 @@
+import { newRecordId } from './record-id.js';
 import { scopeGuestWindowSchema } from './participation-contract.js';
 import { z } from 'zod';
 import type { PlanningSummary, PlanningFact } from './model.js';
@@ -58,7 +59,7 @@ export function answerText(answer: GuestAnswer | PrivateAnswerMarker): string {
 export function guestSourceText(reply: Pick<OrganizerReply, 'alias' | 'revision' | 'questions'>, answer: GuestAnswer) { return `Guest reply from ${reply.alias}, revision ${reply.revision}: ${reply.questions.find(q => q.id === answer.questionId)?.text ?? 'Question'} — ${answerText(answer)}`; }
 export function participantForFact(fact: PlanningFact, summary: PlanningSummary) { const subject = fact.subject; return subject.kind === 'participant' ? subject.participantId : subject.kind === 'speaker' ? summary.speakers.find(s => s.id === subject.speakerId)?.participantId : null; }
 // Applied to the latest local summary, never a stale full-session snapshot.
-export function applyGuestAnswer(summary: PlanningSummary, reply: OrganizerReply, questionId: string, participantId: string, resolveId: string | null, supersedes: string | null, mode: 'fact' | 'question' = 'fact', uuid: () => string = () => crypto.randomUUID()): PlanningSummary {
+export function applyGuestAnswer(summary: PlanningSummary, reply: OrganizerReply, questionId: string, participantId: string, resolveId: string | null, supersedes: string | null, mode: 'fact' | 'question' = 'fact', uuid: () => string = () => newRecordId()): PlanningSummary {
     if (!summary.participants.some(p => p.id === participantId))
         throw new Error('Match this alias to an existing participant first.');
     const answer = reply.answers.find(a => a.questionId === questionId);

@@ -1,3 +1,4 @@
+import { newRecordId } from '@fuzl/planning';
 import { guestFormSchema, guestReplySchema, guestTokenSchema } from '@fuzl/planning';
 import type { GuestReply, ResponseInput } from '@fuzl/planning';
 export async function guestRequest<T>(path: string, token: string, signal: AbortSignal, method = 'GET', body?: unknown, inviteToken?: string, base = '/api/guest'): Promise<T> {
@@ -25,7 +26,7 @@ export interface EditPermission {
 }
 export function newEditPermission(): EditPermission {
     const bytes = crypto.getRandomValues(new Uint8Array(32));
-    return { submissionId: crypto.randomUUID(), editToken: btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '') };
+    return { submissionId: newRecordId(), editToken: btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '') };
 }
 export function captureGuestEntry(href: string, replace: (path: string) => void, storage: Pick<Storage, 'getItem' | 'setItem'>, path = '/guest', slot = 'fuzl-guest-invite'): string | null {
     const url = new URL(href);

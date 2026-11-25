@@ -8,8 +8,8 @@ import type { TranscriptSnapshot } from '@fuzl/planning';
 test('screenshot controls disclose two deliberate requests and preserve an accessible separate pasted-text workflow', () => {
   const html = renderToStaticMarkup(<ScreenshotPanel onUse={() => false} onTranscriptChange={() => {}} onFilesChange={() => {}} onClear={() => {}} />);
   assert.ok(html.includes('type="file"') && html.includes('multiple=""') && html.includes('accept="image/png,image/jpeg"'));
-  assert.ok(html.includes('Read screenshots') && html.includes('separate AI requests'));
-  assert.ok(html.includes('Google Gemini') && html.includes('provider-held data'));
+  assert.ok(html.includes('Read screenshots') && html.includes('separate, explicit AI requests'));
+  assert.ok(html.includes('Google Gemini') && html.includes('Privacy &amp; provider details') && html.includes('human review'));
   assert.ok(html.includes('5 MiB') && html.includes('15 MiB') && html.includes('4096'));
 });
 test('source trail distinguishes image-model text, organizer corrections and removed image references', () => {

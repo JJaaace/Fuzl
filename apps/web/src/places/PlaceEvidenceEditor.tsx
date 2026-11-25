@@ -1,3 +1,4 @@
+import { newRecordId } from '@fuzl/planning';
 import { useState } from 'react';
 import { emptySelection, listingKey, placeClaimSchema, placeEvidence, placeKey } from '@fuzl/planning';
 import type { PlaceCandidate, PlaceClaim, PlaceCorrection } from '@fuzl/planning';
@@ -15,7 +16,7 @@ export default function PlaceEvidenceEditor({ candidate, disabled, onReview }: {
     const value = field === 'address' ? { address: form.address.trim(), city: form.city.trim() || null, state: form.state.trim() || null, lat: form.lat === '' ? null : Number(form.lat), lon: form.lon === '' ? null : Number(form.lon), timeZone: form.timeZone || null }
       : field === 'price' ? { amount: form.amount === '' ? null : Number(form.amount), currency: form.currency.toUpperCase() || null, basis: form.basis, coverage: form.coverage }
         : field === 'hours' ? { kind: form.hoursKind, text: form.hoursText || null, date: form.date || null, start: form.start || null, end: form.end || null, timeZone: form.timeZone || null, closed: form.closed } : form.url;
-    const parsed = placeClaimSchema.safeParse({ id: crypto.randomUUID(), field, value, source: { kind: form.sourceKind, url: form.url, checkedOn: form.checkedOn, verifiedForVenue: true }, ...(['hours', 'price'].includes(field) ? { addressId: form.addressId || undefined } : {}), ...(field === 'official-link' ? { matchNote: form.matchNote } : {}) });
+    const parsed = placeClaimSchema.safeParse({ id: newRecordId(), field, value, source: { kind: form.sourceKind, url: form.url, checkedOn: form.checkedOn, verifiedForVenue: true }, ...(['hours', 'price'].includes(field) ? { addressId: form.addressId || undefined } : {}), ...(field === 'official-link' ? { matchNote: form.matchNote } : {}) });
     if (!parsed.success || field === 'official-link' && (form.sourceKind !== 'official-page' || !form.url.startsWith('https://'))) { setError('Check the source link, date and detail fields. Official links need HTTPS and a specific identity-match note; date-specific hours need date/window/zone and an address.'); return; }
     if (own.length >= 8) { setError('This place has eight recorded details. Clear its recorded details deliberately before adding more.'); return; }
     const claim = parsed.data;
